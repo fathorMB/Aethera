@@ -1,0 +1,46 @@
+{
+  "name": "gpt-oss-20b.mxfp4.vulkan",
+  "gate": "G3",
+  "model": {
+    "repo": "ggml-org/gpt-oss-20b-GGUF",
+    "file": "gpt-oss-20b-mxfp4.gguf",
+    "path": "gpt-oss-20b-mxfp4.gguf",
+    "sha256": null,
+    "size_gb": 12.11,
+    "quant": "MXFP4"
+  },
+  "runtime": {
+    "kind": "llama.cpp",
+    "backend": "vulkan",
+    "binary": "llama-server.exe",
+    "version": null
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "ctx": 32768,
+    "n_parallel": 1,
+    "n_gpu_layers": 999,
+    "flash_attn": "on",
+    "ubatch": 512,
+    "batch": 2048,
+    "cache_type_k": "f16",
+    "cache_type_v": "f16",
+    "metrics": true,
+    "jinja": true,
+    "extra_args": [],
+    "slot_save_path": "manifests/slots"
+  },
+  "sampling": {
+    "temperature": 1.0,
+    "top_p": 1.0,
+    "top_k": 0,
+    "min_p": 0.0,
+    "repeat_penalty": 1.0
+  },
+  "harness": {
+    "diorama_context_window": 28672,
+    "reserved_output_tokens": 4096
+  },
+  "notes": "Controllo di famiglia indipendente e termine di paragone per i percorsi NPU di G4. Attenzione: gpt-oss puo' restituire content vuoto con la risposta in reasoning_content; il client deve leggere entrambi i campi. Formato MXFP4 distribuito, non una ri-quantizzazione."
+}

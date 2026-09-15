@@ -10,7 +10,7 @@ generated: true
 | Priority | ID | Milestone | Status | Tasks | Progress |
 | --- | --- | --- | --- | --- | --- |
 | 1 | M-01 | Mockup di design della v1 | done | 7/7 | 100% |
-| 2 | M-02 | Scheletro Tauri, schema dei profili e ciclo di vita del motore | approved | 0/10 | 0% |
+| 2 | M-02 | Scheletro Tauri, schema dei profili e ciclo di vita del motore | done | 10/10 | 100% |
 
 ## M-01 — Mockup di design della v1
 
@@ -21,7 +21,7 @@ generated: true
 
 ## M-02 — Scheletro Tauri, schema dei profili e ciclo di vita del motore
 
-- `status`: approved
+- `status`: done
 - `priority`: 2
 - `file`: milestones/M-02.md
 - `outcome`: Aethera si avvia come app Tauri 2 + SolidJS con la navigazione del mockup, legge machine.toml e i profili TOML validati da uno schema, avvia e ferma un llama-server reale da profilo con riga di comando visibile, scrive il manifest dell'avvio e mostra lo stato del motore (spento, in caricamento, pronto, uscito con errore) sulla pagina Motore.

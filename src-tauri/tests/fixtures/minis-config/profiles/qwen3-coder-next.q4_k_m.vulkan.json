@@ -1,0 +1,46 @@
+{
+  "name": "qwen3-coder-next.q4_k_m.vulkan",
+  "gate": "G3",
+  "model": {
+    "repo": "unsloth/Qwen3-Coder-Next-GGUF",
+    "file": "Qwen3-Coder-Next-Q4_K_M.gguf",
+    "path": "Qwen3-Coder-Next-Q4_K_M.gguf",
+    "sha256": null,
+    "size_gb": 48.53,
+    "quant": "Q4_K_M"
+  },
+  "runtime": {
+    "kind": "llama.cpp",
+    "backend": "vulkan",
+    "binary": "llama-server.exe",
+    "version": null
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "ctx": 32768,
+    "n_parallel": 1,
+    "n_gpu_layers": 999,
+    "flash_attn": "on",
+    "ubatch": 512,
+    "batch": 2048,
+    "cache_type_k": "f16",
+    "cache_type_v": "f16",
+    "metrics": true,
+    "jinja": true,
+    "extra_args": [],
+    "slot_save_path": "manifests/slots"
+  },
+  "sampling": {
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "top_k": 40,
+    "min_p": 0.01,
+    "repeat_penalty": 1.0
+  },
+  "harness": {
+    "diorama_context_window": 28672,
+    "reserved_output_tokens": 4096
+  },
+  "notes": "Sfidante principale. Unica testimonianza esterna su 890M/Vulkan: TG 17,6 e PP 53,8 con flash attention e 49 layer offloadati (ProgenyAlpha, 2026-02-11). Non e' una previsione per noi. Sorvegliare il picco di memoria: 48,53 GB di soli pesi."
+}

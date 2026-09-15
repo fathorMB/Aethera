@@ -1,0 +1,29 @@
+﻿{
+    "schema_version":  1,
+    "started_at":  "2026-09-15T18:26:08.4936522+02:00",
+    "profile":  "qwen3.6-35b-a3b.q4_k_m.vulkan",
+    "gate":  "G1",
+    "profile_file":  "C:\\Git\\minis-config\\profiles\\qwen3.6-35b-a3b.q4_k_m.vulkan.json",
+    "model_path":  "C:\\Git\\minis-config\\models\\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
+    "model_size_gb":  22.29,
+    "model_sha256":  "b46fedd33e0bfb0cae308aa3c158d0a4b2c4a1d2185a1ed6f093cdaf39064772",
+    "binary":  "C:\\Nonio\\llama-b10809-vulkan\\llama-server.exe",
+    "binary_version":  null,
+    "command_line":  "\"C:\\Nonio\\llama-b10809-vulkan\\llama-server.exe\" --model C:\\Git\\minis-config\\models\\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf --host 127.0.0.1 --port 8080 --ctx-size 32768 --parallel 1 --n-gpu-layers 999 --ubatch-size 4096 --batch-size 4096 --flash-attn on --cache-type-k f16 --cache-type-v f16 --alias qwen3.6-35b-a3b.q4_k_m.vulkan --slot-save-path C:\\Git\\minis-config\\manifests\\slots --metrics --jinja --spec-type draft-mtp --spec-draft-n-max 3",
+    "base_url":  "http://127.0.0.1:8080",
+    "pid":  12400,
+    "load_seconds":  9.2,
+    "ctx_declared":  32768,
+    "ctx_served":  32768,
+    "harness_window":  28672,
+    "reserved_output":  4096,
+    "sampling":  {
+                     "temperature":  0.7,
+                     "top_p":  0.8,
+                     "top_k":  20,
+                     "min_p":  0.0,
+                     "presence_penalty":  1.5,
+                     "repeat_penalty":  1.0
+                 },
+    "log":  "C:\\Git\\minis-config\\manifests\\serve-qwen3.6-35b-a3b.q4_k_m.vulkan-20260915-182608.log"
+}

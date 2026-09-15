@@ -1,0 +1,47 @@
+{
+  "name": "qwen3.6-35b-a3b.q4_k_m.vulkan",
+  "gate": "G1",
+  "model": {
+    "repo": "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF",
+    "file": "Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
+    "path": "Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
+    "sha256": "b46fedd33e0bfb0cae308aa3c158d0a4b2c4a1d2185a1ed6f093cdaf39064772",
+    "size_gb": 22.29,
+    "quant": "Q4_K_M"
+  },
+  "runtime": {
+    "kind": "llama.cpp",
+    "backend": "vulkan",
+    "binary": "llama-server.exe",
+    "version": null
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "ctx": 32768,
+    "n_parallel": 1,
+    "n_gpu_layers": 999,
+    "flash_attn": "on",
+    "ubatch": 4096,
+    "batch": 4096,
+    "cache_type_k": "f16",
+    "cache_type_v": "f16",
+    "metrics": true,
+    "jinja": true,
+    "extra_args": ["--spec-type", "draft-mtp", "--spec-draft-n-max", "3"],
+    "slot_save_path": "manifests/slots"
+  },
+  "sampling": {
+    "temperature": 0.7,
+    "top_p": 0.8,
+    "top_k": 20,
+    "min_p": 0.0,
+    "presence_penalty": 1.5,
+    "repeat_penalty": 1.0
+  },
+  "harness": {
+    "diorama_context_window": 28672,
+    "reserved_output_tokens": 4096
+  },
+  "notes": "Baseline del gate G1. Partire SENZA thinking esplicito per edit e test ordinari; il profilo thinking e' un secondo profilo, non un flag da cambiare a meta' sessione. Sampling della model card Qwen3.6-35B-A3B per la modalita' instruct/non-thinking (temperature 0.7, top_p 0.8, top_k 20, min_p 0, presence_penalty 1.5), verificato il 2026-09-15: fino ad allora il profilo portava 1.0/0.95 senza presence_penalty, cioe' i valori del thinking. Velocita' (b10809 Vulkan, 2026-09-15, docs/13 par. 7 e Nonio benchmark par. 17): -ub/-b 4096 porta il prefill da ~276 a ~366 tok/s su 7.200 token (-ub 1024 invece peggiora, l'andamento non e' monotono); draft-mtp con 3 token proposti usa il layer MTP gia' nel GGUF e porta il decode da ~21 a ~33 tok/s su codice da riscrivere e da 21,3 a 23,6 su codice nuovo con questo campionamento, ma rallenta un riassunto su contesto lungo (18,2 contro 19,5). MTP richiede n_parallel = 1."
+}

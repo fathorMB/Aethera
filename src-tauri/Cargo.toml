@@ -1,0 +1,36 @@
+[package]
+name = "aethera"
+version = "0.1.0"
+description = "Launcher desktop per llama-server"
+edition = "2021"
+rust-version = "1.80"
+
+[lib]
+name = "aethera_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "aethera"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "6"
+ureq = { version = "3", features = ["json"] }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_System_JobObjects",
+  "Win32_System_SystemInformation",
+] }

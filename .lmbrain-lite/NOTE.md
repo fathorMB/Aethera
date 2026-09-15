@@ -2,4 +2,4 @@
 updated: 2026-09-15
 by: lead
 ---
-M-01 chiuso (mockup approvati, soglie confermate). Da approvare: **M-02 Scheletro Tauri, schema dei profili e ciclo di vita del motore** (10 task). Memoria misurata, telemetria, catalogo con download e endpoint proprio sono rimandati a M-03/M-04.
+**M-02 chiuso** (15-09): Aethera avvia e ferma G1 dalla finestra, con manifest e preflight di Nonio superato. Da decidere: commit del lavoro e proposta di **M-03** (memoria misurata, telemetria, stato «in uso» ed endpoint :8090). Sulla PowerShell dell'operatore si lancia `npm.cmd run tauri dev`.

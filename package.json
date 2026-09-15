@@ -1,0 +1,25 @@
+{
+  "name": "aethera",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Aethera: launcher desktop per llama-server.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "solid-js": "^1.9.5"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.3",
+    "typescript": "^5.9.2",
+    "vite": "^6.3.5",
+    "vite-plugin-solid": "^2.11.6",
+    "vitest": "^3.2.4"
+  }
+}
