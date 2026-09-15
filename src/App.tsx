@@ -7,6 +7,7 @@ import { StateBadge, Toggle, UsageBadge } from "./components";
 import { duration } from "./format";
 import Avvio from "./pages/Avvio";
 import Benchmark from "./pages/Benchmark";
+import Catalogo from "./pages/Catalogo";
 import Impostazioni from "./pages/Impostazioni";
 import Motore from "./pages/Motore";
 
@@ -260,8 +261,7 @@ export default function App() {
                   <Avvio overview={o()} status={status()} onStarted={() => setPage("motore")} />
                 </Match>
                 <Match when={page() === "catalogo"}>
-                  <h1>Catalogo</h1>
-                  <p class="sub">Pesi e build con download e SHA-256: arriva con un milestone successivo.</p>
+                  <Catalogo />
                 </Match>
                 <Match when={page() === "benchmark"}>
                   <Benchmark />

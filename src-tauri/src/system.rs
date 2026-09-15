@@ -2,6 +2,7 @@
 //! altrove i valori restano sconosciuti (`None`), mai stimati.
 
 use serde::Serialize;
+use std::path::Path;
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct GpuReport {
@@ -52,6 +53,17 @@ pub trait SystemProbe {
     fn terminate(&self, _pid: u32) -> Result<(), String> {
         Err("terminare un processo non è supportato su questo sistema".into())
     }
+
+    /// Quanti nomi puntano a questo stesso file: `lms import -L` di LM Studio crea un hard link.
+    /// Un file con più collegamenti non si cancella senza dirlo.
+    fn hard_links(&self, _path: &Path) -> Option<u32> {
+        None
+    }
+
+    /// Spazio libero sul volume che contiene il percorso: si controlla prima di un download.
+    fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
+        None
+    }
 }
 
 pub fn probe() -> Box<dyn SystemProbe> {
@@ -85,6 +97,10 @@ mod windows_probe {
     use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::NetworkManagement::IpHelper::{GetExtendedTcpTable, MIB_TCPTABLE_OWNER_PID, TCP_TABLE_OWNER_PID_LISTENER};
     use windows::Win32::Networking::WinSock::AF_INET;
+    use windows::Win32::Storage::FileSystem::{
+        CreateFileW, GetDiskFreeSpaceExW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_NORMAL,
+        FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+    };
     use windows::Win32::System::Performance::{
         PdhAddEnglishCounterW, PdhCloseQuery, PdhCollectQueryData, PdhGetFormattedCounterArrayW, PdhOpenQueryW,
         PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_LARGE, PDH_HCOUNTER, PDH_HQUERY, PDH_MORE_DATA,
@@ -146,6 +162,57 @@ mod windows_probe {
                 let _ = CloseHandle(h);
                 r
             }
+        }
+
+        fn hard_links(&self, path: &Path) -> Option<u32> {
+            hard_links(path)
+        }
+
+        fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+            free_disk_bytes(path)
+        }
+    }
+
+    fn wide(s: &std::ffi::OsStr) -> Vec<u16> {
+        use std::os::windows::ffi::OsStrExt;
+        s.encode_wide().chain(std::iter::once(0)).collect()
+    }
+
+    /// `nNumberOfLinks` dal handle: 1 significa che quel file esiste con un nome solo.
+    fn hard_links(path: &Path) -> Option<u32> {
+        unsafe {
+            let w = wide(path.as_os_str());
+            // Accesso 0: bastano i metadati, e non disturba un file che il motore sta usando.
+            let h = CreateFileW(
+                PCWSTR(w.as_ptr()),
+                0,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                None,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                None,
+            )
+            .ok()?;
+            let mut info = BY_HANDLE_FILE_INFORMATION::default();
+            let r = GetFileInformationByHandle(h, &mut info).ok().map(|_| info.nNumberOfLinks);
+            let _ = CloseHandle(h);
+            r
+        }
+    }
+
+    fn free_disk_bytes(path: &Path) -> Option<u64> {
+        // Il percorso può non esistere ancora (file da scaricare): si sale alla prima cartella che c'è.
+        let mut dir = path.to_path_buf();
+        while !dir.is_dir() {
+            if !dir.pop() {
+                return None;
+            }
+        }
+        unsafe {
+            let w = wide(dir.as_os_str());
+            let mut free = 0u64;
+            GetDiskFreeSpaceExW(PCWSTR(w.as_ptr()), Some(&mut free), None, None).ok()?;
+            Some(free)
         }
     }
 

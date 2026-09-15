@@ -49,6 +49,10 @@ h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacin
 .btn.danger { color: var(--err); border-color: var(--err) }
 .btn:disabled { opacity: .45; cursor: not-allowed }
 .btn.sm { padding: 2px 8px; font-size: 12px }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: 0 0 12px }
+.tabs button { padding: 6px 14px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--fg2); cursor: pointer }
+.tabs button:hover { color: var(--fg) }
+.tabs button.on { color: var(--fg); border-bottom-color: var(--acc) }
 .grid { display: grid; gap: 12px }
 .g2 { grid-template-columns: 1fr 1fr } .g3 { grid-template-columns: 1fr 1fr 1fr } .g4 { grid-template-columns: repeat(4, 1fr) }
 .card { background: var(--bg2); border: 1px solid var(--line); border-radius: 4px; padding: 12px }
@@ -78,6 +82,11 @@ tr.click:hover td { background: var(--bg3) }
 .spark b { flex: 1; background: var(--acc); opacity: .75; border-radius: 1px 1px 0 0; min-width: 2px }
 .spark b.lo { background: var(--err); opacity: 1 }
 .spark b.nil { height: 100%; background: transparent; border: 1px dashed var(--line); opacity: 1 }
+.bar { height: 5px; background: var(--bg3); border: 1px solid var(--line); border-radius: 3px; overflow: hidden }
+.bar span { display: block; height: 100%; background: var(--acc) }
+.bar.ok span { background: var(--ok) } .bar.warn span { background: var(--warn) } .bar.err span { background: var(--err) }
+.legend { display: inline-flex; gap: 12px; flex-wrap: wrap; color: var(--fg3); font-size: 11px }
+.legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px }
 .toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none }
 .toggle i { width: 30px; height: 16px; border-radius: 8px; background: var(--fg3); position: relative; display: inline-block }
 .toggle i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: .15s }

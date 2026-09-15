@@ -1,8 +1,14 @@
+pub mod builds;
+pub mod catalog;
 pub mod clients;
 pub mod cmdline;
 mod commands;
+pub mod download;
 pub mod endpoint;
 pub mod engine;
+pub mod estimate;
+pub mod gguf;
+pub mod hash;
 pub mod import;
 mod job;
 pub mod launch;
@@ -13,6 +19,7 @@ pub mod profile;
 pub mod runs;
 pub mod settings;
 pub mod system;
+pub mod tasks;
 pub mod telemetry;
 pub mod tray;
 
@@ -30,6 +37,10 @@ pub struct AppState {
     pub engine: Engine,
     /// Indirizzo dell'endpoint di Aethera, o perché non è partito.
     pub endpoint: Result<String, String>,
+    /// Lavori lunghi del catalogo (hash, download, installazioni) con il loro avanzamento.
+    pub tasks: tasks::Tasks,
+    /// Serializza i cicli leggi-modifica-scrivi su `catalog.toml`.
+    pub catalog_lock: Mutex<()>,
 }
 
 impl AppState {
@@ -54,7 +65,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .manage(AppState { settings: Mutex::new(AppSettings::load()), engine, endpoint })
+        .manage(AppState {
+            settings: Mutex::new(AppSettings::load()),
+            engine,
+            endpoint,
+            tasks: tasks::Tasks::default(),
+            catalog_lock: Mutex::new(()),
+        })
         .invoke_handler(tauri::generate_handler![
             commands::overview,
             commands::set_data_root,
@@ -75,6 +92,19 @@ pub fn run() {
             commands::runs_list,
             commands::run_detail,
             commands::runs_compare,
+            commands::catalog_list,
+            commands::catalog_verify,
+            commands::catalog_add,
+            commands::catalog_download,
+            commands::catalog_reread,
+            commands::catalog_removal_plan,
+            commands::catalog_remove,
+            commands::builds_list,
+            commands::builds_install,
+            commands::build_devices,
+            commands::tasks_list,
+            commands::task_cancel,
+            commands::tasks_clear,
             commands::app_exit,
         ])
         .setup(|app| {

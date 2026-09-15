@@ -2,8 +2,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
 import * as api from "../api";
 import type { EngineStatus, Issue, Overview, Preview, Profile, ProfileEntry } from "../api";
-import { CommandLine, copy } from "../components";
-import { getPath, sameValue, setPath, show } from "../format";
+import { CommandLine, copy, Val } from "../components";
+import { fixed, getPath, sameValue, setPath, show } from "../format";
 
 type Kind = "text" | "opttext" | "int" | "optint" | "optfloat" | "bool" | "select" | "list";
 
@@ -336,6 +336,77 @@ export default function Avvio(props: {
             </For>
           </div>
           <hr />
+          <div class="card mb">
+            <h2>
+              Stima memoria <span class="r">prima dell'avvio</span>
+            </h2>
+            <Show when={preview()?.estimate} fallback={<div class="cond">Scegli un profilo per vedere la stima.</div>}>
+              {(e) => {
+                const gb = (b: number | null) => (b == null ? null : fixed(b / 1e9, 2));
+                const vgm = () => props.overview.system.gpus.find((g) => g.dedicated_gib)?.dedicated_gib ?? null;
+                const quota = () => {
+                  const t = e().total_bytes;
+                  const v = vgm();
+                  return t && v ? Math.min(100, (t / (v * 1024 ** 3)) * 100) : 0;
+                };
+                return (
+                  <>
+                    <dl class="kv">
+                      <dt>Pesi</dt>
+                      <dd class="num">
+                        <Val v={gb(e().weights_bytes)} unit="GB" />
+                      </dd>
+                      <dt>
+                        Cache KV <span class="cond">@{edited()?.server.ctx}</span>
+                      </dt>
+                      <dd class="num">
+                        <Val v={gb(e().kv_bytes)} unit="GB" />
+                      </dd>
+                      <Show when={e().state_bytes}>
+                        <dt>Stato ricorrente</dt>
+                        <dd class="num">
+                          <Val v={gb(e().state_bytes)} unit="GB" />
+                        </dd>
+                      </Show>
+                      <dt>Buffer di calcolo</dt>
+                      <dd class="num">
+                        <Val v={gb(e().compute_bytes)} unit="GB" />
+                        <Show when={e().compute_from}>
+                          <span class="cond"> misurato su {e().compute_from}</span>
+                        </Show>
+                      </dd>
+                      <dt>{e().total_is_lower_bound ? "Totale minimo" : "Totale stimato"}</dt>
+                      <dd class="num">
+                        <b>
+                          {e().total_is_lower_bound ? "≥ " : "~ "}
+                          {gb(e().total_bytes)} GB
+                        </b>
+                        <Show when={vgm()}>
+                          <span class="cond"> / {fixed(vgm()!, 0)} GiB dedicati</span>
+                        </Show>
+                      </dd>
+                    </dl>
+                    <Show when={vgm()}>
+                      <div class={`bar ${quota() > 95 ? "err" : quota() > 85 ? "warn" : "ok"}`} style={{ "margin-top": "6px" }}>
+                        <span style={{ width: `${quota()}%` }} />
+                      </div>
+                    </Show>
+                    <For each={e().notes}>
+                      {(n) => (
+                        <div class="cond" style={{ "margin-top": "4px" }}>
+                          {n}
+                        </div>
+                      )}
+                    </For>
+                    <div class="cond" style={{ "margin-top": "6px" }}>
+                      Stima, sostituita dalla misura dopo l'avvio.
+                    </div>
+                  </>
+                );
+              }}
+            </Show>
+          </div>
+
           <div class="card">
             <h2>Importa da minis-config</h2>
             <div class="field" style={{ "grid-template-columns": "60px 1fr" }}>

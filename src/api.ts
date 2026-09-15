@@ -84,6 +84,7 @@ export interface Preview {
   binary: string | null;
   model_path: string | null;
   model_size_gb: number | null;
+  estimate: Estimate | null;
 }
 
 export interface BuildEntry {
@@ -313,6 +314,135 @@ export interface Comparison {
   profile_diff: Override[];
   conditions: { label: string; a: string | null; b: string | null }[];
 }
+
+// --- Catalogo (M-04) ---
+
+export interface ModelInfo {
+  arch: string | null;
+  name: string | null;
+  block_count: number | null;
+  context_train: number | null;
+  embedding_length: number | null;
+  head_count: number | null;
+  head_count_kv: number | null;
+  key_length: number | null;
+  value_length: number | null;
+  expert_count: number | null;
+  expert_used_count: number | null;
+  mtp_layers: number | null;
+  full_attention_interval: number | null;
+  ssm_conv_kernel: number | null;
+  ssm_state_size: number | null;
+  ssm_group_count: number | null;
+  ssm_inner_size: number | null;
+  dominant_type: string | null;
+  file_type: number | null;
+  mtp_types: string[];
+  vocab_size: number | null;
+  tensor_count: number;
+}
+
+export interface Estimate {
+  weights_bytes: number | null;
+  kv_bytes: number | null;
+  state_bytes: number | null;
+  compute_bytes: number | null;
+  compute_from: string | null;
+  total_bytes: number | null;
+  /** Senza buffer di calcolo misurato il totale è un minimo, non una previsione. */
+  total_is_lower_bound: boolean;
+  full_attention_blocks: number | null;
+  notes: string[];
+}
+
+export type ModelState = "verified" | "present" | "mismatch" | "downloading" | "downloadable" | "missing";
+
+export interface ModelRow {
+  id: string;
+  repo: string | null;
+  file: string;
+  quant: string | null;
+  size_gb: number | null;
+  size_bytes: number | null;
+  path: string | null;
+  state: ModelState;
+  sha256: string | null;
+  sha256_verified: string | null;
+  verified_at: string | null;
+  info: ModelInfo | null;
+  estimate: Estimate | null;
+  estimate_ctx: number | null;
+  estimate_profile: string | null;
+  hard_links: number | null;
+  part_bytes: number | null;
+  profiles: string[];
+  sampling_by_mode: Record<string, Sampling>;
+}
+
+export interface RemovalPlan {
+  file: string;
+  path: string | null;
+  hard_links: number | null;
+  warnings: string[];
+}
+
+export type TaskKind = "verify" | "download" | "install";
+export type TaskState = "running" | "done" | "failed" | "cancelled";
+
+export interface TaskView {
+  id: string;
+  kind: TaskKind;
+  target: string;
+  state: TaskState;
+  done: number;
+  total: number | null;
+  message: string | null;
+  started: string;
+  ended: string | null;
+}
+
+export interface Device {
+  id: string;
+  name: string;
+  total_mib: number;
+  free_mib: number;
+}
+
+export interface Asset {
+  name: string;
+  size: number;
+  digest: string | null;
+  url: string;
+  backend: string;
+}
+
+export interface Release {
+  tag: string;
+  published: string | null;
+  assets: Asset[];
+}
+
+export interface BuildsView {
+  installed: ResolvedBuild[];
+  used_by: Record<string, number>;
+  releases: Release[];
+  releases_error: string | null;
+}
+
+export const catalogList = () => invoke<ModelRow[]>("catalog_list");
+export const catalogVerify = (id: string) => invoke<string>("catalog_verify", { id });
+export const catalogAdd = (repo: string, file: string) => invoke<ModelRow[]>("catalog_add", { repo, file });
+export const catalogDownload = (id: string) => invoke<string>("catalog_download", { id });
+export const catalogReread = (id: string) => invoke<ModelRow[]>("catalog_reread", { id });
+export const catalogRemovalPlan = (id: string) => invoke<RemovalPlan>("catalog_removal_plan", { id });
+export const catalogRemove = (id: string, deleteFile: boolean, confirm: boolean) =>
+  invoke<ModelRow[]>("catalog_remove", { id, deleteFile, confirm });
+export const buildsList = (refresh: boolean) => invoke<BuildsView>("builds_list", { refresh });
+export const buildsInstall = (tag: string, backend: string) => invoke<string>("builds_install", { tag, backend });
+export const buildDevices = (id: string) => invoke<Device[]>("build_devices", { id });
+export const tasksList = () => invoke<TaskView[]>("tasks_list");
+export const taskCancel = (id: string) => invoke<void>("task_cancel", { id });
+export const tasksClear = () => invoke<number>("tasks_clear");
 
 export const overview = () => invoke<Overview>("overview");
 export const setDataRoot = (path: string) => invoke<Overview>("set_data_root", { path });
