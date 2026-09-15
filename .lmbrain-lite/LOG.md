@@ -30,3 +30,4 @@ One line per action. Format: `timestamp | by:<who> | <target or -> | <kind> | <m
 2026-09-15T22:33 | by:lead | M-02 | milestone | created 'Scheletro Tauri, schema dei profili e ciclo di vita del motore' with 10 tasks (proposed)
 2026-09-15T22:33 | by:lead | M-01 | decision | Soglie del mockup confermate dall'operatore: degradato 24 h / decode < 70 % della mediana, finestra «in uso» 30 s, endpoint Aethera :8090, stato «orfano» adottabile in sola lettura.
 2026-09-15T22:55 | by:operator | M-02 | status | proposed -> approved
+2026-09-15T22:56 | by:lead | - | commit | Commit e push su origin/main di kit lmbrain-lite, decisioni, mockup aethera-v1 e milestone M-01 (done) / M-02 (proposed); sessione di analisi chiusa.
