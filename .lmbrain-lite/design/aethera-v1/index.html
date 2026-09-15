@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aethera — mockup v1</title>
+<style>
+:root{
+  --bg:#f4f5f7;--bg2:#ffffff;--bg3:#e9ebef;--line:#d5d8de;--fg:#1a1c20;--fg2:#5b6270;--fg3:#8a9099;
+  --acc:#2f6fed;--ok:#1f9d55;--warn:#c77d0a;--err:#d23b3b;--busy:#8a4fd6;--mod:#c77d0a;
+  --mono:"Cascadia Mono","JetBrains Mono",Consolas,ui-monospace,monospace;
+  --sans:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#141619;--bg2:#1c1f24;--bg3:#24282f;--line:#30353d;--fg:#e6e8eb;--fg2:#a3a9b3;--fg3:#6f7680;
+  --acc:#5b8dff;--ok:#3ec46f;--warn:#e5a23a;--err:#ef5a5a;--busy:#b287f0;--mod:#e5a23a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font:13px/1.45 var(--sans)}
+code,.mono{font-family:var(--mono);font-size:12px}
+a{color:var(--acc)}
+button{font:inherit;color:inherit}
+
+/* ===== shell ===== */
+.app{display:grid;grid-template-rows:40px 1fr;grid-template-columns:172px 1fr;height:100vh;min-width:1180px}
+.top{grid-column:1/3;display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.brand{font-weight:600;letter-spacing:.3px}
+.brand small{color:var(--fg3);font-weight:400;margin-left:6px}
+.top .spacer{flex:1}
+.nav{background:var(--bg2);border-right:1px solid var(--line);padding:8px 0;display:flex;flex-direction:column}
+.nav button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:8px 14px;background:none;border:0;border-left:3px solid transparent;color:var(--fg2);cursor:pointer}
+.nav button:hover{background:var(--bg3)}
+.nav button.on{color:var(--fg);border-left-color:var(--acc);background:var(--bg3)}
+.nav .k{font-family:var(--mono);color:var(--fg3);font-size:11px;margin-left:auto}
+.nav .foot{margin-top:auto;padding:10px 14px;color:var(--fg3);font-size:11px;border-top:1px solid var(--line)}
+.main{overflow:auto;padding:14px 18px}
+.page{display:none}.page.on{display:block}
+h1{font-size:16px;font-weight:600;margin:0 0 2px}
+h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--fg2);margin:0 0 8px}
+.sub{color:var(--fg3);margin:0 0 14px}
+
+/* ===== atoms ===== */
+.badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--bg3);white-space:nowrap}
+.badge i{width:7px;height:7px;border-radius:50%;background:var(--fg3);display:inline-block}
+.badge.ok i{background:var(--ok)}.badge.warn i{background:var(--warn)}.badge.err i{background:var(--err)}.badge.busy i{background:var(--busy)}.badge.acc i{background:var(--acc)}
+.badge.ok{color:var(--ok)}.badge.warn{color:var(--warn)}.badge.err{color:var(--err)}.badge.busy{color:var(--busy)}.badge.acc{color:var(--acc)}
+.pill{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;background:var(--bg3);color:var(--fg2);border:1px solid var(--line)}
+.pill.mod{color:var(--mod);border-color:var(--mod)}
+.pill.cache{color:var(--busy);border-color:var(--busy)}
+.pill.g{color:var(--ok);border-color:var(--ok)}
+.btn{padding:5px 11px;border:1px solid var(--line);background:var(--bg3);border-radius:3px;cursor:pointer}
+.btn:hover{border-color:var(--fg3)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.danger{color:var(--err);border-color:var(--err)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:2px 8px;font-size:12px}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:4px;padding:12px}
+.card h2{display:flex;align-items:center;gap:8px}
+.card h2 .r{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:400;color:var(--fg3)}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;align-items:baseline}
+.kv dt{color:var(--fg2)}.kv dd{margin:0}
+.kv .unk{color:var(--fg3);font-style:italic}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.big{font-family:var(--mono);font-size:22px;line-height:1.1}
+.big small{font-size:11px;color:var(--fg3);font-family:var(--sans);margin-left:4px}
+.cond{color:var(--fg3);font-size:11px}
+.cmd{background:#0e1013;color:#d8dee6;border:1px solid var(--line);border-radius:4px;padding:10px 12px;font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-all;line-height:1.6}
+[data-theme="light"] .cmd{background:#1c1f24}
+.cmd b{color:#e5a23a;font-weight:600;background:rgba(229,162,58,.12)}
+.cmd s{color:#ef5a5a;text-decoration:line-through;opacity:.7}
+.log{background:#0e1013;color:#aeb6c2;border:1px solid var(--line);border-radius:4px;padding:8px 12px;font-family:var(--mono);font-size:11.5px;white-space:pre;overflow:auto;max-height:190px;line-height:1.5}
+[data-theme="light"] .log{background:#1c1f24}
+.log .w{color:#e5a23a}.log .e{color:#ef5a5a}
+table{border-collapse:collapse;width:100%}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--fg2);font-weight:600;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.sel td{background:var(--bg3)}
+tr:hover td{background:var(--bg3)}
+td.r,th.r{text-align:right}
+.bar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;border:1px solid var(--line)}
+.bar span{display:block;height:100%;background:var(--acc)}
+.bar.ok span{background:var(--ok)}.bar.warn span{background:var(--warn)}.bar.err span{background:var(--err)}
+.stack{display:flex;height:14px;border-radius:3px;overflow:hidden;border:1px solid var(--line);font-size:10px}
+.stack span{display:flex;align-items:center;justify-content:center;color:#fff;white-space:nowrap;overflow:hidden}
+.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.toggle i{width:30px;height:16px;border-radius:8px;background:var(--fg3);position:relative;display:inline-block}
+.toggle i::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:.15s}
+.toggle.on i{background:var(--busy)}.toggle.on i::after{left:16px}
+.spark{display:flex;align-items:flex-end;gap:2px;height:34px}
+.spark b{flex:1;background:var(--acc);opacity:.75;border-radius:1px 1px 0 0}
+.spark b.lo{background:var(--err);opacity:1}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.tabs button{background:none;border:0;padding:7px 12px;color:var(--fg2);cursor:pointer;border-bottom:2px solid transparent}
+.tabs button.on{color:var(--fg);border-bottom-color:var(--acc)}
+.note{border-left:3px solid var(--acc);background:var(--bg3);padding:8px 10px;border-radius:0 3px 3px 0;color:var(--fg2)}
+.note.warn{border-left-color:var(--warn)}.note.busy{border-left-color:var(--busy)}
+.field{display:grid;grid-template-columns:150px 1fr max-content;gap:8px;align-items:center;padding:4px 6px;border-radius:3px}
+.field label{color:var(--fg2)}
+.field.mod{background:rgba(229,162,58,.08);outline:1px solid var(--mod)}
+.field.mod label::before{content:"●";color:var(--mod);margin-right:5px;font-size:9px;vertical-align:middle}
+.field input,.field select{font:inherit;font-family:var(--mono);font-size:12px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:3px 6px;width:100%}
+.field .base{font-family:var(--mono);font-size:11px;color:var(--fg3)}
+.field .base s{color:var(--mod)}
+.split{display:grid;grid-template-columns:230px 1fr;gap:12px}
+.list{display:flex;flex-direction:column;gap:2px}
+.list .it{padding:8px 10px;border:1px solid var(--line);border-radius:3px;background:var(--bg2);cursor:pointer}
+.list .it.on{border-color:var(--acc);background:var(--bg3)}
+.list .it .n{font-family:var(--mono);font-size:12px}
+.list .it .m{color:var(--fg3);font-size:11px;margin-top:2px;display:flex;gap:6px;flex-wrap:wrap}
+.right{margin-left:auto}
+.mini{font-size:11px;color:var(--fg3)}
+hr{border:0;border-top:1px solid var(--line);margin:10px 0}
+.tray{width:300px;background:var(--bg2);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.4);padding:10px;font-size:12px}
+.tray .row{display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:3px}
+.tray .row:hover{background:var(--bg3)}
+.tray .row.h{cursor:default}.tray .row.h:hover{background:none}
+.tray .row.dis{opacity:.4}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--fg2)}
+.legend i{width:9px;height:9px;display:inline-block;border-radius:2px;margin-right:4px;vertical-align:middle}
+.mock{position:fixed;right:10px;bottom:8px;font-size:10px;color:var(--fg3);background:var(--bg2);border:1px solid var(--line);padding:2px 8px;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ===== TOP BAR (condivisa) ===== -->
+  <div class="top">
+    <span class="brand">Aethera<small>Minisforum · 0.1 mockup</small></span>
+    <span class="badge ok" id="topState"><i></i>PRONTO</span>
+    <span class="mono">qwen3.6-35b-a3b.q4_k_m.vulkan</span>
+    <span class="pill mono">127.0.0.1:8081</span>
+    <span class="pill mono">b10809 · vulkan</span>
+    <span class="badge busy"><i></i>IN USO · nonio · c02 t1</span>
+    <span class="spacer"></span>
+    <span class="toggle on" title="Rifiuta riavvio, cambio modello e chiusura finché acceso"><i></i>Proteggi il motore</span>
+    <button class="btn sm" onclick="toggleTheme()">☼ tema</button>
+  </div>
+
+  <!-- ===== NAV (condivisa) ===== -->
+  <nav class="nav">
+    <button class="on" data-page="motore">Motore<span class="k">1</span></button>
+    <button data-page="avvio">Avvio<span class="k">2</span></button>
+    <button data-page="catalogo">Catalogo<span class="k">3</span></button>
+    <button data-page="benchmark">Benchmark<span class="k">4</span></button>
+    <button data-page="impostazioni">Impostazioni<span class="k">5</span></button>
+    <button data-page="tray">Tray e stati<span class="k">·</span></button>
+    <div class="foot">Radice dati<br><span class="mono">D:\Aethera</span><br><br>Acceso da <span class="num">1 h 13 m</span><br>Avvio <span class="mono">r-0915-1831</span></div>
+  </nav>
+
+  <main class="main">
+
+  <!-- ================= 1. MOTORE ================= -->
+  <section class="page on" id="motore">
+    <h1>Motore</h1>
+    <p class="sub">Un processo <code>llama-server</code>, avviato e fermato da Aethera. Tutto quello che vedi qui è misurato dopo l'avvio; quello che non è misurato è «sconosciuto».</p>
+
+    <div class="grid g4" style="margin-bottom:12px">
+      <div class="card">
+        <h2>Stato <span class="r">/health · 200</span></h2>
+        <div><span class="badge ok"><i></i>PRONTO</span> <span class="badge busy"><i></i>IN USO</span></div>
+        <dl class="kv" style="margin-top:8px">
+          <dt>Acceso da</dt><dd class="num">1 h 13 m <span class="cond">dal 15-09 18:31</span></dd>
+          <dt>Token serviti</dt><dd class="num">1.812.404 <span class="cond">/metrics</span></dd>
+          <dt>Richieste</dt><dd class="num">412</dd>
+          <dt>Slot</dt><dd><span class="pill mono">1/1</span> <span class="cond">is_processing = true</span></dd>
+          <dt>Client dichiarato</dt><dd class="mono">nonio · c02 · tentativo 1 <span class="cond">endpoint Aethera</span></dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h2>Velocità recenti <span class="r">ultime 20 richieste</span></h2>
+        <div class="grid g2">
+          <div><div class="big">338<small>tok/s</small></div><div class="cond">prefill · mediana</div></div>
+          <div><div class="big">23,4<small>tok/s</small></div><div class="cond">decode · mediana</div></div>
+          <div><div class="big">61<small>%</small></div><div class="cond">accettazione MTP · n_max 3</div></div>
+          <div><div class="big">21.412<small>tok</small></div><div class="cond">ultimo prompt · /slots</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Cache del prefisso <span class="r">ultimi 20 turni</span></h2>
+        <div class="big">97<small>% riusato</small></div>
+        <div class="spark" style="margin:8px 0 4px">
+          <b style="height:95%"></b><b style="height:97%"></b><b style="height:98%"></b><b style="height:96%"></b><b style="height:99%"></b><b style="height:97%"></b><b style="height:98%"></b><b class="lo" style="height:12%"></b><b style="height:93%"></b><b style="height:96%"></b><b style="height:98%"></b><b style="height:99%"></b><b style="height:97%"></b><b style="height:98%"></b><b style="height:99%"></b><b style="height:97%"></b><b style="height:96%"></b><b style="height:98%"></b><b style="height:99%"></b><b style="height:98%"></b>
+        </div>
+        <div class="cond">Turno 8: 12 % — il client ha riscritto il prefisso (nuovo tentativo). Nessun riavvio.</div>
+      </div>
+      <div class="card">
+        <h2>Contesto <span class="r">/props</span></h2>
+        <dl class="kv">
+          <dt>Dichiarato</dt><dd class="num">32.768</dd>
+          <dt>Servito</dt><dd class="num">32.768 <span class="badge ok" style="padding:0 6px"><i></i>coincide</span></dd>
+          <dt>n_parallel</dt><dd class="num">1</dd>
+          <dt>Alias servito</dt><dd class="mono">qwen3.6-35b-a3b.q4_k_m.vulkan</dd>
+          <dt>Build</dt><dd class="mono">b10809 · 5266f24da · win-vulkan-x64</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-bottom:12px">
+      <div class="card">
+        <h2>Memoria <span class="r">misurata dopo il caricamento · 9,2 s</span></h2>
+        <table>
+          <tr><th></th><th class="r">Prima dell'avvio</th><th class="r">Stima</th><th class="r">Misurato</th></tr>
+          <tr><td>VRAM dedicata (heap DEVICE_LOCAL)</td><td class="r num">69.870 MiB liberi</td><td class="r num">~22,3 GB</td><td class="r num">22,68 GB <span class="cond">+2,24 buffer</span></td></tr>
+          <tr><td>VRAM condivisa del processo</td><td class="r num">—</td><td class="r"><span class="unk cond">—</span></td><td class="r num">0,41 GB</td></tr>
+          <tr><td>Working set del processo</td><td class="r num">—</td><td class="r"><span class="unk cond">—</span></td><td class="r num">1,1 GB</td></tr>
+          <tr><td>RAM disponibile a Windows</td><td class="r num">45,1 GB</td><td class="r"><span class="unk cond">—</span></td><td class="r num">33,66 GB</td></tr>
+          <tr><td>Doppia copia dei pesi</td><td class="r">—</td><td class="r">—</td><td class="r"><span class="badge ok" style="padding:0 6px"><i></i>no</span> <span class="cond">load_mode auto</span></td></tr>
+        </table>
+        <div style="margin-top:10px">
+          <div class="stack">
+            <span style="width:47%;background:var(--acc)">pesi 22,7 GB</span>
+            <span style="width:5%;background:var(--busy)">KV</span>
+            <span style="width:48%;background:var(--bg3);color:var(--fg2)">VGM libera 22,4 GB</span>
+          </div>
+          <div class="cond" style="margin-top:4px">VGM 48 GB (letta da Adrenalin, non impostabile) · soglia di margine RAM ≥ 16 GiB: <span class="num">33,66</span> ✓</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Riga di comando <span class="r">esatta, come lanciata</span></h2>
+        <div class="cmd">D:\Aethera\builds\llama-b10809-win-vulkan-x64\llama-server.exe
+  -m D:\models\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf
+  --alias qwen3.6-35b-a3b.q4_k_m.vulkan --host 127.0.0.1 --port 8081
+  -c 32768 -np 1 -ngl 999 -fa on -ctk f16 -ctv f16
+  -ub 4096 -b 4096 --spec-type draft-mtp --spec-draft-n-max 3
+  --metrics --jinja --slot-save-path D:\Aethera\runs\r-0915-1831\slots</div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn sm">Copia riga</button>
+          <button class="btn sm">Apri manifest r-0915-1831</button>
+          <button class="btn sm">Riga per i client</button>
+          <span class="right"></span>
+          <button class="btn sm" disabled title="Motore in uso da nonio: riavvio rifiutato">Riavvia con la stessa riga</button>
+          <button class="btn sm danger" disabled title="Motore in uso da nonio">Ferma</button>
+        </div>
+        <div class="note busy" style="margin-top:8px">Riavvio, cambio modello e chiusura sono rifiutati finché lo stato è <b>IN USO</b>: riavviare svuota la cache del prefisso del client che sta lavorando.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Log <span class="r">stderr + stdout · D:\Aethera\runs\r-0915-1831\server.log</span> <button class="btn sm right">Apri file</button></h2>
+      <div class="log">18:31:02 load_tensors: offloaded 42/42 layers to GPU
+18:31:02 load_tensors:      Vulkan0 model buffer size = 21657.34 MiB
+18:31:09 llama_context: n_ctx = 32768, n_batch = 4096, n_ubatch = 4096, flash_attn = on
+18:31:09 <span class="w">warning: the default port will change from 8080 to 9931 in a future release; pass --port explicitly</span>
+18:31:11 srv  init: initializing slots, n_slots = 1
+18:31:11 main: server is listening on http://127.0.0.1:8081
+18:31:11 srv  update_slots: all slots are idle
+19:44:31 slot launch_slot_: id 0 | task 4113 | processing task
+19:44:31 slot update_slots: id 0 | n_past = 21308, n_prompt_tokens = 21412, cached = 21308
+19:44:38 slot release: id 0 | n_tokens = 21796 | decode 23.6 tok/s | draft acc 0.61</div>
+    </div>
+  </section>
+
+  <!-- ================= 2. AVVIO ================= -->
+  <section class="page" id="avvio">
+    <h1>Avvio</h1>
+    <p class="sub">Scegli un profilo; ogni leva che cambi resta in sovrapposizione (●) e aggiorna la riga di comando. Puoi avviare così (il manifest registra profilo + differenze) o salvare come nuovo profilo.</p>
+
+    <div class="split">
+      <div>
+        <h2>Profili <span class="mini">D:\Aethera\profiles\*.toml</span></h2>
+        <div class="list">
+          <div class="it on"><div class="n">qwen3.6-35b-a3b.q4_k_m.vulkan</div><div class="m"><span class="pill g">G1</span><span>22,29 GB</span><span>MTP 3 · ub 4096</span><span class="pill mod">2 modifiche</span></div></div>
+          <div class="it"><div class="n">qwen3.6-35b-a3b.q4_k_m.vulkan.no-mtp</div><div class="m"><span class="pill">A/B</span><span>speculazione none</span></div></div>
+          <div class="it"><div class="n">qwen3-coder-30b-a3b.q4_k_m.vulkan</div><div class="m"><span class="pill">G3</span><span>18,56 GB</span></div></div>
+          <div class="it"><div class="n">qwen3-coder-next.q4_k_m.vulkan</div><div class="m"><span class="pill">G3</span><span>48,53 GB</span><span class="badge warn" style="padding:0 6px"><i></i>oltre VGM</span></div></div>
+          <div class="it"><div class="n">gpt-oss-20b.mxfp4.vulkan</div><div class="m"><span class="pill">G3</span><span>12,11 GB</span></div></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px"><button class="btn sm">Nuovo</button><button class="btn sm">Importa JSON</button><button class="btn sm">Apri TOML</button></div>
+        <hr>
+        <div class="card">
+          <h2>Stima memoria <span class="r">prima dell'avvio</span></h2>
+          <dl class="kv">
+            <dt>Pesi</dt><dd class="num">22,29 GB</dd>
+            <dt>KV @ 32.768 f16</dt><dd class="num">~0,9 GB</dd>
+            <dt>Buffer di calcolo</dt><dd class="num">~2,2 GB <span class="cond">ub 2048</span></dd>
+            <dt>Totale stimato</dt><dd class="num"><b>~25,4 GB</b> / 48 GB VGM</dd>
+            <dt>VRAM libera ora</dt><dd class="num">69.870 MiB</dd>
+          </dl>
+          <div class="bar ok" style="margin-top:6px"><span style="width:53%"></span></div>
+          <div class="cond">Stima, sostituita dalla misura dopo l'avvio.</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom:12px">
+          <h2>Modello <span class="r">letto dal GGUF</span></h2>
+          <div class="field"><label>File</label><div class="mono">Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf <span class="badge ok" style="padding:0 6px"><i></i>sha256 verificato</span></div><span class="base">bartowski</span></div>
+          <div class="field"><label>Architettura</label><div class="mono">qwen35moe · 41 blocchi · 256 esperti / 8 attivi · attenzione piena ogni 4</div><span></span></div>
+          <div class="field"><label>Contesto training</label><div class="num">262.144</div><span></span></div>
+          <div class="field"><label>Layer MTP</label><div class="num">1 <span class="cond">blk.N.nextn.* già Q8_0</span></div><span></span></div>
+        </div>
+
+        <div class="card" style="margin-bottom:12px">
+          <h2>Motore</h2>
+          <div class="field"><label>Build</label><select><option>b10809 · 5266f24da · win-vulkan-x64</option><option>b10985 · a1c0f77 · win-vulkan-x64</option><option>b10809 · 5266f24da · win-cpu-x64</option></select><span class="base">profilo: b10809</span></div>
+          <div class="field"><label>Dispositivi</label><div class="mono">Vulkan0: AMD Radeon(TM) 890M Graphics (73548 MiB, 69870 MiB free)</div><span class="cond">--list-devices</span></div>
+        </div>
+
+        <div class="card" style="margin-bottom:12px">
+          <h2>Server</h2>
+          <div class="grid g2" style="gap:2px 16px">
+            <div class="field"><label>host</label><input value="127.0.0.1"><span></span></div>
+            <div class="field"><label>port</label><input value="8081"><span class="cond">sempre esplicita</span></div>
+            <div class="field"><label>ctx <span class="pill cache">cache</span></label><input value="32768"><span class="cond">verificato su /props</span></div>
+            <div class="field"><label>n_parallel <span class="pill cache">cache</span></label><input value="1"><span class="cond">MTP richiede 1</span></div>
+            <div class="field"><label>n_gpu_layers</label><input value="999"><span></span></div>
+            <div class="field"><label>flash_attn</label><select><option>on</option><option>off</option><option>auto</option></select><span></span></div>
+            <div class="field"><label>cache_type_k / v</label><input value="f16 / f16"><span></span></div>
+            <div class="field"><label>load_mode</label><select><option>auto</option><option>none</option><option>mmap</option><option>mlock</option><option>mmap+mlock</option><option>dio</option></select><span class="cond">misura doppia copia dopo</span></div>
+            <div class="field mod"><label>ubatch</label><input value="2048"><span class="base"><s>4096</s></span></div>
+            <div class="field"><label>batch</label><input value="4096"><span></span></div>
+            <div class="field"><label>threads / threads_batch</label><input value="8 / 8"><span class="cond">irrilevanti tutto in GPU</span></div>
+            <div class="field"><label>metrics · jinja</label><div><span class="pill">on</span> <span class="pill">on</span></div><span class="cond">sempre</span></div>
+            <div class="field"><label>slot_save_path</label><input value="{run}/slots"><span></span></div>
+            <div class="field"><label>extra_args</label><input value=""><span class="cond">via di fuga</span></div>
+          </div>
+        </div>
+
+        <div class="grid g2" style="margin-bottom:12px">
+          <div class="card">
+            <h2>Speculazione <span class="r">scelta per profilo</span></h2>
+            <div class="field"><label>type</label><select><option>none</option><option selected>draft-mtp</option><option>draft-mtp,ngram-mod</option><option>ngram-mod</option><option>draft-simple</option></select><span class="cond">misurato +11 % con n_max 3</span></div>
+            <div class="field mod"><label>draft_n_max</label><input value="4"><span class="base"><s>3</s></span></div>
+            <div class="field"><label>draft_n_min</label><input value=""><span class="cond">default motore</span></div>
+            <div class="field"><label>draft_p_min</label><input value=""><span class="cond">default motore</span></div>
+            <div class="note" style="margin-top:6px">Misurato con 3: decode <span class="num">+11 %</span> su codice nuovo (accettazione 61 %), <span class="num">−1 tok/s</span> su riassunto lungo. Con 4: nessun guadagno aggiuntivo (§7).</div>
+          </div>
+          <div class="card">
+            <h2>Cache e checkpoint</h2>
+            <div class="field"><label>cache_reuse <span class="pill cache">cache</span></label><input value=""><span class="cond">off</span></div>
+            <div class="field"><label>ctx_checkpoints <span class="pill cache">cache</span></label><input value=""><span class="cond">default</span></div>
+            <div class="note warn" style="margin-top:6px">Le leve marcate <span class="pill cache">cache</span> cambiano come il motore riusa il prefisso: una modifica qui è dichiarata nel manifest come «invalida la cache».</div>
+            <hr>
+            <h2>Campionamento consigliato <span class="r">card 15-09 · non è un default del server</span></h2>
+            <table style="font-size:12px">
+              <tr><th>modalità</th><th class="r">temp</th><th class="r">top_p</th><th class="r">top_k</th><th class="r">min_p</th><th class="r">presence</th></tr>
+              <tr><td>non-thinking</td><td class="r num">0.7</td><td class="r num">0.8</td><td class="r num">20</td><td class="r num">0</td><td class="r num">1.5</td></tr>
+              <tr><td>thinking</td><td class="r num">1.0</td><td class="r num">0.95</td><td class="r num">20</td><td class="r num">0</td><td class="r num">1.5</td></tr>
+              <tr><td>thinking coding</td><td class="r num">0.6</td><td class="r num">0.95</td><td class="r num">20</td><td class="r num">0</td><td class="r num">0</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Riga di comando <span class="r">aggiornata in tempo reale · 2 differenze dal profilo</span></h2>
+          <div class="cmd">D:\Aethera\builds\llama-b10809-win-vulkan-x64\llama-server.exe
+  -m D:\models\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf
+  --alias qwen3.6-35b-a3b.q4_k_m.vulkan --host 127.0.0.1 --port 8081
+  -c 32768 -np 1 -ngl 999 -fa on -ctk f16 -ctv f16
+  -ub <s>4096</s> <b>2048</b> -b 4096 --spec-type draft-mtp --spec-draft-n-max <s>3</s> <b>4</b>
+  --metrics --jinja --slot-save-path D:\Aethera\runs\{run}\slots</div>
+          <div style="display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn primary" disabled title="Motore in uso da nonio">Avvia con le modifiche</button>
+            <button class="btn">Salva come nuovo profilo…</button>
+            <button class="btn">Aggiorna il profilo</button>
+            <button class="btn">Scarta le modifiche</button>
+            <span class="right cond">Il motore acceso è IN USO: l'avvio parte solo quando lo stato torna libero o la protezione viene tolta.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 3. CATALOGO ================= -->
+  <section class="page" id="catalogo">
+    <h1>Catalogo</h1>
+    <p class="sub">Pesi e build presenti su questa macchina, verificati per hash. Un file già presente viene riconosciuto per hash, anche se è un hard link creato da un altro strumento.</p>
+    <div class="tabs"><button class="on" data-tab="modelli">Modelli</button><button data-tab="build">Build llama.cpp</button></div>
+
+    <div id="tab-modelli">
+      <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+        <button class="btn sm primary">Aggiungi da Hugging Face…</button><button class="btn sm">Importa da disco…</button><button class="btn sm">Riscansiona D:\models</button>
+        <span class="right legend"><span><i style="background:var(--ok)"></i>verificato</span><span><i style="background:var(--warn)"></i>presente, da verificare</span><span><i style="background:var(--acc)"></i>in download</span><span><i style="background:var(--fg3)"></i>scaricabile</span></span>
+      </div>
+      <table>
+        <tr><th>Modello</th><th>Publisher · file</th><th>Quant</th><th class="r">GB</th><th>SHA-256</th><th>Arch · MTP · ctx train</th><th class="r">Stima @32k</th><th>Stato</th><th></th></tr>
+        <tr class="sel">
+          <td class="mono">qwen3.6-35b-a3b</td><td class="mono mini">bartowski · Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf</td><td>Q4_K_M</td><td class="r num">22,29</td><td><span class="badge ok" style="padding:0 6px"><i></i>b46fedd3…9064772</span></td><td class="mini">qwen35moe · MTP 1 · 262.144</td><td class="r num">~25,4</td><td><span class="badge ok"><i></i>verificato</span></td><td><button class="btn sm">Avvia…</button></td>
+        </tr>
+        <tr>
+          <td class="mono">qwen3-coder-30b-a3b</td><td class="mono mini">unsloth · Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf</td><td>Q4_K_M</td><td class="r num">18,56</td><td><span class="badge warn" style="padding:0 6px"><i></i>non ricalcolato</span></td><td class="mini">qwen3moe · MTP 0 · 262.144</td><td class="r num">~21,5</td><td><span class="badge warn"><i></i>presente</span></td><td><button class="btn sm">Verifica</button></td>
+        </tr>
+        <tr>
+          <td class="mono">qwen3-coder-next</td><td class="mono mini">unsloth · Qwen3-Coder-Next-Q4_K_M.gguf</td><td>Q4_K_M</td><td class="r num">48,53</td><td><span class="cond">al termine</span></td><td class="mini"><span class="unk cond">sconosciuto fino a fine download</span></td><td class="r num warn" style="color:var(--warn)">&gt; 48 VGM</td><td><div class="badge acc"><i></i>download 43 %</div><div class="bar" style="margin-top:4px"><span style="width:43%"></span></div><div class="cond">98 MB/s · 4 min · riprendibile</div></td><td><button class="btn sm">Pausa</button></td>
+        </tr>
+        <tr>
+          <td class="mono">gpt-oss-20b</td><td class="mono mini">ggml-org · gpt-oss-20b-mxfp4.gguf</td><td>MXFP4</td><td class="r num">12,11</td><td><span class="badge ok" style="padding:0 6px"><i></i>verificato</span></td><td class="mini">gpt-oss · MTP 0 · 131.072</td><td class="r num">~14,2</td><td><span class="badge ok"><i></i>verificato</span> <span class="pill" title="Stesso file linkato da LM Studio">hard link ×2</span></td><td><button class="btn sm">Avvia…</button></td>
+        </tr>
+        <tr>
+          <td class="mono">qwen3.5-9b</td><td class="mono mini">unsloth · Qwen3.5-9B-Q4_K_M.gguf</td><td>Q4_K_M</td><td class="r num">5,8</td><td class="cond">oid LFS noto</td><td class="mini"><span class="unk cond">—</span></td><td class="r num">~7,1</td><td><span class="badge"><i></i>scaricabile</span></td><td><button class="btn sm">Scarica</button></td>
+        </tr>
+      </table>
+
+      <div class="grid g2" style="margin-top:12px">
+        <div class="card">
+          <h2>qwen3.6-35b-a3b <span class="r">dettaglio</span></h2>
+          <dl class="kv">
+            <dt>Percorso</dt><dd class="mono">D:\models\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf</dd>
+            <dt>Sorgente</dt><dd class="mono">huggingface.co/bartowski/Qwen_Qwen3.6-35B-A3B-GGUF · resolve/main</dd>
+            <dt>SHA-256</dt><dd class="mono">b46fedd3…9064772 <span class="cond">= oid LFS · verificato 15-09 18:02 · ricalcola su richiesta (~3 min)</span></dd>
+            <dt>Dimensione</dt><dd class="num">22,29 GB <span class="cond">decimali, come il publisher</span></dd>
+            <dt>Tensori MTP</dt><dd class="mono">blk.41.nextn.* · Q8_0 <span class="cond">il file mtp-…-Q8_0 separato non aggiunge precisione</span></dd>
+            <dt>Collegamenti</dt><dd>1 <span class="cond">nessun altro hard link</span></dd>
+            <dt>Profili che lo usano</dt><dd class="mono">qwen3.6-35b-a3b.q4_k_m.vulkan · …no-mtp</dd>
+          </dl>
+          <div style="display:flex;gap:6px;margin-top:8px"><button class="btn sm">Ricalcola SHA-256</button><button class="btn sm">Leggi metadati GGUF</button><button class="btn sm danger">Rimuovi…</button></div>
+        </div>
+        <div class="card">
+          <h2>Campionamento consigliato <span class="r">dalla model card · verificato 15-09</span></h2>
+          <table style="font-size:12px">
+            <tr><th>modalità</th><th class="r">temp</th><th class="r">top_p</th><th class="r">top_k</th><th class="r">min_p</th><th class="r">presence</th><th>fonte</th></tr>
+            <tr><td>non-thinking</td><td class="r num">0.7</td><td class="r num">0.8</td><td class="r num">20</td><td class="r num">0</td><td class="r num">1.5</td><td class="mini">card · 15-09</td></tr>
+            <tr><td>thinking</td><td class="r num">1.0</td><td class="r num">0.95</td><td class="r num">20</td><td class="r num">0</td><td class="r num">1.5</td><td class="mini">card · 15-09</td></tr>
+            <tr><td>thinking coding</td><td class="r num">0.6</td><td class="r num">0.95</td><td class="r num">20</td><td class="r num">0</td><td class="r num">0</td><td class="mini">card · 15-09</td></tr>
+          </table>
+          <div class="note" style="margin-top:8px">Dato del modello, mostrato e usato per le prove. Non è il default del server: il campionamento lo manda il client in ogni richiesta.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-build" style="display:none">
+      <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+        <button class="btn sm primary">Scarica release ggml-org…</button><button class="btn sm">Importa cartella…</button>
+        <span class="right cond">Cambiare build è una variabile di prova, non un aggiornamento automatico.</span>
+      </div>
+      <table>
+        <tr><th>Tag</th><th>Commit</th><th>Backend</th><th>SHA-256 (digest GitHub)</th><th>Cartella</th><th>Profili</th><th>Stato</th><th></th></tr>
+        <tr class="sel"><td class="mono">b10809</td><td class="mono">5266f24da</td><td>win-vulkan-x64</td><td><span class="badge ok" style="padding:0 6px"><i></i>verificato</span></td><td class="mono mini">builds\llama-b10809-win-vulkan-x64</td><td class="num">4</td><td><span class="badge ok"><i></i>in uso</span></td><td><button class="btn sm">--list-devices</button></td></tr>
+        <tr><td class="mono">b10985</td><td class="mono">a1c0f77</td><td>win-vulkan-x64</td><td><span class="badge ok" style="padding:0 6px"><i></i>verificato</span></td><td class="mono mini">builds\llama-b10985-win-vulkan-x64</td><td class="num">0</td><td><span class="badge"><i></i>installato</span></td><td><button class="btn sm">--list-devices</button></td></tr>
+        <tr><td class="mono">b10809</td><td class="mono">5266f24da</td><td>win-cpu-x64</td><td><span class="badge ok" style="padding:0 6px"><i></i>verificato</span></td><td class="mono mini">builds\llama-b10809-win-cpu-x64</td><td class="num">0</td><td><span class="badge"><i></i>installato</span></td><td><button class="btn sm">--list-devices</button></td></tr>
+        <tr><td class="mono">b10990</td><td class="mono cond">—</td><td>win-rocm-gfx1150</td><td class="cond">al download</td><td class="cond">—</td><td class="num">0</td><td><span class="badge"><i></i>scaricabile</span></td><td><button class="btn sm">Scarica</button></td></tr>
+      </table>
+      <div class="card" style="margin-top:12px">
+        <h2>b10809 · win-vulkan-x64 <span class="r">--version · --list-devices</span></h2>
+        <div class="log">version: 10809 (5266f24da)
+built with MSVC 19.44 for x64
+Available devices:
+  Vulkan0: AMD Radeon(TM) 890M Graphics (73548 MiB, 69870 MiB free)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 4. BENCHMARK ================= -->
+  <section class="page" id="benchmark">
+    <h1>Benchmark</h1>
+    <p class="sub">Storico degli avvii e delle loro prestazioni, misurate da Aethera mentre il motore serviva. Aethera non lancia banchi: ogni riga è un avvio, con le sue condizioni accanto.</p>
+
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <span class="mini">Profilo</span><select style="font:inherit;background:var(--bg2);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:3px 6px"><option>tutti</option><option selected>qwen3.6-35b-a3b.q4_k_m.vulkan (+ varianti)</option></select>
+      <span class="mini">Macchina</span><select style="font:inherit;background:var(--bg2);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:3px 6px"><option>Minisforum</option><option>Turing</option><option>tutte</option></select>
+      <span class="mini">Metrica</span><select style="font:inherit;background:var(--bg2);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:3px 6px"><option>mediana</option><option>p10 / p90</option></select>
+      <span class="right cond">2 avvii selezionati → confronto sotto</span>
+    </div>
+
+    <table>
+      <tr><th></th><th>Avvio</th><th>Data</th><th>Profilo · differenze</th><th>Build</th><th class="r">Acceso</th><th class="r">Richieste</th><th class="r">Prefill</th><th class="r">Decode</th><th class="r">Accett.</th><th class="r">Cache</th><th class="r">VRAM</th><th>Cond.</th></tr>
+      <tr class="sel"><td>☑</td><td class="mono">r-0915-1831</td><td class="num">15-09 18:31</td><td class="mono mini">qwen3.6-35b-a3b.q4_k_m.vulkan</td><td class="mono">b10809</td><td class="r num">1 h 13 m</td><td class="r num">412</td><td class="r num">338</td><td class="r num">23,4</td><td class="r num">61 %</td><td class="r num">97 %</td><td class="r num">22,68</td><td><span class="pill">nonio 3 sfide</span></td></tr>
+      <tr class="sel"><td>☑</td><td class="mono">r-0915-1702</td><td class="num">15-09 17:02</td><td class="mono mini">…vulkan <span class="pill mod">spec none</span></td><td class="mono">b10809</td><td class="r num">18 m</td><td class="r num">31</td><td class="r num">341</td><td class="r num">21,3</td><td class="r"><span class="unk cond">—</span></td><td class="r num">95 %</td><td class="r num">22,41</td><td><span class="pill">A/B</span></td></tr>
+      <tr><td>☐</td><td class="mono">r-0915-1620</td><td class="num">15-09 16:20</td><td class="mono mini">…vulkan <span class="pill mod">ub 1024</span></td><td class="mono">b10809</td><td class="r num">12 m</td><td class="r num">10</td><td class="r num" style="color:var(--err)">212</td><td class="r num">23,1</td><td class="r num">60 %</td><td class="r num">94 %</td><td class="r num">22,52</td><td><span class="pill">A/B</span></td></tr>
+      <tr><td>☐</td><td class="mono">r-0915-1544</td><td class="num">15-09 15:44</td><td class="mono mini">…vulkan <span class="pill mod">ub 512 · b 2048</span></td><td class="mono">b10809</td><td class="r num">20 m</td><td class="r num">15</td><td class="r num">267</td><td class="r num">21,3</td><td class="r"><span class="unk cond">—</span></td><td class="r num">96 %</td><td class="r num">22,40</td><td><span class="pill">baseline</span></td></tr>
+      <tr><td>☐</td><td class="mono">r-0915-1510</td><td class="num">15-09 15:10</td><td class="mono mini">…vulkan <span class="pill mod">load_mode mmap</span></td><td class="mono">b10809</td><td class="r num">6 m</td><td class="r num">4</td><td class="r num">265</td><td class="r num">21,0</td><td class="r"><span class="unk cond">—</span></td><td class="r num">91 %</td><td class="r num">22,40</td><td><span class="badge err" style="padding:0 6px"><i></i>doppia copia +21,5 GB RAM</span></td></tr>
+      <tr><td>☐</td><td class="mono">r-0913-0902</td><td class="num">13-09 09:02</td><td class="mono mini">qwen3.5-9b.q4_k_m.vulkan <span class="pill">Turing</span></td><td class="mono">b10809</td><td class="r num" style="color:var(--warn)">2 g 4 h</td><td class="r num">2.180</td><td class="r num">180</td><td class="r num" style="color:var(--err)">12,1</td><td class="r"><span class="unk cond">—</span></td><td class="r num">88 %</td><td class="r num">6,9</td><td><span class="badge warn" style="padding:0 6px"><i></i>degradato</span></td></tr>
+    </table>
+
+    <div class="grid g3" style="margin-top:12px">
+      <div class="card">
+        <h2>Confronto <span class="r">r-0915-1831 vs r-0915-1702</span></h2>
+        <table style="font-size:12px">
+          <tr><th></th><th class="r">1831</th><th class="r">1702</th><th class="r">Δ</th></tr>
+          <tr><td>Differenza di profilo</td><td class="mono r">draft-mtp 3</td><td class="mono r">none</td><td></td></tr>
+          <tr><td>Prefill mediana</td><td class="r num">338</td><td class="r num">341</td><td class="r num">−1 %</td></tr>
+          <tr><td>Decode mediana</td><td class="r num">23,4</td><td class="r num">21,3</td><td class="r num" style="color:var(--ok)">+10 %</td></tr>
+          <tr><td>Decode p10 / p90</td><td class="r num">17,8 / 33,6</td><td class="r num">19,5 / 21,9</td><td class="r"></td></tr>
+          <tr><td>Quota cache</td><td class="r num">97 %</td><td class="r num">95 %</td><td class="r num">+2</td></tr>
+          <tr><td>VRAM misurata</td><td class="r num">22,68</td><td class="r num">22,41</td><td class="r num">+0,27</td></tr>
+          <tr><td>Richieste</td><td class="r num">412</td><td class="r num">31</td><td class="r"></td></tr>
+        </table>
+        <div class="note warn" style="margin-top:8px">Condizioni diverse: 412 richieste di un agente contro 31 richieste singole. Il confronto mostra, non giudica.</div>
+      </div>
+      <div class="card">
+        <h2>Decode nel tempo <span class="r">r-0915-1831 · per richiesta</span></h2>
+        <div class="spark" style="height:70px">
+          <b style="height:70%"></b><b style="height:72%"></b><b style="height:68%"></b><b style="height:90%"></b><b style="height:95%"></b><b style="height:92%"></b><b style="height:71%"></b><b style="height:69%"></b><b style="height:88%"></b><b style="height:93%"></b><b style="height:96%"></b><b style="height:70%"></b><b style="height:72%"></b><b class="lo" style="height:52%"></b><b class="lo" style="height:50%"></b><b style="height:71%"></b><b style="height:89%"></b><b style="height:94%"></b><b style="height:70%"></b><b style="height:73%"></b><b style="height:91%"></b><b style="height:95%"></b><b style="height:69%"></b><b style="height:72%"></b>
+        </div>
+        <div class="cond" style="margin-top:4px">Picchi ≈ codice riscritto (accettazione 97 %); rosso = riassunto su contesto lungo (accettazione 45 %, sotto la baseline).</div>
+        <hr>
+        <dl class="kv">
+          <dt>Token proposti / accettati</dt><dd class="num">318.402 / 194.221</dd>
+          <dt>Prompt token / dalla cache</dt><dd class="num">1.812.404 / 1.758.030</dd>
+          <dt>Ultimo prompt</dt><dd class="num">21.412</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h2>Manifest r-0915-1831 <span class="r">runs\r-0915-1831\manifest.toml</span></h2>
+        <div class="log">[run]
+id = "r-0915-1831"
+started = 2026-09-15T18:31:02+02:00
+machine = "minisforum"
+profile = "qwen3.6-35b-a3b.q4_k_m.vulkan"
+overrides = []
+
+[engine]
+build = "b10809"  commit = "5266f24da"
+backend = "win-vulkan-x64"
+
+[model]
+sha256 = "b46fedd3…9064772"
+size_gb = 22.29
+
+[server]
+ctx_declared = 32768
+ctx_served = 32768        # /props
+load_ms = 9200
+
+[memory.after_load]
+vram_dedicated_gb = 22.68
+ram_available_gb = 33.66
+double_copy = false
+
+argv = "…llama-server.exe -m … --port 8081 …"</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 5. IMPOSTAZIONI ================= -->
+  <section class="page" id="impostazioni">
+    <h1>Impostazioni</h1>
+    <p class="sub">Configurazione della macchina e dell'app. I profili non contengono niente di quello che vedi qui: percorsi e VGM sono della macchina.</p>
+    <div class="grid g2">
+      <div>
+        <div class="card" style="margin-bottom:12px">
+          <h2>Radice dati <span class="r">machine.toml</span></h2>
+          <div class="field"><label>Radice</label><input value="D:\Aethera"><button class="btn sm">Cambia…</button></div>
+          <div class="field"><label>Cartella pesi</label><input value="D:\models"><button class="btn sm">Cambia…</button></div>
+          <div class="field"><label>Build</label><div class="mono">D:\Aethera\builds\ <span class="cond">3 build · 412 MB</span></div><span></span></div>
+          <div class="field"><label>Avvii</label><div class="mono">D:\Aethera\runs\ <span class="cond">6 avvii · 38 MB di log</span></div><button class="btn sm">Pulisci &gt; 30 gg…</button></div>
+          <div class="field"><label>Telemetria</label><div class="mono">D:\Aethera\telemetry.sqlite <span class="cond">1,2 MB</span></div><span></span></div>
+        </div>
+        <div class="card" style="margin-bottom:12px">
+          <h2>Macchina <span class="r">letto, non impostato</span></h2>
+          <dl class="kv">
+            <dt>Nome</dt><dd class="mono">minisforum</dd>
+            <dt>CPU</dt><dd>Ryzen AI 9 HX 470</dd>
+            <dt>GPU</dt><dd>AMD Radeon(TM) 890M Graphics · Vulkan0</dd>
+            <dt>RAM totale</dt><dd class="num">96 GB DDR5-5600 · 47,6 GB visti da Windows</dd>
+            <dt>Variable Graphics Memory</dt><dd class="num">48 GB <span class="cond">Adrenalin · si cambia da lì con riavvio</span></dd>
+            <dt>Soglia di margine RAM</dt><dd><input class="mono" style="width:70px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:2px 6px" value="16"> GiB disponibili al picco</dd>
+            <dt>OS</dt><dd>Windows 11 Pro 26200</dd>
+          </dl>
+        </div>
+        <div class="card">
+          <h2>Comportamento</h2>
+          <div class="field"><label>Chiudere la finestra</label><div><span class="pill">riduce nella tray, motore acceso</span></div><span></span></div>
+          <div class="field"><label>All'uscita</label><select><option>chiedi ogni volta</option><option>ferma il motore</option><option>lascia il motore acceso</option></select><span></span></div>
+          <div class="field"><label>Stato «in uso»</label><div>osservazione di <code>/slots</code> e <code>/metrics</code> · finestra <input class="mono" style="width:50px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:2px 6px" value="30"> s dall'ultima richiesta</div><span></span></div>
+          <div class="field"><label>Endpoint Aethera</label><input value="127.0.0.1:8090"><span class="cond">stato · id avvio · lock</span></div>
+          <div class="field"><label>Segnala degradato</label><div>acceso da più di <input class="mono" style="width:50px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:2px 6px" value="24"> h o decode &lt; <input class="mono" style="width:50px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:3px;padding:2px 6px" value="70"> % della mediana dell'avvio</div><span></span></div>
+          <div class="field"><label>Tema</label><select><option>scuro</option><option>chiaro</option><option>sistema</option></select><span></span></div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:12px">
+          <h2>Riga per i client <span class="r">derivata dal profilo acceso</span></h2>
+          <div class="mini" style="margin-bottom:4px">Nonio · <code>profile.toml</code></div>
+          <div class="cmd">[backend]
+base_url = "http://127.0.0.1:8081/v1"
+
+[model]
+expected = "qwen3.6-35b-a3b.q4_k_m.vulkan"</div>
+          <div class="mini" style="margin:8px 0 4px">Blocco d'ambiente per banchi e Diorama</div>
+          <div class="cmd">AETHERA_RUN_ID=r-0915-1831
+AETHERA_ENDPOINT=http://127.0.0.1:8090
+BENCH_MODEL=qwen3.6-35b-a3b.q4_k_m.vulkan
+BENCH_CONTEXT=32768
+BENCH_CONVERSATION=24000     # ctx − max_tokens − parte fissa
+BENCH_BASE_URL=http://127.0.0.1:8081</div>
+          <div style="display:flex;gap:6px;margin-top:8px"><button class="btn sm">Copia TOML</button><button class="btn sm">Copia blocco env</button><button class="btn sm">Copia come PowerShell</button></div>
+        </div>
+        <div class="card">
+          <h2>Endpoint Aethera <span class="r">127.0.0.1:8090 · per i client che vogliono dichiararsi</span></h2>
+          <table style="font-size:12px">
+            <tr><th>Metodo</th><th>Percorso</th><th>Cosa fa</th></tr>
+            <tr><td class="mono">GET</td><td class="mono">/status</td><td>stato, alias, porta, id avvio, acceso da, in uso da chi</td></tr>
+            <tr><td class="mono">GET</td><td class="mono">/run</td><td>manifest dell'avvio corrente</td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/lock</td><td>dichiara «sto lavorando» (nome, etichetta, TTL); risposta con id avvio</td></tr>
+            <tr><td class="mono">DELETE</td><td class="mono">/lock</td><td>rilascia</td></tr>
+            <tr><td class="mono">GET</td><td class="mono">/telemetry/recent</td><td>prefill, decode, accettazione, quota cache delle ultime N richieste</td></tr>
+          </table>
+          <div class="note" style="margin-top:8px">Chi non lo usa è coperto dall'osservazione di <code>/slots</code> e dall'interruttore manuale. Il lock non cambia il motore: rende solo rifiutati riavvio e cambio modello.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TRAY E STATI ================= -->
+  <section class="page" id="tray">
+    <h1>Tray e stati</h1>
+    <p class="sub">Componenti condivisi: il vocabolario degli stati e il menu della tray.</p>
+    <div class="grid g2">
+      <div class="card">
+        <h2>Stati del motore</h2>
+        <table>
+          <tr><th>Badge</th><th>Quando</th><th>Comandi</th></tr>
+          <tr><td><span class="badge"><i></i>SPENTO</span></td><td>nessun processo</td><td>Avvia</td></tr>
+          <tr><td><span class="badge acc"><i></i>IN CARICAMENTO</span></td><td>processo avviato, <code>/health</code> non ancora 200</td><td>Ferma</td></tr>
+          <tr><td><span class="badge ok"><i></i>PRONTO</span></td><td><code>/health</code> 200, slot libero, contesto verificato</td><td>Ferma · Riavvia · Cambia modello</td></tr>
+          <tr><td><span class="badge busy"><i></i>IN USO</span></td><td>slot attivo, richieste negli ultimi 30 s, lock dichiarato o protezione manuale</td><td><s>Ferma</s> · <s>Riavvia</s> · <s>Cambia modello</s></td></tr>
+          <tr><td><span class="badge warn"><i></i>DEGRADATO</span></td><td>acceso da &gt; 24 h o decode sotto il 70 % della mediana dell'avvio</td><td>Riavvia con la stessa riga (se libero)</td></tr>
+          <tr><td><span class="badge warn"><i></i>DIVERGENTE</span></td><td>contesto servito ≠ dichiarato, alias diverso, doppia copia dei pesi</td><td>si registra, non si corregge</td></tr>
+          <tr><td><span class="badge err"><i></i>USCITO CON ERRORE</span></td><td>processo terminato, codice ≠ 0</td><td>Apri log · Riavvia</td></tr>
+          <tr><td><span class="badge err"><i></i>ORFANO</span></td><td>un <code>llama-server</code> sulla porta non avviato da questo Aethera</td><td>Adotta (solo lettura) · Termina…</td></tr>
+        </table>
+        <hr>
+        <h2>Marcatori nei campi</h2>
+        <div class="legend" style="flex-direction:column;gap:6px">
+          <span><span class="pill mod">●  modificato</span> campo diverso dal profilo base, entra nel manifest come <code>overrides</code></span>
+          <span><span class="pill cache">cache</span> leva che cambia il riuso del prefisso; una modifica è dichiarata «invalida la cache»</span>
+          <span><span class="unk cond">— sconosciuto</span> valore non misurato; mai una stima al suo posto</span>
+          <span><span class="cond">stima ~</span> calcolo prima dell'avvio, sostituito dalla misura</span>
+        </div>
+      </div>
+      <div>
+        <h2>Menu della tray</h2>
+        <div class="tray">
+          <div class="row h"><span class="badge ok"><i></i>PRONTO</span><span class="badge busy"><i></i>IN USO</span></div>
+          <div class="row h mono" style="color:var(--fg2)">qwen3.6-35b-a3b.q4_k_m.vulkan · :8081</div>
+          <div class="row h cond">acceso da 1 h 13 m · 23,4 tok/s · cache 97 %</div>
+          <hr style="margin:6px 0">
+          <div class="row"><span class="toggle on"><i></i></span>Proteggi il motore</div>
+          <div class="row dis">Riavvia con la stessa riga</div>
+          <div class="row dis">Ferma il motore</div>
+          <div class="row">Copia riga per i client</div>
+          <hr style="margin:6px 0">
+          <div class="row">Apri Aethera</div>
+          <div class="row">Esci…</div>
+        </div>
+        <div class="card" style="margin-top:12px;max-width:380px">
+          <h2>Dialogo «Esci»</h2>
+          <p style="margin:0 0 8px">Il motore <span class="mono">qwen3.6-35b-a3b.q4_k_m.vulkan</span> è acceso da 1 h 13 m e risulta <b>in uso</b> da nonio.</p>
+          <p style="margin:0 0 10px;color:var(--fg2)">Se lo lasci acceso, resta orfano: Aethera al prossimo avvio lo mostrerà come tale e potrà solo leggerlo o terminarlo.</p>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn danger" disabled title="in uso">Ferma ed esci</button><button class="btn">Lascia acceso ed esci</button><button class="btn primary">Annulla</button></div>
+          <label style="display:block;margin-top:8px" class="cond"><input type="checkbox"> Ricorda la scelta</label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  </main>
+</div>
+<div class="mock">mockup statico · M-01 · dati del 15-09 da minis-config/docs/13-launcher.md</div>
+
+<script>
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');document.getElementById(b.dataset.page).classList.add('on');
+  location.hash=b.dataset.page;
+});
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  b.parentElement.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  document.getElementById('tab-modelli').style.display=b.dataset.tab==='modelli'?'':'none';
+  document.getElementById('tab-build').style.display=b.dataset.tab==='build'?'':'none';
+});
+document.querySelectorAll('.toggle').forEach(t=>t.onclick=()=>t.classList.toggle('on'));
+function toggleTheme(){const h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark'}
+document.addEventListener('keydown',e=>{const m={1:'motore',2:'avvio',3:'catalogo',4:'benchmark',5:'impostazioni'}[e.key];if(m)document.querySelector(`[data-page=${m}]`).click()});
+if(location.hash){const b=document.querySelector(`[data-page=${location.hash.slice(1)}]`);if(b)b.click()}
+</script>
+</body>
+</html>
