@@ -1,8 +1,8 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
 import * as api from "../api";
 import type { EngineStatus, Issue, Overview, Preview, Profile, ProfileEntry } from "../api";
-import { CommandLine, copy, Val } from "../components";
+import { AskName, CommandLine, Confirm, copy, Val } from "../components";
 import { fixed, getPath, sameValue, setPath, show } from "../format";
 
 type Kind = "text" | "opttext" | "int" | "optint" | "optfloat" | "bool" | "select" | "list";
@@ -165,10 +165,19 @@ function FieldRow(props: {
   );
 }
 
+/** Il dialogo aperto: uno alla volta, e nessuno usa `window.prompt`, che nella WebView non c'è. */
+type Ask =
+  | { kind: "duplica"; name: string }
+  | { kind: "rinomina"; name: string }
+  | { kind: "elimina"; name: string; lines: string[] };
+
 export default function Avvio(props: {
   overview: Overview;
   status: EngineStatus | null;
   onStarted: () => void;
+  /** Pesi scelti dal Catalogo con «Avvia…»: il profilo che li usa, o uno nuovo su misura. */
+  pendingModel?: string | null;
+  onPendingHandled?: () => void;
 }) {
   const [entries, setEntries] = createSignal<ProfileEntry[]>([]);
   const [selected, setSelected] = createSignal("");
@@ -178,6 +187,7 @@ export default function Avvio(props: {
   const [newName, setNewName] = createSignal("");
   const [importBuild, setImportBuild] = createSignal(props.overview.builds[0]?.id.split("-")[0] ?? "b10809");
   const [busy, setBusy] = createSignal(false);
+  const [ask, setAsk] = createSignal<Ask | null>(null);
 
   const entry = createMemo(() => entries().find((e) => e.name === selected()) ?? null);
   const base = () => entry()?.profile ?? null;
@@ -196,12 +206,44 @@ export default function Avvio(props: {
       setEntries(list);
       const name = keep && list.some((e) => e.name === keep) ? keep : list[0]?.name ?? "";
       select(name, list);
+      return list;
     } catch (e) {
       setMessage({ kind: "err", text: String(e) });
+      return [] as ProfileEntry[];
     }
   };
 
-  onMount(() => reload());
+  /** Un profilo nuovo esiste solo in finestra finché non è salvato: `selected()` resta vuoto. */
+  const creating = () => selected() === "" && edited() != null;
+
+  const newProfile = (modelFile: string | null) =>
+    act(async () => {
+      const p = await api.profileTemplate(modelFile);
+      setSelected("");
+      setEdited(p);
+      setNewName(p.name);
+      setMessage({
+        kind: "ok",
+        text: `Profilo nuovo «${p.name}»: valori sensati, tutti espliciti. Correggi quello che serve e salvalo — finché non è salvato non si avvia, perché un avvio cita il profilo da cui è partito.`,
+      });
+    });
+
+  /** I pesi arrivati dal Catalogo: il profilo che già li usa, o uno nuovo costruito su di loro. */
+  const applyPending = (file: string, list: ProfileEntry[]) => {
+    props.onPendingHandled?.();
+    const hit = list.find((e) => e.profile?.model.file.toLowerCase() === file.toLowerCase());
+    if (hit) {
+      select(hit.name, list);
+      setMessage({ kind: "ok", text: `«${file}» è già usato dal profilo ${hit.name}: eccolo.` });
+    } else {
+      newProfile(file);
+    }
+  };
+
+  onMount(async () => {
+    const list = await reload();
+    if (props.pendingModel) applyPending(props.pendingModel, list);
+  });
 
   createEffect(
     on(edited, (p) => {
@@ -259,6 +301,63 @@ export default function Avvio(props: {
       await reload(saved);
     });
 
+  const duplicate = (to: string) =>
+    act(async () => {
+      const saved = await api.profileDuplicate(selected(), to);
+      setAsk(null);
+      setMessage({ kind: "ok", text: `«${selected()}» duplicato in ${saved}.` });
+      await reload(saved);
+    });
+
+  const rename = (to: string) =>
+    act(async () => {
+      const from = selected();
+      const saved = await api.profileRename(from, to);
+      setAsk(null);
+      setMessage({
+        kind: "ok",
+        text: `«${from}» ora si chiama ${saved}: cambia anche l'alias servito, quindi i client che lo citano vanno aggiornati. Gli avvii già registrati restano come sono.`,
+      });
+      await reload(saved);
+    });
+
+  const askDelete = () =>
+    act(async () => {
+      const name = selected();
+      const plan = await api.profileDeletionPlan(name);
+      setAsk({
+        kind: "elimina",
+        name,
+        lines: [`Il file ${plan.file} viene cancellato.`, ...plan.warnings],
+      });
+    });
+
+  const remove = () =>
+    act(async () => {
+      const name = selected();
+      await api.profileDelete(name);
+      setAsk(null);
+      setMessage({ kind: "ok", text: `Profilo ${name} cancellato. Gli avvii che lo citano restano nello storico.` });
+      await reload();
+    });
+
+  /** Campionamento consigliato che il catalogo conosce per questi pesi, con fonte e data. */
+  const takeSampling = () =>
+    act(async () => {
+      const p = edited()!;
+      const found = await api.catalogSampling(p.model.file);
+      const modes = Object.keys(found);
+      if (!modes.length) {
+        setMessage({
+          kind: "err",
+          text: `Il catalogo non conosce nessun campionamento per «${p.model.file}»: leggi la model card dalla pagina Catalogo.`,
+        });
+        return;
+      }
+      setEdited({ ...p, sampling_by_mode: { ...p.sampling_by_mode, ...found } });
+      setMessage({ kind: "ok", text: `Campionamento preso dal catalogo: ${modes.join(" · ")}. Salva il profilo per tenerlo.` });
+    });
+
   const importJson = () =>
     act(async () => {
       const picked = await open({ multiple: true, filters: [{ name: "Profili minis-config", extensions: ["json"] }] });
@@ -282,7 +381,8 @@ export default function Avvio(props: {
     });
 
   const binary = () => preview()?.binary ?? "llama-server";
-  const canStart = () => !busy() && !engineOn() && preview() != null && preview()!.blockers.length === 0;
+  const canStart = () =>
+    !busy() && !engineOn() && !creating() && preview() != null && preview()!.blockers.length === 0;
 
   return (
     <section>
@@ -306,8 +406,30 @@ export default function Avvio(props: {
           <div class="mini mono" style={{ "word-break": "break-all", margin: "-4px 0 8px" }}>
             {props.overview.data_root}\profiles
           </div>
+          <div class="row" style={{ margin: "0 0 8px" }}>
+            <button class="btn sm primary" disabled={busy()} onClick={() => newProfile(null)}>
+              Nuovo profilo…
+            </button>
+            <button class="btn sm" disabled={busy() || !selected()} onClick={() => setAsk({ kind: "duplica", name: selected() })}>
+              Duplica…
+            </button>
+            <button class="btn sm" disabled={busy() || !selected()} onClick={() => setAsk({ kind: "rinomina", name: selected() })}>
+              Rinomina…
+            </button>
+            <button class="btn sm danger" disabled={busy() || !selected()} onClick={askDelete}>
+              Elimina…
+            </button>
+          </div>
           <div class="list">
-            <For each={entries()} fallback={<div class="cond">Nessun profilo: importa i JSON di minis-config.</div>}>
+            <Show when={creating()}>
+              <div class="it on">
+                <div class="n">{edited()!.name}</div>
+                <div class="m">
+                  <span class="pill mod">non ancora salvato</span>
+                </div>
+              </div>
+            </Show>
+            <For each={entries()} fallback={<Show when={!creating()}><div class="cond">Nessun profilo: fanne uno con «Nuovo profilo…» oppure importa i JSON di minis-config.</div></Show>}>
               {(e) => (
                 <div class="it" classList={{ on: e.name === selected() }} onClick={() => select(e.name)}>
                   <div class="n">{e.name}</div>
@@ -442,7 +564,10 @@ export default function Avvio(props: {
               <>
                 <div class="card mb">
                   <h2>
-                    Profilo <span class="r mono">{entry()?.file}</span>
+                    Profilo{" "}
+                    <span class="r mono">
+                      {entry()?.file ?? `${props.overview.data_root}\\profiles\\${p().name}.toml · da salvare`}
+                    </span>
                   </h2>
                   <FieldRow def={{ path: "name", label: "name · alias", kind: "text" }} base={base()} edited={p()} issues={preview()?.issues ?? []} onSet={set} />
                   <Show when={p().notes}>
@@ -465,11 +590,22 @@ export default function Avvio(props: {
                   </For>
                 </div>
 
-                <Show when={p().sampling_by_mode && Object.keys(p().sampling_by_mode!).length}>
-                  <div class="card mb">
-                    <h2>
-                      Campionamento consigliato <span class="r">dato del modello · non è un default del server</span>
-                    </h2>
+                <div class="card mb">
+                  <h2>
+                    Campionamento consigliato <span class="r">dato del modello · non è un default del server</span>
+                    <button class="btn sm right" disabled={busy() || !p().model.file} onClick={takeSampling}>
+                      Prendi dal catalogo
+                    </button>
+                  </h2>
+                  <Show
+                    when={p().sampling_by_mode && Object.keys(p().sampling_by_mode!).length}
+                    fallback={
+                      <div class="cond">
+                        Nessuno: il catalogo lo impara dalla model card del publisher (pagina Catalogo → «Leggi la model
+                        card»), poi lo si porta qui. Quello che finisce nel profilo esce anche nelle righe per i client.
+                      </div>
+                    }
+                  >
                     <table>
                       <thead>
                         <tr>
@@ -501,8 +637,12 @@ export default function Avvio(props: {
                         </For>
                       </tbody>
                     </table>
-                  </div>
-                </Show>
+                    <div class="cond" style={{ "margin-top": "6px" }}>
+                      Esce anche nelle righe per i client (Impostazioni), con fonte e data: il campionamento lo manda il
+                      client a ogni richiesta, llama-server non lo applica da solo.
+                    </div>
+                  </Show>
+                </div>
 
                 <div class="card">
                   <h2>
@@ -540,6 +680,11 @@ export default function Avvio(props: {
                     <button class="btn sm" onClick={() => copy(preview()?.line ?? "")}>
                       Copia riga
                     </button>
+                    <Show when={creating()}>
+                      <span class="right cond">
+                        Profilo non ancora salvato: un avvio cita il profilo da cui è partito, quindi prima si salva.
+                      </span>
+                    </Show>
                     <Show when={engineOn()}>
                       <span class="right cond">
                         {api.inUse(props.status)
@@ -568,6 +713,45 @@ export default function Avvio(props: {
           </Show>
         </div>
       </div>
+
+      <Show when={ask()}>
+        {(a) => (
+          <Switch>
+            <Match when={a().kind === "duplica"}>
+              <AskName
+                title={`Duplica «${a().name}»`}
+                label="nome nuovo"
+                value={`${a().name}-2`}
+                confirmLabel="Duplica"
+                note="Il nome del profilo è anche l'alias servito: due profili non possono chiamarsi uguale."
+                onCancel={() => setAsk(null)}
+                onConfirm={duplicate}
+              />
+            </Match>
+            <Match when={a().kind === "rinomina"}>
+              <AskName
+                title={`Rinomina «${a().name}»`}
+                label="nome nuovo"
+                value={a().name}
+                confirmLabel="Rinomina"
+                note="Cambia il file e l'alias servito. Gli avvii già registrati continuano a citare il nome vecchio: raccontano com'è andata, non puntano a un file."
+                onCancel={() => setAsk(null)}
+                onConfirm={rename}
+              />
+            </Match>
+            <Match when={a().kind === "elimina"}>
+              <Confirm
+                title={`Elimina «${a().name}»`}
+                lines={(a() as { lines: string[] }).lines}
+                confirmLabel="Elimina il profilo"
+                danger
+                onCancel={() => setAsk(null)}
+                onConfirm={remove}
+              />
+            </Match>
+          </Switch>
+        )}
+      </Show>
     </section>
   );
 }

@@ -1,3 +1,4 @@
+pub mod adopt;
 pub mod builds;
 pub mod catalog;
 pub mod clients;
@@ -15,6 +16,7 @@ pub mod launch;
 pub mod machine;
 pub mod manifest;
 pub mod memory;
+pub mod modelcard;
 pub mod profile;
 pub mod runs;
 pub mod settings;
@@ -81,6 +83,12 @@ pub fn run() {
             commands::preview,
             commands::save_profile,
             commands::import_minis,
+            commands::profile_template,
+            commands::profile_duplicate,
+            commands::profile_rename,
+            commands::profile_deletion_plan,
+            commands::profile_delete,
+            commands::catalog_sampling,
             commands::engine_start,
             commands::engine_stop,
             commands::engine_restart,
@@ -99,6 +107,10 @@ pub fn run() {
             commands::catalog_reread,
             commands::catalog_removal_plan,
             commands::catalog_remove,
+            commands::catalog_import_plan,
+            commands::catalog_import,
+            commands::catalog_modelcard,
+            commands::builds_import_dir,
             commands::builds_list,
             commands::builds_install,
             commands::build_devices,

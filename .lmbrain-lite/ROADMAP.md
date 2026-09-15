@@ -13,9 +13,9 @@ generated: true
 | 2 | M-02 | Scheletro Tauri, schema dei profili e ciclo di vita del motore | done | 10/10 | 100% |
 | 3 | M-03 | Memoria misurata, telemetria, stato «in uso» ed endpoint Aethera | done | 11/11 | 100% |
 | 4 | M-04 | Catalogo: metadati GGUF, stima di memoria, verifica e download di pesi e build | done | 10/10 | 100% |
-| 5 | M-05 | Uso quotidiano senza toccare i file a mano | proposed | 0/7 | 0% |
-| 6 | M-06 | Comportamento quando qualcosa va storto | proposed | 0/8 | 0% |
-| 7 | M-07 | Confezionamento, prima esecuzione e documentazione | proposed | 0/7 | 0% |
+| 5 | M-05 | Uso quotidiano senza toccare i file a mano | active | 7/8 (1 blocked) | 88% |
+| 6 | M-06 | Comportamento quando qualcosa va storto | approved | 0/8 | 0% |
+| 7 | M-07 | Confezionamento, prima esecuzione e documentazione | approved | 0/7 | 0% |
 
 ## M-01 — Mockup di design della v1
 
@@ -47,21 +47,21 @@ generated: true
 
 ## M-05 — Uso quotidiano senza toccare i file a mano
 
-- `status`: proposed
+- `status`: active
 - `priority`: 5
 - `file`: milestones/M-05.md
 - `outcome`: Partendo da una radice dati vuota l'operatore arriva a un motore acceso senza scrivere a mano nessun file: crea un profilo da zero, lo duplica, lo rinomina e lo cancella dalla finestra; registra pesi che stanno fuori dalla cartella dichiarata riconoscendoli per hash; apre l'Avvio direttamente dal Catalogo; il campionamento consigliato dalla model card arriva fino ai frammenti per i client.
 
 ## M-06 — Comportamento quando qualcosa va storto
 
-- `status`: proposed
+- `status`: approved
 - `priority`: 6
 - `file`: milestones/M-06.md
 - `outcome`: Ogni guasto prevedibile dà un messaggio leggibile che dice cosa è successo e cosa fare, senza perdere dati né lasciare Aethera in uno stato ambiguo: file di configurazione illeggibili, pesi o build spariti, disco pieno, rete caduta, motore che esce con errore, app chiusa con un lavoro in corso.
 
 ## M-07 — Confezionamento, prima esecuzione e documentazione
 
-- `status`: proposed
+- `status`: approved
 - `priority`: 7
 - `file`: milestones/M-07.md
 - `outcome`: Aethera si installa e si avvia su una macchina pulita senza toolchain di sviluppo, guida chi la apre per la prima volta dalla radice dati fino al motore acceso, e chi non l'ha mai vista capisce dal README cosa fa, cosa serve e dove finiscono i suoi dati.

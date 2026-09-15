@@ -1,7 +1,8 @@
+import { open } from "@tauri-apps/plugin-dialog";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import * as api from "../api";
-import type { BuildsView, Device, Estimate, ModelRow, TaskView } from "../api";
-import { Val } from "../components";
+import type { AdoptPlan, BuildsView, Device, Estimate, ModelRow, TaskView } from "../api";
+import { Confirm, Val } from "../components";
 import { clock, fixed, num, show } from "../format";
 
 const STATES: Record<api.ModelState, { cls: string; text: string }> = {
@@ -95,7 +96,13 @@ function EstimateCard(props: { row: ModelRow }) {
 
 function Tasks(props: { tasks: TaskView[]; onCancel: (id: string) => void; onClear: () => void }) {
   const label = (t: TaskView) =>
-    t.kind === "verify" ? "verifica SHA-256" : t.kind === "download" ? "download" : "installazione";
+    t.kind === "verify"
+      ? "verifica SHA-256"
+      : t.kind === "download"
+        ? "download"
+        : t.kind === "copy"
+          ? "copia da un altro volume"
+          : "installazione";
   return (
     <Show when={props.tasks.length}>
       <div class="card mb">
@@ -134,7 +141,7 @@ function Tasks(props: { tasks: TaskView[]; onCancel: (id: string) => void; onCle
   );
 }
 
-function BuildsTab(props: { onError: (e: string) => void }) {
+function BuildsTab(props: { onError: (e: string) => void; onMessage: (m: string) => void }) {
   const [view, setView] = createSignal<BuildsView | null>(null);
   const [devices, setDevices] = createSignal<{ id: string; list: Device[] } | null>(null);
   const [busy, setBusy] = createSignal(false);
@@ -159,6 +166,21 @@ function BuildsTab(props: { onError: (e: string) => void }) {
     }
   };
 
+  /** Gemello di «Aggiungi build…» delle Impostazioni: una cartella di llama.cpp già scaricata. */
+  const importDir = async () => {
+    const picked = await open({ directory: true });
+    if (typeof picked !== "string") return;
+    setBusy(true);
+    try {
+      setView(await api.buildsImportDir(picked));
+      props.onMessage(`Cartella dichiarata in machine.toml: ${picked}`);
+    } catch (e) {
+      props.onError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const showDevices = async (id: string) => {
     try {
       setDevices({ id, list: await api.buildDevices(id) });
@@ -172,6 +194,9 @@ function BuildsTab(props: { onError: (e: string) => void }) {
       <div class="row mb">
         <button class="btn sm primary" disabled={busy()} onClick={() => load(true)}>
           Cerca le release di ggml-org
+        </button>
+        <button class="btn sm" disabled={busy()} onClick={importDir}>
+          Importa cartella…
         </button>
         <span class="right cond">Cambiare build è una variabile di prova, non un aggiornamento automatico.</span>
       </div>
@@ -266,7 +291,7 @@ function BuildsTab(props: { onError: (e: string) => void }) {
   );
 }
 
-export default function Catalogo() {
+export default function Catalogo(props: { onLaunch?: (file: string) => void }) {
   const [tab, setTab] = createSignal<"modelli" | "build">("modelli");
   const [rows, setRows] = createSignal<ModelRow[]>([]);
   const [tasks, setTasks] = createSignal<TaskView[]>([]);
@@ -276,6 +301,7 @@ export default function Catalogo() {
   const [repo, setRepo] = createSignal("");
   const [file, setFile] = createSignal("");
   const [busy, setBusy] = createSignal(false);
+  const [adopt, setAdopt] = createSignal<AdoptPlan | null>(null);
 
   const load = async () => {
     try {
@@ -317,6 +343,41 @@ export default function Catalogo() {
   };
 
   const selected = createMemo(() => rows().find((r) => r.id === focus()) ?? null);
+
+  /**
+   * Registra un `.gguf` che sta fuori dalla cartella dei pesi. Sullo stesso volume è un hard link
+   * e non costa niente; da un altro volume è una copia, e allora si chiede prima.
+   */
+  const importFromDisk = () =>
+    act(async () => {
+      const picked = await open({ multiple: false, filters: [{ name: "Pesi GGUF", extensions: ["gguf"] }] });
+      if (typeof picked !== "string") return;
+      const plan = await api.catalogImportPlan(picked);
+      if (plan.action === "copy" && !plan.blocker) {
+        setAdopt(plan);
+        return;
+      }
+      const out = await api.catalogImport(picked, false);
+      if (out.rows.length) setRows(out.rows);
+      setMessage(out.message);
+    });
+
+  const confirmCopy = () =>
+    act(async () => {
+      const plan = adopt()!;
+      setAdopt(null);
+      const out = await api.catalogImport(plan.source, true);
+      if (out.rows.length) setRows(out.rows);
+      setMessage(out.message);
+    });
+
+  /** Campionamento consigliato dalla model card del publisher, con fonte e data di lettura. */
+  const readCard = (row: ModelRow, replace: boolean) =>
+    act(async () => {
+      const r = await api.catalogModelcard(row.id, replace);
+      setRows(r.rows);
+      setMessage(r.notes.join(" · "));
+    });
 
   const remove = (row: ModelRow) =>
     act(async () => {
@@ -368,7 +429,7 @@ export default function Catalogo() {
         onClear={() => act(async () => { await api.tasksClear(); setTasks(await api.tasksList()); })}
       />
 
-      <Show when={tab() === "modelli"} fallback={<BuildsTab onError={setError} />}>
+      <Show when={tab() === "modelli"} fallback={<BuildsTab onError={setError} onMessage={setMessage} />}>
         <div class="row mb">
           <input
             class="mono"
@@ -397,6 +458,9 @@ export default function Catalogo() {
             }
           >
             Aggiungi da Hugging Face
+          </button>
+          <button class="btn sm" disabled={busy()} onClick={importFromDisk}>
+            Importa da disco…
           </button>
           <button class="btn sm" disabled={busy()} onClick={load}>
             Riscansiona
@@ -489,6 +553,13 @@ export default function Catalogo() {
                         <button class="btn sm" disabled={busy()} onClick={() => act(() => api.catalogVerify(r.id))}>
                           Verifica
                         </button>
+                        <button
+                          class="btn sm primary"
+                          title="Apre la pagina Avvio con questi pesi: il profilo che li usa, o uno nuovo"
+                          onClick={() => props.onLaunch?.(r.file)}
+                        >
+                          Avvia…
+                        </button>
                       </Show>
                     </td>
                   </tr>
@@ -560,6 +631,14 @@ export default function Catalogo() {
                   <button class="btn sm" disabled={busy()} onClick={() => act(async () => setRows(await api.catalogReread(r().id)))}>
                     Rileggi metadati GGUF
                   </button>
+                  <button
+                    class="btn sm"
+                    disabled={busy() || !r().repo}
+                    title={r().repo ? "Legge il README del publisher" : "Senza repository non c'è una model card"}
+                    onClick={() => readCard(r(), false)}
+                  >
+                    Leggi la model card
+                  </button>
                   <button class="btn sm danger" disabled={busy()} onClick={() => remove(r())}>
                     Rimuovi…
                   </button>
@@ -571,7 +650,18 @@ export default function Catalogo() {
                   Stima di memoria <span class="r">{r().estimate_profile ? `profilo ${r().estimate_profile}` : "senza profilo"}</span>
                 </h2>
                 <EstimateCard row={r()} />
-                <Show when={Object.keys(r().sampling_by_mode).length}>
+                <Show
+                  when={Object.keys(r().sampling_by_mode).length}
+                  fallback={
+                    <>
+                      <hr />
+                      <div class="cond">
+                        Nessun campionamento consigliato registrato. «Leggi la model card» prende dal publisher quello
+                        che ci scrive, con fonte e data; da qui lo si porta in un profilo e nelle righe per i client.
+                      </div>
+                    </>
+                  }
+                >
                   <hr />
                   <h2>
                     Campionamento consigliato <span class="r">dalla model card</span>
@@ -615,6 +705,24 @@ export default function Catalogo() {
             </div>
           )}
         </Show>
+      </Show>
+
+      <Show when={adopt()}>
+        {(pl) => (
+          <Confirm
+            title={`Copiare «${pl().file}»?`}
+            lines={[
+              ...pl().notes,
+              `Da copiare: ${(pl().bytes / 1e9).toFixed(2)} GB${
+                pl().free_disk != null ? ` · liberi sul volume di destinazione: ${(pl().free_disk! / 1e9).toFixed(1)} GB` : ""
+              }`,
+              `Destinazione: ${pl().target}`,
+            ]}
+            confirmLabel="Copia"
+            onCancel={() => setAdopt(null)}
+            onConfirm={confirmCopy}
+          />
+        )}
       </Show>
     </section>
   );

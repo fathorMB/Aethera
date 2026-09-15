@@ -64,6 +64,13 @@ pub trait SystemProbe {
     fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
         None
     }
+
+    /// Identità del file sul volume (serial del volume, indice del file): due nomi con la stessa
+    /// identità sono lo stesso contenuto, cioè hard link. Serve a non registrare due volte gli
+    /// stessi pesi quando arrivano da fuori la cartella dichiarata.
+    fn file_id(&self, _path: &Path) -> Option<(u32, u64)> {
+        None
+    }
 }
 
 pub fn probe() -> Box<dyn SystemProbe> {
@@ -171,6 +178,10 @@ mod windows_probe {
         fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
             free_disk_bytes(path)
         }
+
+        fn file_id(&self, path: &Path) -> Option<(u32, u64)> {
+            file_id(path)
+        }
     }
 
     fn wide(s: &std::ffi::OsStr) -> Vec<u16> {
@@ -195,6 +206,29 @@ mod windows_probe {
             .ok()?;
             let mut info = BY_HANDLE_FILE_INFORMATION::default();
             let r = GetFileInformationByHandle(h, &mut info).ok().map(|_| info.nNumberOfLinks);
+            let _ = CloseHandle(h);
+            r
+        }
+    }
+
+    /// Volume e indice del file: identici significa che i due nomi sono lo stesso file.
+    fn file_id(path: &Path) -> Option<(u32, u64)> {
+        unsafe {
+            let w = wide(path.as_os_str());
+            let h = CreateFileW(
+                PCWSTR(w.as_ptr()),
+                0,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                None,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                None,
+            )
+            .ok()?;
+            let mut info = BY_HANDLE_FILE_INFORMATION::default();
+            let r = GetFileInformationByHandle(h, &mut info)
+                .ok()
+                .map(|_| (info.dwVolumeSerialNumber, ((info.nFileIndexHigh as u64) << 32) | info.nFileIndexLow as u64));
             let _ = CloseHandle(h);
             r
         }

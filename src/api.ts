@@ -386,7 +386,7 @@ export interface RemovalPlan {
   warnings: string[];
 }
 
-export type TaskKind = "verify" | "download" | "install";
+export type TaskKind = "verify" | "download" | "install" | "copy";
 export type TaskState = "running" | "done" | "failed" | "cancelled";
 
 export interface TaskView {
@@ -428,6 +428,51 @@ export interface BuildsView {
   releases: Release[];
   releases_error: string | null;
 }
+
+/** Che cosa comporta registrare un .gguf che sta fuori dalla cartella dei pesi. */
+export interface AdoptPlan {
+  source: string;
+  file: string;
+  target: string;
+  bytes: number;
+  action: "nothing" | "link" | "copy";
+  already: string | null;
+  notes: string[];
+  blocker: string | null;
+  free_disk: number | null;
+}
+
+export interface ImportOutcome {
+  task: string | null;
+  message: string;
+  rows: ModelRow[];
+}
+
+export interface DeletionPlan {
+  name: string;
+  file: string;
+  runs: number;
+  warnings: string[];
+}
+
+export interface CardReport {
+  notes: string[];
+  rows: ModelRow[];
+}
+
+export const profileTemplate = (modelFile: string | null) => invoke<Profile>("profile_template", { modelFile });
+export const profileDuplicate = (name: string, newName: string) =>
+  invoke<string>("profile_duplicate", { name, newName });
+export const profileRename = (name: string, newName: string) => invoke<string>("profile_rename", { name, newName });
+export const profileDeletionPlan = (name: string) => invoke<DeletionPlan>("profile_deletion_plan", { name });
+export const profileDelete = (name: string) => invoke<void>("profile_delete", { name });
+export const catalogSampling = (file: string) => invoke<Record<string, Sampling>>("catalog_sampling", { file });
+export const catalogImportPlan = (path: string) => invoke<AdoptPlan>("catalog_import_plan", { path });
+export const catalogImport = (path: string, confirmCopy: boolean) =>
+  invoke<ImportOutcome>("catalog_import", { path, confirmCopy });
+export const catalogModelcard = (id: string, replace: boolean) =>
+  invoke<CardReport>("catalog_modelcard", { id, replace });
+export const buildsImportDir = (path: string) => invoke<BuildsView>("builds_import_dir", { path });
 
 export const catalogList = () => invoke<ModelRow[]>("catalog_list");
 export const catalogVerify = (id: string) => invoke<string>("catalog_verify", { id });

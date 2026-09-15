@@ -1,5 +1,6 @@
 //! Comandi chiamati dalla finestra (e dalla tray).
 
+use crate::adopt;
 use crate::builds::{self, Release};
 use crate::catalog::{self, Catalog, ModelRow, ScanInput};
 use crate::clients::{self, ClientSnippets, RunFacts};
@@ -12,6 +13,7 @@ use crate::hash;
 use crate::import;
 use crate::launch;
 use crate::machine::{self, BuildEntry, DataRoot, MachineConfig, ResolvedBuild};
+use crate::modelcard;
 use crate::profile::{self, Issue, Override, Profile};
 use crate::runs::{self, Comparison, RunDetail, RunRow};
 use crate::settings::ExitBehavior;
@@ -249,6 +251,195 @@ pub fn import_minis(state: State<AppState>, path: String, build: String) -> Resu
     Ok(ImportReport { name: imported.profile.name, notes: imported.notes })
 }
 
+// ---------------------------------------------------------------------------------------------
+// Profili dalla finestra (M-05): crearne uno da zero, duplicarlo, rinominarlo, cancellarlo.
+//
+// Il nome del profilo è il nome del file **ed è l'alias servito**: rinominare vuol dire spostare
+// il file e riscrivere il campo `name`, non una cosa sola delle due. Gli avvii già registrati
+// citano il profilo per nome nel loro manifest e non si toccano: un manifest racconta com'è
+// andato quell'avvio, non punta a un file che deve ancora esistere.
+// ---------------------------------------------------------------------------------------------
+
+fn profile_file(root: &DataRoot, name: &str) -> PathBuf {
+    root.profiles().join(format!("{name}.toml"))
+}
+
+/// Prima porta non dichiarata da nessun profilo, dalla 8080 in su.
+fn free_port(taken: &[u16]) -> u16 {
+    (8080..8180).find(|p| !taken.contains(p)).unwrap_or(8080)
+}
+
+/// Nome libero: `nuovo-profilo`, poi `nuovo-profilo-2`, `nuovo-profilo-3`…
+fn unique_name(root: &DataRoot, wanted: &str) -> String {
+    if !profile_file(root, wanted).exists() {
+        return wanted.to_string();
+    }
+    (2..1000)
+        .map(|n| format!("{wanted}-{n}"))
+        .find(|n| !profile_file(root, n).exists())
+        .unwrap_or_else(|| wanted.to_string())
+}
+
+/// Il profilo da cui è stato acceso il motore che sta girando: non si rinomina né si cancella
+/// sotto i piedi di un motore acceso, perché «Riavvia» tornerebbe a cercarlo.
+fn refuse_if_running(state: &AppState, name: &str) -> Result<(), String> {
+    let Some(m) = state.engine.manifest() else { return Ok(()) };
+    if state.engine.is_running() && m.run.profile == name {
+        return Err(format!("il motore acceso ({}) è partito da questo profilo: fermalo prima", m.run.id));
+    }
+    Ok(())
+}
+
+fn read_profile(root: &DataRoot, name: &str) -> Result<Profile, String> {
+    let path = profile_file(root, name);
+    let text = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let (p, issues) = profile::load(&text, name);
+    p.ok_or_else(|| {
+        format!("{}: {}", path.display(), issues.first().map(|i| i.message.clone()).unwrap_or_else(|| "illeggibile".into()))
+    })
+}
+
+fn write_profile(root: &DataRoot, p: &Profile) -> Result<(), String> {
+    let issues = profile::validate(p);
+    if !issues.is_empty() {
+        return Err(issues.iter().map(|i| format!("{}: {}", i.field, i.message)).collect::<Vec<_>>().join("\n"));
+    }
+    let path = profile_file(root, &p.name);
+    let text = toml::to_string_pretty(p).map_err(|e| e.to_string())?;
+    fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// Un profilo nuovo con valori sensati, già pieno di quello che la macchina e il catalogo sanno.
+/// Non scrive niente: la finestra lo mostra, lo si corregge e si salva.
+#[tauri::command]
+pub fn profile_template(state: State<AppState>, model_file: Option<String>) -> Result<Profile, String> {
+    let (root, machine) = root_and_machine(&state)?;
+    let taken: Vec<u16> =
+        read_profiles(&root)?.iter().filter_map(|e| e.profile.as_ref().map(|p| p.server.port)).collect();
+
+    // La build proposta è la prima installata: fissarla è una scelta dichiarata, non un automatismo.
+    let builds = root.builds_available(&machine);
+    let (build, backend) = builds.first().map(|b| machine::split_build_id(&b.id)).unwrap_or((None, None));
+
+    let file = model_file.unwrap_or_default().trim().to_string();
+    let wanted = if file.is_empty() { "nuovo-profilo".to_string() } else { profile::name_from_file(&file) };
+    let mut p = profile::template(
+        &unique_name(&root, &wanted),
+        &file,
+        build.as_deref().unwrap_or_default(),
+        backend.as_deref().unwrap_or("vulkan"),
+        free_port(&taken),
+    );
+
+    // Quello che il catalogo sa già del modello non si chiede una seconda volta a chi crea il profilo.
+    if !file.is_empty() {
+        if let Some(e) = catalog::load(&root)?.models.into_iter().find(|e| e.file.eq_ignore_ascii_case(&file)) {
+            p.model.file = e.file;
+            p.model.repo = e.repo;
+            p.model.quant = e.quant.or_else(|| e.gguf.as_ref().and_then(|g| g.info.dominant_type.clone()));
+            p.model.size_gb = e.size_gb;
+            p.model.sha256 = e.sha256_verified.or(e.sha256);
+            p.sampling_by_mode = e.sampling_by_mode;
+        }
+    }
+    Ok(p)
+}
+
+/// Copia un profilo con un altro nome. L'alias segue il nome: due profili con lo stesso alias
+/// servirebbero lo stesso modello sotto lo stesso nome e un client non li distinguerebbe.
+#[tauri::command]
+pub fn profile_duplicate(state: State<AppState>, name: String, new_name: String) -> Result<String, String> {
+    let root = data_root(&state)?;
+    let wanted = new_name.trim().to_string();
+    if wanted == name {
+        return Err("il nome nuovo è uguale a quello vecchio".into());
+    }
+    if profile_file(&root, &wanted).exists() {
+        return Err(format!("esiste già un profilo «{wanted}»: scegli un altro nome"));
+    }
+    let mut p = read_profile(&root, &name)?;
+    p.name = wanted.clone();
+    write_profile(&root, &p)?;
+    Ok(wanted)
+}
+
+/// Rinomina un profilo: file e campo `name` insieme, e il vecchio file sparisce solo quando il
+/// nuovo è stato scritto davvero.
+#[tauri::command]
+pub fn profile_rename(state: State<AppState>, name: String, new_name: String) -> Result<String, String> {
+    let root = data_root(&state)?;
+    let wanted = new_name.trim().to_string();
+    if wanted == name {
+        return Ok(name);
+    }
+    refuse_if_running(&state, &name)?;
+    if profile_file(&root, &wanted).exists() {
+        return Err(format!("esiste già un profilo «{wanted}»: scegli un altro nome"));
+    }
+    let mut p = read_profile(&root, &name)?;
+    p.name = wanted.clone();
+    write_profile(&root, &p)?;
+    let old = profile_file(&root, &name);
+    fs::remove_file(&old).map_err(|e| format!("{}: {e} (il profilo «{wanted}» è stato scritto)", old.display()))?;
+    Ok(wanted)
+}
+
+#[derive(Serialize)]
+pub struct DeletionPlan {
+    pub name: String,
+    pub file: String,
+    /// Avvii già registrati che citano questo profilo: restano dove sono.
+    pub runs: usize,
+    pub warnings: Vec<String>,
+}
+
+/// Che cosa comporta cancellare un profilo: lo si dice prima, non dopo.
+#[tauri::command]
+pub fn profile_deletion_plan(state: State<AppState>, name: String) -> Result<DeletionPlan, String> {
+    let root = data_root(&state)?;
+    let file = profile_file(&root, &name);
+    if !file.is_file() {
+        return Err(format!("nessun profilo «{name}»"));
+    }
+    let runs = runs::list(&root.runs(), None).into_iter().filter(|r| r.profile == name).count();
+    let mut warnings = Vec::new();
+    if let Err(e) = refuse_if_running(&state, &name) {
+        warnings.push(e);
+    }
+    if runs > 0 {
+        warnings.push(format!(
+            "{runs} avvii registrati citano «{name}»: restano nello storico con il loro profilo effettivo, ma il file da cui sono partiti non ci sarà più"
+        ));
+    }
+    Ok(DeletionPlan { name, file: file.display().to_string(), runs, warnings })
+}
+
+/// Cancella il file del profilo. Gli avvii già registrati non si toccano: il manifest di ognuno
+/// porta dentro il profilo effettivo, quindi resta leggibile e confrontabile anche senza il file.
+#[tauri::command]
+pub fn profile_delete(state: State<AppState>, name: String) -> Result<(), String> {
+    let root = data_root(&state)?;
+    refuse_if_running(&state, &name)?;
+    let file = profile_file(&root, &name);
+    if !file.is_file() {
+        return Err(format!("nessun profilo «{name}»"));
+    }
+    fs::remove_file(&file).map_err(|e| format!("{}: {e}", file.display()))
+}
+
+/// Campionamento consigliato che il catalogo conosce per i pesi di un profilo: si porta nel
+/// profilo con un gesto, invece di ricopiarlo a mano dalla pagina Catalogo.
+#[tauri::command]
+pub fn catalog_sampling(state: State<AppState>, file: String) -> Result<BTreeMap<String, profile::Sampling>, String> {
+    let root = data_root(&state)?;
+    Ok(catalog::load(&root)?
+        .models
+        .into_iter()
+        .find(|e| e.file.eq_ignore_ascii_case(file.trim()))
+        .map(|e| e.sampling_by_mode)
+        .unwrap_or_default())
+}
+
 fn start_from(state: &AppState, base: &str, edited: Profile) -> Result<RunInfo, String> {
     let (root, m) = root_and_machine(state)?;
     let run_id = chrono::Local::now().format("r-%Y%m%d-%H%M%S").to_string();
@@ -341,6 +532,9 @@ pub fn snippets_for(state: &AppState) -> Option<ClientSnippets> {
         ctx_served: m.server.ctx_served,
         client: m.effective_profile.client.as_ref(),
         endpoint: state.endpoint.as_ref().ok().map(String::as_str),
+        // Il campionamento è quello del profilo **avviato**, non quello del file su disco:
+        // le righe devono valere per il motore che sta rispondendo adesso.
+        sampling: &m.effective_profile.sampling_by_mode,
     }))
 }
 
@@ -716,6 +910,145 @@ pub fn build_devices(state: State<AppState>, id: String) -> Result<Vec<crate::me
         .find(|b| b.id == id)
         .ok_or_else(|| format!("nessuna build «{id}» installata"))?;
     crate::memory::list_devices(&build.binary)
+}
+
+/// Registra nel catalogo un `.gguf` che sta fuori dalla cartella dei pesi. Non tocca niente:
+/// dice che cosa comporterebbe farlo.
+#[tauri::command]
+pub fn catalog_import_plan(state: State<AppState>, path: String) -> Result<adopt::Plan, String> {
+    let (_, machine) = root_and_machine(&state)?;
+    let dir = machine.models_dir.ok_or("cartella dei pesi non impostata (Impostazioni → machine.toml)")?;
+    adopt::plan(Path::new(path.trim()), &dir, system::probe().as_ref())
+}
+
+#[derive(Serialize)]
+pub struct ImportOutcome {
+    /// Il lavoro aperto, quando l'operazione dura (la copia). Il collegamento è immediato.
+    pub task: Option<String>,
+    pub message: String,
+    pub rows: Vec<ModelRow>,
+}
+
+/// Esegue il piano. Un collegamento è immediato; una copia parte come lavoro con avanzamento e si
+/// può fermare. Finita l'una o l'altra, il file è nella cartella e il catalogo lo trova da solo.
+#[tauri::command]
+pub fn catalog_import(app: AppHandle, state: State<AppState>, path: String, confirm_copy: bool) -> Result<ImportOutcome, String> {
+    let plan = catalog_import_plan(state.clone(), path)?;
+    if let Some(b) = &plan.blocker {
+        return Err(b.clone());
+    }
+    match plan.action {
+        adopt::Action::Nothing => {
+            let rows = scan_catalog(&state)?.1;
+            let file = plan.already.clone().unwrap_or_else(|| plan.file.clone());
+            Ok(ImportOutcome { task: None, message: format!("«{file}» era già registrabile così com'è: catalogo riletto."), rows })
+        }
+        adopt::Action::Link => {
+            adopt::apply(&plan, false, &AtomicBool::new(false), &mut |_, _| {})?;
+            let rows = scan_catalog(&state)?.1;
+            // Il riconoscimento per hash parte da solo: finché non finisce, il file è «presente».
+            let id = rows.iter().find(|r| r.file.eq_ignore_ascii_case(&plan.file)).map(|r| r.id.clone());
+            let hashing = matches!(id.map(|id| catalog_verify(app, state.clone(), id)), Some(Ok(_)));
+            let note = if hashing {
+                " Lo SHA-256 si sta calcolando: finché non finisce il file resta «presente», non «verificato»."
+            } else {
+                ""
+            };
+            Ok(ImportOutcome {
+                task: None,
+                message: format!(
+                    "«{}» collegato nella cartella dei pesi: lo stesso contenuto con due nomi, nessun byte in più.{note}",
+                    plan.file
+                ),
+                rows,
+            })
+        }
+        adopt::Action::Copy => {
+            if !confirm_copy {
+                return Err(plan.notes.join("; "));
+            }
+            let (task_id, cancel) = state.tasks.start(Kind::Copy, &plan.file)?;
+            let tid = task_id.clone();
+            let file = plan.file.clone();
+            std::thread::spawn(move || {
+                let state = app.state::<AppState>();
+                let tasks = state.tasks.clone();
+                let pid = tid.clone();
+                let result = adopt::apply(&plan, true, &cancel, &mut |done, total| tasks.progress(&pid, done, Some(total)))
+                    .map(|o| match o {
+                        adopt::Outcome::Copied { bytes, .. } => format!("copiati {:.2} GB", bytes as f64 / 1e9),
+                        adopt::Outcome::Cancelled { .. } => "copia fermata: niente è rimasto nella cartella".into(),
+                        other => format!("{other:?}"),
+                    });
+                state.tasks.finish(&tid, result);
+            });
+            Ok(ImportOutcome {
+                task: Some(task_id),
+                message: format!("«{file}» in copia da un altro volume: il file compare nella cartella solo a copia finita."),
+                rows: Vec::new(),
+            })
+        }
+    }
+}
+
+/// Gemello di «Aggiungi build…» delle Impostazioni, nella scheda Build del Catalogo: dichiara in
+/// `machine.toml` una cartella di llama.cpp già scaricata a mano.
+#[tauri::command]
+pub fn builds_import_dir(state: State<AppState>, path: String) -> Result<BuildsView, String> {
+    let (root, mut machine) = root_and_machine(&state)?;
+    let dir = PathBuf::from(path.trim());
+    if !dir.is_dir() {
+        return Err(format!("{} non è una cartella", dir.display()));
+    }
+    let binary = dir.join(machine::server_binary_name());
+    if !binary.is_file() {
+        return Err(format!("in {} non c'è {}: non è una build di llama.cpp", dir.display(), machine::server_binary_name()));
+    }
+    if machine.builds.iter().any(|b| b.path == dir) {
+        return Err(format!("{} è già dichiarata in machine.toml", dir.display()));
+    }
+    let name = dir.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    let id = name.strip_prefix("llama-").unwrap_or(&name).to_string();
+    if machine.builds.iter().any(|b| b.id == id) {
+        return Err(format!("c'è già una build «{id}»: rinomina la cartella o toglila dalle Impostazioni"));
+    }
+    machine.builds.push(BuildEntry { id, path: dir });
+    root.save_machine(&machine)?;
+    builds_list(state, false)
+}
+
+#[derive(Serialize)]
+pub struct CardReport {
+    pub notes: Vec<String>,
+    pub rows: Vec<ModelRow>,
+}
+
+/// Legge la model card del publisher e ne ricava il campionamento consigliato, con fonte e data.
+/// Non sovrascrive quello che c'è già: un valore letto oggi non cancella uno messo a mano.
+#[tauri::command]
+pub fn catalog_modelcard(state: State<AppState>, id: String, replace: bool) -> Result<CardReport, String> {
+    let (_, entry, _) = entry_path(&state, &id)?;
+    let repo = entry.repo.clone().ok_or_else(|| {
+        format!("«{}» non dichiara un repository: senza publisher non c'è una model card da leggere", entry.id)
+    })?;
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let found = modelcard::from_repo(&repo, &today)?;
+    let mut notes = found.notes.clone();
+    if !found.sampling.is_empty() {
+        let had = !entry.sampling_by_mode.is_empty();
+        let sampling = found.sampling.clone();
+        update_entry(&state, &id, move |e| {
+            for (mode, s) in sampling {
+                if replace || !e.sampling_by_mode.contains_key(&mode) {
+                    e.sampling_by_mode.insert(mode, s);
+                }
+            }
+        })?;
+        if had && !replace {
+            notes.push("le modalità già presenti nel catalogo sono state lasciate come stavano".into());
+        }
+    }
+    Ok(CardReport { notes, rows: scan_catalog(&state)?.1 })
 }
 
 // --- Lavori in corso ---

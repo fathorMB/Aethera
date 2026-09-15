@@ -1,4 +1,4 @@
-import { For, JSX, Show } from "solid-js";
+import { createSignal, For, JSX, Show } from "solid-js";
 import type { ArgGroup, EngineStatus } from "./api";
 
 export function Unknown(props: { children?: JSX.Element }) {
@@ -139,4 +139,102 @@ export async function copy(text: string) {
   } catch {
     /* appunti non disponibili: il testo resta selezionabile */
   }
+}
+
+/** Cornice dei dialoghi: la stessa del dialogo «Esci», così non ce ne sono due specie. */
+export function Dialog(props: { title: string; children: JSX.Element; actions: JSX.Element }) {
+  return (
+    <div class="overlay">
+      <div class="card dialog">
+        <h2>{props.title}</h2>
+        {props.children}
+        <div class="row" style={{ "margin-top": "12px" }}>
+          {props.actions}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Chiede un nome. Non usa `window.prompt`: nella WebView di Windows non c'è, e un pulsante che
+ * non fa niente è peggio di un pulsante che manca.
+ */
+export function AskName(props: {
+  title: string;
+  label: string;
+  value: string;
+  note?: string;
+  confirmLabel?: string;
+  onCancel: () => void;
+  onConfirm: (value: string) => void;
+}) {
+  const [value, setValue] = createSignal(props.value);
+  const ok = () => value().trim().length > 0 && value().trim() !== props.value;
+  return (
+    <Dialog
+      title={props.title}
+      actions={
+        <>
+          <button class="btn primary" disabled={!ok()} onClick={() => props.onConfirm(value().trim())}>
+            {props.confirmLabel ?? "Conferma"}
+          </button>
+          <button class="btn" onClick={props.onCancel}>
+            Annulla
+          </button>
+        </>
+      }
+    >
+      <div class="field" style={{ "grid-template-columns": "110px 1fr" }}>
+        <label>{props.label}</label>
+        <input
+          class="mono"
+          autofocus
+          value={value()}
+          onInput={(e) => setValue(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && ok()) props.onConfirm(value().trim());
+            if (e.key === "Escape") props.onCancel();
+          }}
+        />
+      </div>
+      <Show when={props.note}>
+        <div class="cond" style={{ "margin-top": "6px" }}>
+          {props.note}
+        </div>
+      </Show>
+    </Dialog>
+  );
+}
+
+/** Conferma di una cosa che non si disfa, con scritto prima che cosa comporta. */
+export function Confirm(props: {
+  title: string;
+  lines: string[];
+  confirmLabel: string;
+  danger?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog
+      title={props.title}
+      actions={
+        <>
+          <button class={props.danger ? "btn danger" : "btn primary"} onClick={props.onConfirm}>
+            {props.confirmLabel}
+          </button>
+          <button class="btn primary" onClick={props.onCancel}>
+            Annulla
+          </button>
+        </>
+      }
+    >
+      <For each={props.lines}>
+        {(l) => (
+          <p style={{ margin: "0 0 6px", color: "var(--fg2)" }}>{l}</p>
+        )}
+      </For>
+    </Dialog>
+  );
 }

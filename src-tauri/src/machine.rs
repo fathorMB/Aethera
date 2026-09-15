@@ -152,6 +152,21 @@ impl DataRoot {
     }
 }
 
+/// Backend di llama.cpp riconosciuti dentro l'id di una build.
+pub const BACKENDS: &[&str] = &["vulkan", "cuda", "hip", "sycl", "musa", "cann", "opencl", "metal", "blas", "cpu"];
+
+/// Da `b10809-win-vulkan-x64` a («b10809», «vulkan»): la build è il pezzo `b<numero>`, il backend
+/// il primo pezzo riconosciuto. Serve a proporre valori a un profilo nuovo, non a risolvere.
+pub fn split_build_id(id: &str) -> (Option<String>, Option<String>) {
+    let parts: Vec<&str> = id.split('-').collect();
+    let build = parts
+        .iter()
+        .find(|p| p.len() > 1 && p.starts_with('b') && p[1..].chars().all(|c| c.is_ascii_digit()))
+        .map(|s| s.to_string());
+    let backend = parts.iter().find(|p| BACKENDS.contains(&p.to_ascii_lowercase().as_str())).map(|s| s.to_ascii_lowercase());
+    (build, backend)
+}
+
 /// Una build corrisponde se fra i pezzi del suo id ci sono sia la build sia il backend
 /// (`b10809-vulkan`, `b10809-win-vulkan-x64`).
 pub fn resolve_build<'a>(builds: &'a [ResolvedBuild], build: &str, backend: &str) -> Option<&'a ResolvedBuild> {
@@ -175,6 +190,15 @@ mod tests {
         assert_eq!(resolve_build(&builds, "b10809", "vulkan").unwrap().id, "b10809-win-vulkan-x64");
         assert_eq!(resolve_build(&builds, "b10985", "vulkan").unwrap().id, "b10985-vulkan");
         assert!(resolve_build(&builds, "b1080", "vulkan").is_none());
+    }
+
+    #[test]
+    fn build_id_splits_into_build_and_backend() {
+        assert_eq!(split_build_id("b10809-win-vulkan-x64"), (Some("b10809".into()), Some("vulkan".into())));
+        assert_eq!(split_build_id("b10985-vulkan"), (Some("b10985".into()), Some("vulkan".into())));
+        assert_eq!(split_build_id("llama-b10809-win-cpu-x64"), (Some("b10809".into()), Some("cpu".into())));
+        // Una cartella che non dice né build né backend non li inventa.
+        assert_eq!(split_build_id("mia-build"), (None, None));
     }
 
     #[test]

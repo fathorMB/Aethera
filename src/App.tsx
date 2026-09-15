@@ -129,6 +129,8 @@ export default function App() {
   const [overview, setOverview] = createSignal<Overview | null>(null);
   const [status, setStatus] = createSignal<EngineStatus | null>(null);
   const [askExit, setAskExit] = createSignal(false);
+  /** Pesi scelti nel Catalogo con «Avvia…»: la pagina Avvio li raccoglie quando si apre. */
+  const [pendingModel, setPendingModel] = createSignal<string | null>(null);
   const [error, setError] = createSignal<string | null>(null);
 
   const applyTheme = (t: "dark" | "light") => {
@@ -258,10 +260,21 @@ export default function App() {
                   <Motore status={status()} onGo={setPage} />
                 </Match>
                 <Match when={page() === "avvio"}>
-                  <Avvio overview={o()} status={status()} onStarted={() => setPage("motore")} />
+                  <Avvio
+                    overview={o()}
+                    status={status()}
+                    onStarted={() => setPage("motore")}
+                    pendingModel={pendingModel()}
+                    onPendingHandled={() => setPendingModel(null)}
+                  />
                 </Match>
                 <Match when={page() === "catalogo"}>
-                  <Catalogo />
+                  <Catalogo
+                    onLaunch={(file) => {
+                      setPendingModel(file);
+                      setPage("avvio");
+                    }}
+                  />
                 </Match>
                 <Match when={page() === "benchmark"}>
                   <Benchmark />

@@ -178,6 +178,66 @@ pub struct Sampling {
     pub verified: Option<String>,
 }
 
+/// Un profilo nuovo con valori sensati e **tutti espliciti**: nessun default del motore lasciato
+/// implicito, così la riga di comando dice per intero come è stato avviato. Il nome è anche
+/// l'alias servito; porta e build le sceglie chi chiama, guardando la macchina.
+pub fn template(name: &str, model_file: &str, build: &str, backend: &str, port: u16) -> Profile {
+    Profile {
+        schema_version: SCHEMA_VERSION,
+        name: name.to_string(),
+        gate: None,
+        notes: None,
+        model: Model { repo: None, file: model_file.to_string(), sha256: None, size_gb: None, quant: None },
+        runtime: Runtime { kind: "llama.cpp".into(), backend: backend.to_string(), build: build.to_string() },
+        server: Server {
+            host: "127.0.0.1".into(),
+            port,
+            ctx: 32768,
+            n_parallel: 1,
+            n_gpu_layers: 999,
+            flash_attn: "on".into(),
+            cache_type_k: "f16".into(),
+            cache_type_v: "f16".into(),
+            ubatch: 2048,
+            batch: 2048,
+            load_mode: auto(),
+            threads: None,
+            threads_batch: None,
+            metrics: true,
+            jinja: true,
+            slot_save: true,
+            extra_args: Vec::new(),
+        },
+        speculative: Speculative::default(),
+        cache: Cache::default(),
+        client: None,
+        sampling_by_mode: BTreeMap::new(),
+    }
+}
+
+/// Nome di profilo ricavato dal file dei pesi: minuscole e soli caratteri ammessi dallo schema.
+pub fn name_from_file(file: &str) -> String {
+    let stem = file.trim_end_matches(".gguf").trim_end_matches(".GGUF");
+    let mut out = String::new();
+    let mut last_dash = true;
+    for c in stem.chars() {
+        let c = c.to_ascii_lowercase();
+        if c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_') {
+            out.push(c);
+            last_dash = false;
+        } else if !last_dash {
+            out.push('-');
+            last_dash = true;
+        }
+    }
+    let out = out.trim_matches('-').to_string();
+    if out.is_empty() {
+        "profilo".into()
+    } else {
+        out
+    }
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Issue {
     pub field: String,
@@ -518,6 +578,26 @@ batch = 4096
         for f in ["name", "server.flash_attn", "server.ubatch", "server.extra_args", "server.n_parallel"] {
             assert!(fields.contains(&f), "manca {f} in {issues:?}");
         }
+    }
+
+    #[test]
+    fn a_new_profile_is_valid_and_serves_its_own_name_as_alias() {
+        let p = template("nuovo.q4", "Modello-Q4_K_M.gguf", "b10809", "vulkan", 8081);
+        assert!(validate(&p).is_empty(), "{:?}", validate(&p));
+        let text = toml::to_string_pretty(&p).unwrap();
+        let (back, issues) = load(&text, "nuovo.q4");
+        assert!(issues.is_empty(), "{issues:?}");
+        assert_eq!(back.unwrap(), p);
+    }
+
+    #[test]
+    fn profile_name_from_weights_file_keeps_only_allowed_characters() {
+        assert_eq!(name_from_file("Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf"), "qwen_qwen3.6-35b-a3b-q4_k_m");
+        assert_eq!(name_from_file("modello (copia 2).gguf"), "modello-copia-2");
+        assert_eq!(name_from_file("!!!.gguf"), "profilo");
+        // Il nome ricavato deve passare la validazione: è anche l'alias servito.
+        let p = template(&name_from_file("Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf"), "x.gguf", "b1", "vulkan", 8080);
+        assert!(validate(&p).is_empty());
     }
 
     #[test]

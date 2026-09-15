@@ -18,6 +18,8 @@ pub enum Kind {
     Verify,
     Download,
     Install,
+    /// Copia di pesi che arrivano da un altro volume, dove l'hard link non è possibile.
+    Copy,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
