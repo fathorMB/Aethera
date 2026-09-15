@@ -11,8 +11,11 @@ generated: true
 | --- | --- | --- | --- | --- | --- |
 | 1 | M-01 | Mockup di design della v1 | done | 7/7 | 100% |
 | 2 | M-02 | Scheletro Tauri, schema dei profili e ciclo di vita del motore | done | 10/10 | 100% |
-| 3 | M-03 | Memoria misurata, telemetria, stato «in uso» ed endpoint Aethera | active | 10/11 | 91% |
-| 4 | M-04 | Catalogo: metadati GGUF, stima di memoria, verifica e download di pesi e build | active | 7/10 | 70% |
+| 3 | M-03 | Memoria misurata, telemetria, stato «in uso» ed endpoint Aethera | done | 11/11 | 100% |
+| 4 | M-04 | Catalogo: metadati GGUF, stima di memoria, verifica e download di pesi e build | done | 10/10 | 100% |
+| 5 | M-05 | Uso quotidiano senza toccare i file a mano | proposed | 0/7 | 0% |
+| 6 | M-06 | Comportamento quando qualcosa va storto | proposed | 0/8 | 0% |
+| 7 | M-07 | Confezionamento, prima esecuzione e documentazione | proposed | 0/7 | 0% |
 
 ## M-01 — Mockup di design della v1
 
@@ -30,15 +33,36 @@ generated: true
 
 ## M-03 — Memoria misurata, telemetria, stato «in uso» ed endpoint Aethera
 
-- `status`: active
+- `status`: done
 - `priority`: 3
 - `file`: milestones/M-03.md
 - `outcome`: Con il motore acceso da Aethera, l'operatore vede la memoria misurata dopo il caricamento (VRAM dedicata e condivisa, working set, RAM disponibile, doppia copia dei pesi), le velocità recenti e la quota di cache del prefisso; il motore in uso da un client o protetto a mano rifiuta arresto e riavvio dalla finestra, dalla tray e dall'endpoint 127.0.0.1:8090; ogni avvio lascia la sua telemetria e la pagina Benchmark mostra lo storico degli avvii con le condizioni.
 
 ## M-04 — Catalogo: metadati GGUF, stima di memoria, verifica e download di pesi e build
 
-- `status`: active
+- `status`: done
 - `priority`: 4
 - `file`: milestones/M-04.md
 - `outcome`: Dalla pagina Catalogo l'operatore vede i modelli e le build presenti su questa macchina con stato (scaricabile, in download, presente da verificare, verificato), SHA-256 confrontato con l'oid LFS di Hugging Face o con il digest di GitHub, metadati letti dal GGUF senza caricarlo (architettura, blocchi, esperti, layer MTP, contesto di training) e campionamento della model card per modalità; scarica pesi riprendibili e release ggml-org verificate prima di usarle; prima di ogni avvio le pagine Avvio e Motore mostrano la stima di memoria al contesto scelto, confrontata con la VRAM libera e poi con la misura.
+
+## M-05 — Uso quotidiano senza toccare i file a mano
+
+- `status`: proposed
+- `priority`: 5
+- `file`: milestones/M-05.md
+- `outcome`: Partendo da una radice dati vuota l'operatore arriva a un motore acceso senza scrivere a mano nessun file: crea un profilo da zero, lo duplica, lo rinomina e lo cancella dalla finestra; registra pesi che stanno fuori dalla cartella dichiarata riconoscendoli per hash; apre l'Avvio direttamente dal Catalogo; il campionamento consigliato dalla model card arriva fino ai frammenti per i client.
+
+## M-06 — Comportamento quando qualcosa va storto
+
+- `status`: proposed
+- `priority`: 6
+- `file`: milestones/M-06.md
+- `outcome`: Ogni guasto prevedibile dà un messaggio leggibile che dice cosa è successo e cosa fare, senza perdere dati né lasciare Aethera in uno stato ambiguo: file di configurazione illeggibili, pesi o build spariti, disco pieno, rete caduta, motore che esce con errore, app chiusa con un lavoro in corso.
+
+## M-07 — Confezionamento, prima esecuzione e documentazione
+
+- `status`: proposed
+- `priority`: 7
+- `file`: milestones/M-07.md
+- `outcome`: Aethera si installa e si avvia su una macchina pulita senza toolchain di sviluppo, guida chi la apre per la prima volta dalla radice dati fino al motore acceso, e chi non l'ha mai vista capisce dal README cosa fa, cosa serve e dove finiscono i suoi dati.
 
