@@ -1,6 +1,6 @@
 ---
 title: Roadmap
-updated: 2026-09-15
+updated: 2026-09-16
 generated: true
 ---
 # Roadmap
@@ -11,7 +11,7 @@ generated: true
 | --- | --- | --- | --- | --- | --- |
 | 1 | M-01 | Mockup di design della v1 | done | 7/7 | 100% |
 | 2 | M-02 | Scheletro Tauri, schema dei profili e ciclo di vita del motore | done | 10/10 | 100% |
-| 3 | M-03 | Memoria misurata, telemetria, stato «in uso» ed endpoint Aethera | approved | 0/10 | 0% |
+| 3 | M-03 | Memoria misurata, telemetria, stato «in uso» ed endpoint Aethera | active | 10/11 | 91% |
 
 ## M-01 — Mockup di design della v1
 
@@ -29,7 +29,7 @@ generated: true
 
 ## M-03 — Memoria misurata, telemetria, stato «in uso» ed endpoint Aethera
 
-- `status`: approved
+- `status`: active
 - `priority`: 3
 - `file`: milestones/M-03.md
 - `outcome`: Con il motore acceso da Aethera, l'operatore vede la memoria misurata dopo il caricamento (VRAM dedicata e condivisa, working set, RAM disponibile, doppia copia dei pesi), le velocità recenti e la quota di cache del prefisso; il motore in uso da un client o protetto a mano rifiuta arresto e riavvio dalla finestra, dalla tray e dall'endpoint 127.0.0.1:8090; ogni avvio lascia la sua telemetria e la pagina Benchmark mostra lo storico degli avvii con le condizioni.

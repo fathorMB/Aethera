@@ -470,7 +470,14 @@ export default function Avvio(props: {
                       Copia riga
                     </button>
                     <Show when={engineOn()}>
-                      <span class="right cond">Un motore è già acceso: nella v1 se ne avvia uno alla volta.</span>
+                      <span class="right cond">
+                        {api.inUse(props.status)
+                          ? "Il motore acceso è IN USO: l'avvio parte solo quando torna libero e viene fermato."
+                          : "Un motore è già acceso: nella v1 se ne avvia uno alla volta."}
+                      </span>
+                    </Show>
+                    <Show when={props.status?.state === "orphan"}>
+                      <span class="right cond">Un llama-server orfano occupa una porta dei profili: vedi la pagina Motore.</span>
                     </Show>
                   </div>
                   <div class="row" style={{ "margin-top": "8px" }}>

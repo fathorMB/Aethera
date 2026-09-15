@@ -3,9 +3,10 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import * as api from "./api";
 import type { EngineStatus, Overview } from "./api";
-import { StateBadge } from "./components";
+import { StateBadge, Toggle, UsageBadge } from "./components";
 import { duration } from "./format";
 import Avvio from "./pages/Avvio";
+import Benchmark from "./pages/Benchmark";
 import Impostazioni from "./pages/Impostazioni";
 import Motore from "./pages/Motore";
 
@@ -81,21 +82,28 @@ function ExitDialog(props: { status: EngineStatus | null; onClose: () => void })
       setError(String(e));
     }
   };
+  const usage = () => api.usageOf(props.status);
   return (
     <div class="overlay">
       <div class="card dialog">
         <h2>Esci</h2>
         <p style={{ margin: "0 0 8px" }}>
-          Il motore <span class="mono">{api.runOf(props.status)?.profile}</span> è acceso.
+          Il motore <span class="mono">{api.runOf(props.status)?.profile}</span> è acceso
+          <Show when={usage()?.in_use}>
+            {" "}
+            e risulta <b>in uso</b> ({usage()!.reasons.join(", ")})
+          </Show>
+          .
         </p>
         <p style={{ margin: "0 0 10px", color: "var(--fg2)" }}>
-          Se lo lasci acceso resta orfano: Aethera non lo gestirà più, e il manifest lo registra come lasciato acceso.
+          Se lo lasci acceso resta orfano: Aethera al prossimo avvio lo mostrerà come tale e potrà solo leggerlo o
+          terminarlo.
         </p>
         <Show when={error()}>
           <div class="note err mb">{error()}</div>
         </Show>
         <div class="row">
-          <button class="btn danger" onClick={() => exit(true)}>
+          <button class="btn danger" disabled={usage()?.in_use} title={usage()?.in_use ? "in uso" : ""} onClick={() => exit(true)}>
             Ferma ed esci
           </button>
           <button class="btn" onClick={() => exit(false)}>
@@ -154,10 +162,12 @@ export default function App() {
     document.addEventListener("keydown", onKey);
 
     const unlisten = listen("aethera://ask-exit", () => setAskExit(true));
+    const unlistenNotice = listen<string>("aethera://notice", (e) => setError(e.payload));
     onCleanup(() => {
       clearInterval(t);
       document.removeEventListener("keydown", onKey);
       unlisten.then((f) => f());
+      unlistenNotice.then((f) => f());
     });
   });
 
@@ -183,7 +193,21 @@ export default function App() {
             </>
           )}
         </Show>
+        <UsageBadge status={status()} />
         <span class="spacer" />
+        <Show when={api.usageOf(status())}>
+          {(u) => (
+            <Toggle
+              on={u().protected}
+              label="Proteggi il motore"
+              title="Rifiuta arresto e riavvio finché è attiva"
+              onChange={async (on) => {
+                await api.engineProtect(on);
+                setStatus(await api.engineStatus());
+              }}
+            />
+          )}
+        </Show>
         <button class="btn sm" onClick={() => applyTheme(theme() === "dark" ? "light" : "dark")}>
           ☼ tema
         </button>
@@ -218,7 +242,12 @@ export default function App() {
 
       <main class="main">
         <Show when={error()}>
-          <div class="note err mb">{error()}</div>
+          <div class="note err mb row">
+            {error()}
+            <button class="btn sm right" onClick={() => setError(null)}>
+              Chiudi
+            </button>
+          </div>
         </Show>
         <Show when={overview()}>
           {(o) => (
@@ -235,11 +264,10 @@ export default function App() {
                   <p class="sub">Pesi e build con download e SHA-256: arriva con un milestone successivo.</p>
                 </Match>
                 <Match when={page() === "benchmark"}>
-                  <h1>Benchmark</h1>
-                  <p class="sub">Storico degli avvii con la telemetria: arriva con M-03.</p>
+                  <Benchmark />
                 </Match>
                 <Match when={page() === "impostazioni"}>
-                  <Impostazioni overview={o()} onChange={setOverview} />
+                  <Impostazioni overview={o()} status={status()} onChange={setOverview} />
                 </Match>
               </Switch>
             </Show>

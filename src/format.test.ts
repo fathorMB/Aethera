@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { duration, getPath, sameValue, setPath } from "./format";
+import { duration, fixed, getPath, pct, sameValue, setPath } from "./format";
 
 describe("format", () => {
+  it("decimals and percentages in Italian, absent stays absent", () => {
+    expect(fixed(23.44, 1)).toBe("23,4");
+    expect(fixed(22.683, 2)).toBe("22,68");
+    expect(fixed(null)).toBeNull();
+    expect(pct(0.9712)).toBe("97");
+    expect(pct(undefined)).toBeNull();
+  });
+
   it("durations read like the mockup", () => {
     expect(duration(42)).toBe("42 s");
     expect(duration(4380)).toBe("1 h 13 m");

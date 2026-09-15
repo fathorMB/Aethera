@@ -10,6 +10,8 @@ export default defineConfig({
     port: 5283,
     strictPort: true,
     host: "127.0.0.1",
+    // Il backend lo ricompila Tauri: guardare src-tauri (target/ compreso) fa cadere Vite su file occupati.
+    watch: { ignored: ["**/src-tauri/**"] },
   },
   envPrefix: ["VITE_", "TAURI_"],
   build: {

@@ -50,6 +50,7 @@ fn main() -> Result<(), String> {
     let run = engine.start(StartRequest {
         run_id,
         run_dir,
+        base: profile.name.clone(),
         profile: profile.clone(),
         profile_file: p.base_file,
         overrides: p.overrides,
@@ -59,6 +60,7 @@ fn main() -> Result<(), String> {
         model_size: p.model_size.unwrap_or(0),
         args: p.args,
         machine_name: machine.name.clone(),
+        ram_margin_gib: machine.ram_margin_gib,
         system: report,
     })?;
     println!("avviato {} pid {}\n{}", run.run_id, run.pid, run.command_line);

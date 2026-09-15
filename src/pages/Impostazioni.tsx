@@ -1,8 +1,8 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, on, Show } from "solid-js";
 import * as api from "../api";
-import type { ExitBehavior, MachineConfig, Overview } from "../api";
-import { Val } from "../components";
+import type { ClientSnippets, EngineStatus, ExitBehavior, MachineConfig, Overview } from "../api";
+import { copy, Val } from "../components";
 
 const input = {
   background: "var(--bg)",
@@ -16,11 +16,25 @@ const input = {
   width: "100%",
 };
 
-export default function Impostazioni(props: { overview: Overview; onChange: (o: Overview) => void }) {
+export default function Impostazioni(props: { overview: Overview; status: EngineStatus | null; onChange: (o: Overview) => void }) {
   const [machine, setMachine] = createSignal<MachineConfig | null>(null);
   const [message, setMessage] = createSignal<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [snippets, setSnippets] = createSignal<ClientSnippets | null>(null);
 
   createEffect(() => setMachine(props.overview.machine ? structuredClone(props.overview.machine) : null));
+
+  // Le righe cambiano con l'avvio e con il contesto servito, non a ogni secondo.
+  const runKey = () => {
+    const s = props.status;
+    if (s?.state === "ready") return `${s.run.run_id}:${s.ctx_served}`;
+    if (s?.state === "loading") return s.run.run_id;
+    return "";
+  };
+  createEffect(
+    on(runKey, async (key) => {
+      setSnippets(key ? await api.clientSnippets().catch(() => null) : null);
+    }),
+  );
 
   const patch = (p: Partial<MachineConfig>) => setMachine({ ...machine()!, ...p });
   const builds = () => machine()?.build ?? [];
@@ -193,6 +207,93 @@ export default function Impostazioni(props: { overview: Overview; onChange: (o: 
         <div>
           <div class="card mb">
             <h2>
+              Riga per i client <span class="r">derivata dall'avvio acceso</span>
+            </h2>
+            <Show when={snippets()} fallback={<div class="cond">Nessun motore acceso da questo Aethera: le righe compaiono con l'avvio.</div>}>
+              {(sn) => (
+                <>
+                  <div class="mini" style={{ "margin-bottom": "4px" }}>
+                    Nonio · <code>profile.toml</code>
+                  </div>
+                  <pre class="cmd">{sn().toml}</pre>
+                  <div class="mini" style={{ margin: "8px 0 4px" }}>
+                    Blocco d'ambiente per banchi e Diorama
+                  </div>
+                  <pre class="cmd">{sn().env}</pre>
+                  <div class="row" style={{ "margin-top": "8px" }}>
+                    <button class="btn sm" onClick={() => copy(sn().toml)}>
+                      Copia TOML
+                    </button>
+                    <button class="btn sm" onClick={() => copy(sn().env)}>
+                      Copia blocco env
+                    </button>
+                    <button class="btn sm" onClick={() => copy(sn().powershell)}>
+                      Copia come PowerShell
+                    </button>
+                  </div>
+                </>
+              )}
+            </Show>
+          </div>
+
+          <div class="card mb">
+            <h2>
+              Endpoint Aethera <span class="r mono">{props.overview.endpoint ?? "non attivo"}</span>
+            </h2>
+            <Show when={props.overview.endpoint_error}>
+              <div class="note err mb">{props.overview.endpoint_error}</div>
+            </Show>
+            <table style={{ "font-size": "12px" }}>
+              <thead>
+                <tr>
+                  <th>Metodo</th>
+                  <th>Percorso</th>
+                  <th>Cosa fa</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">GET</td>
+                  <td class="mono">/status</td>
+                  <td>stato, alias, porta, id avvio, acceso da, in uso e perché</td>
+                </tr>
+                <tr>
+                  <td class="mono">GET</td>
+                  <td class="mono">/run</td>
+                  <td>manifest dell'avvio corrente</td>
+                </tr>
+                <tr>
+                  <td class="mono">POST</td>
+                  <td class="mono">/lock</td>
+                  <td>
+                    dichiara «sto lavorando»: <code>{'{"client", "label", "ttl_s"}'}</code>; stesso client ed etichetta rinnovano
+                  </td>
+                </tr>
+                <tr>
+                  <td class="mono">DELETE</td>
+                  <td class="mono">/lock</td>
+                  <td>
+                    rilascia per <code>?id=</code> o <code>?client=</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="mono">GET</td>
+                  <td class="mono">/telemetry/recent</td>
+                  <td>
+                    prefill, decode, accettazione, quota cache delle ultime <code>?n=</code> richieste
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="note" style={{ "margin-top": "8px" }}>
+              Chi non lo usa è coperto dall'osservazione di <code>/slots</code> e dall'interruttore manuale. Il lock non
+              cambia il motore: rende solo rifiutati arresto e riavvio. Le richieste da un browser (con <code>Origin</code>)
+              sono rifiutate.
+            </div>
+          </div>
+
+          <div class="card mb">
+            <h2>
               Macchina <span class="r">letto, non impostato</span>
             </h2>
             <dl class="kv">
@@ -246,6 +347,22 @@ export default function Impostazioni(props: { overview: Overview; onChange: (o: 
                 <option value="stop">ferma il motore</option>
                 <option value="leave">lascia il motore acceso</option>
               </select>
+              <span />
+            </div>
+            <div class="field">
+              <label>Stato «in uso»</label>
+              <div>
+                slot attivo su <code>/slots</code>, richieste negli ultimi <span class="num">30</span> s, lock dichiarato o
+                protezione manuale
+              </div>
+              <span />
+            </div>
+            <div class="field">
+              <label>Segnala degradato</label>
+              <div>
+                acceso da più di <span class="num">24</span> h o decode delle ultime 5 richieste sotto il{" "}
+                <span class="num">70</span> % della mediana dell'avvio
+              </div>
               <span />
             </div>
           </div>

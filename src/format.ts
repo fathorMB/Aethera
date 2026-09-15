@@ -2,6 +2,15 @@ const nf = new Intl.NumberFormat("it-IT");
 
 export const num = (n: number | null | undefined) => (n == null ? null : nf.format(n));
 
+/** Numero con decimali fissi all'italiana; assente resta assente. */
+export function fixed(n: number | null | undefined, digits = 1): string | null {
+  if (n == null || !Number.isFinite(n)) return null;
+  return new Intl.NumberFormat("it-IT", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n);
+}
+
+/** Quota 0..1 come percentuale intera. */
+export const pct = (x: number | null | undefined) => (x == null ? null : fixed(x * 100, 0));
+
 export function duration(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   const d = Math.floor(s / 86400);

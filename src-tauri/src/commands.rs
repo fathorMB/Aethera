@@ -1,17 +1,20 @@
-//! Comandi chiamati dalla finestra.
+//! Comandi chiamati dalla finestra (e dalla tray).
 
+use crate::clients::{self, ClientSnippets, RunFacts};
 use crate::cmdline::{self, ArgGroup};
-use crate::engine::{self, EngineStatus, RunInfo, StartRequest};
+use crate::engine::{self, EngineStatus, RunInfo, StartRequest, Usage};
 use crate::import;
 use crate::launch;
 use crate::machine::{self, BuildEntry, DataRoot, MachineConfig, ResolvedBuild};
 use crate::profile::{self, Issue, Override, Profile};
+use crate::runs::{self, Comparison, RunDetail, RunRow};
 use crate::settings::ExitBehavior;
 use crate::system::{self, SystemReport};
 use crate::AppState;
 use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, State};
 
 #[derive(Serialize)]
@@ -23,6 +26,8 @@ pub struct Overview {
     pub exit_behavior: ExitBehavior,
     pub builds: Vec<ResolvedBuild>,
     pub builds_missing: Vec<BuildEntry>,
+    pub endpoint: Option<String>,
+    pub endpoint_error: Option<String>,
 }
 
 fn data_root(state: &AppState) -> Result<DataRoot, String> {
@@ -45,6 +50,8 @@ fn build_overview(state: &AppState) -> Overview {
         exit_behavior: settings.exit_behavior,
         builds: Vec::new(),
         builds_missing: Vec::new(),
+        endpoint: state.endpoint.as_ref().ok().cloned(),
+        endpoint_error: state.endpoint.as_ref().err().cloned(),
     };
     if let Some(path) = settings.data_root {
         let root = DataRoot::new(path);
@@ -105,9 +112,8 @@ pub struct ProfileEntry {
     pub issues: Vec<Issue>,
 }
 
-#[tauri::command]
-pub fn list_profiles(state: State<AppState>) -> Result<Vec<ProfileEntry>, String> {
-    let dir = data_root(&state)?.profiles();
+fn read_profiles(root: &DataRoot) -> Result<Vec<ProfileEntry>, String> {
+    let dir = root.profiles();
     let mut files: Vec<PathBuf> = fs::read_dir(&dir)
         .map_err(|e| format!("{}: {e}", dir.display()))?
         .flatten()
@@ -126,6 +132,24 @@ pub fn list_profiles(state: State<AppState>) -> Result<Vec<ProfileEntry>, String
             ProfileEntry { name: stem, file: path.display().to_string(), profile, issues }
         })
         .collect())
+}
+
+#[tauri::command]
+pub fn list_profiles(state: State<AppState>) -> Result<Vec<ProfileEntry>, String> {
+    read_profiles(&data_root(&state)?)
+}
+
+/// Host e porte dichiarati dai profili: dove può stare un `llama-server` orfano.
+pub fn profile_endpoints(state: &AppState) -> Vec<(String, u16)> {
+    let mut out: Vec<(String, u16)> = data_root(state)
+        .and_then(|r| read_profiles(&r))
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|e| e.profile.map(|p| (p.server.host, p.server.port)))
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 #[derive(Serialize)]
@@ -200,18 +224,18 @@ pub fn import_minis(state: State<AppState>, path: String, build: String) -> Resu
     Ok(ImportReport { name: imported.profile.name, notes: imported.notes })
 }
 
-#[tauri::command]
-pub fn engine_start(state: State<AppState>, base: String, edited: Profile) -> Result<RunInfo, String> {
-    let (root, m) = root_and_machine(&state)?;
+fn start_from(state: &AppState, base: &str, edited: Profile) -> Result<RunInfo, String> {
+    let (root, m) = root_and_machine(state)?;
     let run_id = chrono::Local::now().format("r-%Y%m%d-%H%M%S").to_string();
     let run_dir = root.runs().join(&run_id);
-    let p = launch::prepare(&root, &m, &base, &edited, &run_dir.join("slots"));
+    let p = launch::prepare(&root, &m, base, &edited, &run_dir.join("slots"));
     if !p.blockers.is_empty() {
         return Err(p.blockers.join("\n"));
     }
     state.engine.start(StartRequest {
         run_id,
         run_dir,
+        base: base.to_string(),
         profile: edited,
         profile_file: p.base_file,
         overrides: p.overrides,
@@ -221,13 +245,46 @@ pub fn engine_start(state: State<AppState>, base: String, edited: Profile) -> Re
         model_size: p.model_size.unwrap_or(0),
         args: p.args,
         machine_name: m.name,
+        ram_margin_gib: m.ram_margin_gib,
         system: system::probe().report(),
     })
 }
 
 #[tauri::command]
+pub fn engine_start(state: State<AppState>, base: String, edited: Profile) -> Result<RunInfo, String> {
+    start_from(&state, &base, edited)
+}
+
+/// «Riavvia con la stessa riga»: stesso profilo e stesse differenze, nuovo avvio. Rifiutato se in uso.
+pub fn restart(state: &AppState) -> Result<RunInfo, String> {
+    let (base, profile) = state.engine.source().ok_or("nessun avvio da ripetere in questa sessione")?;
+    if state.engine.is_running() {
+        state.engine.stop()?;
+    }
+    // La porta si libera qualche istante dopo la fine del processo.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match start_from(state, &base, profile.clone()) {
+            Err(e) if e.contains("risponde già") && Instant::now() < deadline => std::thread::sleep(Duration::from_millis(250)),
+            other => return other,
+        }
+    }
+}
+
+#[tauri::command]
+pub fn engine_restart(state: State<AppState>) -> Result<RunInfo, String> {
+    restart(&state)
+}
+
+#[tauri::command]
 pub fn engine_stop(state: State<AppState>) -> Result<(), String> {
     state.engine.stop()
+}
+
+#[tauri::command]
+pub fn engine_protect(state: State<AppState>, on: bool) -> Usage {
+    state.engine.set_protected(on);
+    state.engine.usage()
 }
 
 #[tauri::command]
@@ -243,18 +300,64 @@ pub fn engine_log(state: State<AppState>, lines: usize) -> Result<String, String
     }
 }
 
+#[tauri::command]
+pub fn orphan_terminate(state: State<AppState>, pid: u32) -> Result<(), String> {
+    state.engine.terminate_orphan(pid)
+}
+
+pub fn snippets_for(state: &AppState) -> Option<ClientSnippets> {
+    let m = state.engine.manifest()?;
+    let base_url = format!("http://{}:{}", m.server.host, m.server.port);
+    Some(clients::snippets(&RunFacts {
+        run_id: &m.run.id,
+        base_url: &base_url,
+        alias: &m.server.alias,
+        ctx_declared: m.server.ctx_declared,
+        ctx_served: m.server.ctx_served,
+        client: m.effective_profile.client.as_ref(),
+        endpoint: state.endpoint.as_ref().ok().map(String::as_str),
+    }))
+}
+
+#[tauri::command]
+pub fn client_snippets(state: State<AppState>) -> Option<ClientSnippets> {
+    snippets_for(&state)
+}
+
+fn current_run(state: &AppState) -> Option<String> {
+    state.engine.manifest().map(|m| m.run.id)
+}
+
+#[tauri::command]
+pub fn runs_list(state: State<AppState>) -> Result<Vec<RunRow>, String> {
+    Ok(runs::list(&data_root(&state)?.runs(), current_run(&state).as_deref()))
+}
+
+#[tauri::command]
+pub fn run_detail(state: State<AppState>, id: String) -> Result<RunDetail, String> {
+    runs::detail(&data_root(&state)?.runs(), &id, current_run(&state).as_deref())
+}
+
+#[tauri::command]
+pub fn runs_compare(state: State<AppState>, a: String, b: String) -> Result<Comparison, String> {
+    runs::compare(&data_root(&state)?.runs(), &a, &b, current_run(&state).as_deref())
+}
+
 /// Risposta al dialogo «Esci» quando il motore è acceso.
 #[tauri::command]
 pub fn app_exit(app: AppHandle, state: State<AppState>, stop: bool, remember: bool) -> Result<(), String> {
+    if stop {
+        // Un motore in uso non si ferma: l'errore torna al dialogo e Aethera resta aperta.
+        if state.engine.is_running() {
+            state.engine.stop()?;
+        }
+    } else {
+        state.engine.detach();
+    }
     if remember {
         let mut s = state.settings();
         s.exit_behavior = if stop { ExitBehavior::Stop } else { ExitBehavior::Leave };
         s.save()?;
-    }
-    if stop {
-        let _ = state.engine.stop();
-    } else {
-        state.engine.detach();
     }
     app.exit(0);
     Ok(())
