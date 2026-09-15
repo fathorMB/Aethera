@@ -46,3 +46,7 @@ One line per action. Format: `timestamp | by:<who> | <target or -> | <kind> | <m
 2026-09-15T23:25 | by:lead | M-02/T-10 | task | done: E2E G1 da backend Aethera con preflight run.mjs nonio superato — Prova end-to-end sulla Minisforum: avvio del profilo G1 da Aethera, preflight di Nonio superato (alias, n_ctx, /slots)
 2026-09-15T23:36 | by:lead | M-02/T-09 | task | done: Operatore: dalla finestra import, avvio G1 dal pulsante, pagina Motore pronta, X nella tray, Esci con dialogo e stop: tutto ok — Pagina Motore e pagina Avvio collegate ai dati reali (senza memoria misurata e telemetria, che sono M-03)
 2026-09-15T23:36 | by:lead | M-02 | status | active -> done: 10/10 task; cargo test 13/13, vitest 3/3, E2E G1 con preflight nonio ready, prova manuale dell'operatore dalla finestra
+2026-09-15T23:38 | by:lead | M-02 | commit | Commit 6198469 «M-02: scheletro Tauri, profili TOML e ciclo di vita del motore» pubblicato su origin/main (63 file).
+2026-09-15T23:40 | by:lead | M-03 | milestone | created 'Memoria misurata, telemetria, stato «in uso» ed endpoint Aethera' with 10 tasks (proposed)
+2026-09-15T23:41 | by:operator | M-03 | status | proposed -> approved
+2026-09-15T23:41 | by:lead | - | note | Sessione chiusa: M-02 done e pubblicato (6198469), M-03 proposto in attesa di approvazione, knowledge/architettura.md scritto; LOG, NOTE, M-03 e knowledge non ancora committati.

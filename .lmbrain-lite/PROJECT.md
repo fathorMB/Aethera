@@ -17,7 +17,7 @@ Un solo operatore (Moreno) su due macchine: Turing (sviluppo, RTX 2080 SUPER 8 G
 
 Tauri 2 + SolidJS (come la finestra di Nonio). Backend Rust: processo figlio in job object, tray, heap Vulkan e contatori GPU, download con SHA-256, endpoint proprio accanto a `llama-server`. Profili in TOML con schema proprio. Dati in una radice scelta dall'utente: `machine.toml`, `profiles/`, `builds/`, `runs/<id>/`, telemetria.
 
-Decisioni di progetto: vedi [[decisioni-di-progetto]].
+Decisioni di progetto: vedi [[decisioni-di-progetto]]. Moduli, comandi e verifiche: vedi [[architettura]].
 
 ## Constraints
 
