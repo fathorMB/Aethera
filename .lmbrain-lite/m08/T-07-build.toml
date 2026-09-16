@@ -1,0 +1,38 @@
+measure = "T-07"
+title = "Build b10991 contro b10809 sullo stesso profilo, nessun altro cambiamento"
+base = "qwen3.6-35b-a3b.q4_k_m.vulkan"
+repetitions = 5
+warmup = 1
+
+[[variant]]
+name = "b10809"
+note = "la build di oggi (commit 5266f24da)"
+
+[[variant]]
+name = "b10991"
+note = "la piu' recente al 16-09-2026 (commit 930e2fa59), scaricata e verificata col digest GitHub"
+build = "b10991"
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+presence_penalty = 1.5
+seed = 1234
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+presence_penalty = 1.5
+seed = 1234

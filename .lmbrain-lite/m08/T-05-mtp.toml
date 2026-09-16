@@ -1,0 +1,49 @@
+measure = "T-05"
+title = "MTP adattivo (n-min 2 / n-max 4 / p-min 0,75) contro MTP 3 fisso e contro nessuna speculazione"
+base = "qwen3.6-35b-a3b.q4_k_m.vulkan"
+repetitions = 5
+warmup = 1
+
+[[variant]]
+name = "mtp-3"
+note = "la riga di oggi: draft-mtp, n-max 3, nessuna soglia di probabilita'"
+
+[[variant]]
+name = "mtp-adattivo"
+note = "draft-mtp con n-min 2, n-max 4, p-min 0,75: propone meno quando non e' sicuro"
+[variant.speculative]
+type = "draft-mtp"
+draft_n_max = 4
+draft_n_min = 2
+draft_p_min = 0.75
+
+[[variant]]
+name = "senza-speculazione"
+note = "controllo: serve a dire se il guadagno e' di MTP o del carico"
+[variant.speculative]
+type = "none"
+
+# Campionamento della model card per la modalita' instruct, come il profilo G1.
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+presence_penalty = 1.5
+seed = 1234
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+presence_penalty = 1.5
+seed = 1234

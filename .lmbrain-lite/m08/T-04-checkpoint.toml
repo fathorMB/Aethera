@@ -1,0 +1,30 @@
+measure = "T-04"
+title = "Checkpoint dello stato ricorrente sul 35B: prefisso che diverge a metà"
+base = "qwen3.6-35b-a3b.q4_k_m.vulkan"
+repetitions = 5
+warmup = 1
+
+# Una variabile per volta: cambia solo il gruppo dei checkpoint, tutto il resto è la riga di oggi.
+[[variant]]
+name = "oggi"
+note = "la riga del profilo G1 (checkpoint ai valori di default della build: 32 / 8192 / cache-ram 8192)"
+
+[[variant]]
+name = "checkpoint"
+note = "--ctx-checkpoints 128 --checkpoint-min-step 128 --cache-ram 15000 --kv-unified"
+extra_args = ["--checkpoint-min-step", "128", "--cache-ram", "15000", "--kv-unified"]
+[variant.cache]
+ctx_checkpoints = 128
+
+# Quattro turni della stessa conversazione: 0 e 1 condividono tutto il prefisso (riuso puro),
+# 2 e 3 cambiano una riga a metà del prompt, come un agente che riscrive un file già in contesto.
+[[workload]]
+name = "turni-7k"
+kind = "turns"
+prompt = "prompt-7k.txt"
+turns = 4
+divergence_at = 0.5
+instruction = "Leggi il codice qui sopra. Elenca in italiano, in non piu' di dieci righe, le tre funzioni piu' a rischio di regressione e perche'."
+n_predict = 128
+temperature = 0.0
+seed = 1234

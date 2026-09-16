@@ -1,0 +1,65 @@
+measure = "T-06"
+title = "KV cache q8_0 contro f16 a 32k, 64k e 128k sul 35B"
+base = "qwen3.6-35b-a3b.q4_k_m.vulkan"
+repetitions = 5
+warmup = 1
+
+# Il contesto e' l'altra variabile, quindi le coppie si leggono a due a due: f16/q8_0 a parita' di ctx.
+[[variant]]
+name = "f16-32k"
+[variant.server]
+ctx = 32768
+cache_type_k = "f16"
+cache_type_v = "f16"
+
+[[variant]]
+name = "q8-32k"
+[variant.server]
+ctx = 32768
+cache_type_k = "q8_0"
+cache_type_v = "q8_0"
+
+[[variant]]
+name = "f16-64k"
+[variant.server]
+ctx = 65536
+cache_type_k = "f16"
+cache_type_v = "f16"
+
+[[variant]]
+name = "q8-64k"
+[variant.server]
+ctx = 65536
+cache_type_k = "q8_0"
+cache_type_v = "q8_0"
+
+[[variant]]
+name = "f16-128k"
+[variant.server]
+ctx = 131072
+cache_type_k = "f16"
+cache_type_v = "f16"
+
+[[variant]]
+name = "q8-128k"
+[variant.server]
+ctx = 131072
+cache_type_k = "q8_0"
+cache_type_v = "q8_0"
+
+# Temperatura 0 e stesso seme: il testo generato si confronta fra f16 e q8_0 (colonna text_sha256_12).
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.0
+seed = 1234
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.0
+seed = 1234

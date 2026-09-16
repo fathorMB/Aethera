@@ -1,0 +1,30 @@
+measure = "T-08"
+title = "Memoria oltre i 48 GB: Qwen3-Coder-Next Q4_K_M (48,53 GB) con VGM a 48"
+base = "qwen3-coder-next.q4_k_m.vulkan"
+repetitions = 3
+warmup = 1
+
+# Tre giri invece di cinque: ogni avvio qui costa minuti, e la domanda e' un ordine di grandezza
+# (regge o non regge), non un punto percentuale.
+
+[[variant]]
+name = "ngl999-condivisa"
+note = "tutto offloadato: gli esperti che non entrano finiscono in memoria condivisa WDDM"
+
+[[variant]]
+name = "ncmoe8"
+note = "esperti dei primi 8 blocchi tenuti in RAM di sistema (Zen 5) invece che sulla iGPU"
+extra_args = ["--n-cpu-moe", "8"]
+
+[[variant]]
+name = "ncmoe16"
+note = "come sopra, 16 blocchi"
+extra_args = ["--n-cpu-moe", "16"]
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 256
+temperature = 0.0
+seed = 1234

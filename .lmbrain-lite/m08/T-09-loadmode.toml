@@ -1,0 +1,29 @@
+measure = "T-09"
+title = "--load-mode mmap contro none sullo stesso Coder-Next: doppia copia o pagine mappate"
+base = "qwen3-coder-next.q4_k_m.vulkan"
+repetitions = 2
+warmup = 1
+
+# Qui la domanda e' sul caricamento, non sul decode: il carico serve solo a dire che il motore
+# risponde davvero. Quello che conta sta nel manifest (working set, VRAM, RAM libera, doppia copia)
+# e nei contatori di sistema letti a parte.
+
+[[variant]]
+name = "mmap"
+note = "pagine mappate dal file: il working set puo' restare basso"
+[variant.server]
+load_mode = "mmap"
+
+[[variant]]
+name = "none"
+note = "lettura in memoria propria del processo: la doppia copia si vede o non si vede"
+[variant.server]
+load_mode = "none"
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 128
+temperature = 0.0
+seed = 1234

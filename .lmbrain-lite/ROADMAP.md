@@ -16,6 +16,7 @@ generated: true
 | 5 | M-05 | Uso quotidiano senza toccare i file a mano | active | 7/8 (1 blocked) | 88% |
 | 6 | M-06 | Comportamento quando qualcosa va storto | active | 8/9 (1 blocked) | 89% |
 | 7 | M-07 | Confezionamento, prima esecuzione e documentazione | active | 5/7 (2 blocked) | 71% |
+| 8 | M-08 | Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU | active | 0/12 | 0% |
 
 ## M-01 — Mockup di design della v1
 
@@ -65,4 +66,11 @@ generated: true
 - `priority`: 7
 - `file`: milestones/M-07.md
 - `outcome`: Aethera si installa e si avvia su una macchina pulita senza toolchain di sviluppo, guida chi la apre per la prima volta dalla radice dati fino al motore acceso, e chi non l'ha mai vista capisce dal README cosa fa, cosa serve e dove finiscono i suoi dati.
+
+## M-08 — Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU
+
+- `status`: active
+- `priority`: 8
+- `file`: milestones/M-08.md
+- `outcome`: L'operatore ha un rapporto misurato, non stimato, che dice quanta banda la 890M raggiunge davvero, cosa costa tenere pesi oltre i 48 GB di VGM (memoria condivisa, esperti in RAM, VGM a 64), quanto rendono checkpoint dello stato ricorrente, MTP adattivo e KV q8_0 sul 35B, come si comporta l'SSD sui GGUF, e quanto un secondo modello sulla NPU rallenta il motore principale; ogni misura è un avvio registrato da Aethera con manifest e telemetria, e il rapporto in reports/ dice quali leve entrano nei profili standard.
 
