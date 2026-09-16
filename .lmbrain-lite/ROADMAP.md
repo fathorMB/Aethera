@@ -20,7 +20,7 @@ generated: true
 | 9 | M-09 | Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove | active | 10/11 (1 blocked) | 91% |
 | 10 | M-10 | Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD | active | 6/13 (1 blocked) | 46% |
 | 11 | M-11 | Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48 | active | 3/6 | 50% |
-| 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | active | 0/11 | 0% |
+| 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | active | 10/11 (1 blocked) | 91% |
 | 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | active | 6/7 | 86% |
 | 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | approved | 0/9 | 0% |
 
