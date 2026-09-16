@@ -168,6 +168,8 @@ struct Row {
     timings: Value,
     tokens_evaluated: Option<u64>,
     tokens_predicted: Option<u64>,
+    /// `tokens_cached` della risposta: quanti token del prompt il motore ha riusato.
+    tokens_cached: Option<u64>,
     /// Massimo `n_prompt_tokens_cache` visto su `/slots` mentre la richiesta girava.
     cache_tokens: Option<u32>,
     /// Attesa misurata dal client: dall'invio alla risposta completa.
@@ -258,6 +260,22 @@ fn build_body(w: &Workload, prompt: &str, n_predict: u32) -> Value {
     b
 }
 
+/// Il prompt vero che vede il motore: il contenuto passa per il template del modello, con il
+/// ragionamento esplicito **spento** (`enable_thinking: false`), che è la modalità dichiarata dal
+/// profilo G1. Senza template un modello istruito risponde con un EOS e basta: si misurerebbe il
+/// prefill e nient'altro.
+fn templated(base_url: &str, content: &str) -> Result<String, String> {
+    let v = post_json(
+        base_url,
+        "/apply-template",
+        json!({
+            "messages": [{"role": "user", "content": content}],
+            "chat_template_kwargs": {"enable_thinking": false}
+        }),
+    )?;
+    v["prompt"].as_str().map(str::to_string).ok_or_else(|| format!("/apply-template: risposta inattesa: {v}"))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn one_request(
     base_url: &str,
@@ -270,11 +288,12 @@ fn one_request(
     rep: usize,
     warmup: bool,
 ) -> Result<Row, String> {
+    let prompt = templated(base_url, prompt)?;
     let stop = Arc::new(AtomicBool::new(false));
     let seen = Arc::new(AtomicU32::new(0));
     watch_slots(base_url, stop.clone(), seen.clone());
     let t0 = Instant::now();
-    let v = post_json(base_url, "/completion", build_body(w, prompt, w.n_predict));
+    let v = post_json(base_url, "/completion", build_body(w, &prompt, w.n_predict));
     let wall_ms = t0.elapsed().as_millis() as u64;
     stop.store(true, Ordering::Relaxed);
     let v = v?;
@@ -295,6 +314,7 @@ fn one_request(
         timings: v["timings"].clone(),
         tokens_evaluated: v["tokens_evaluated"].as_u64(),
         tokens_predicted: v["tokens_predicted"].as_u64(),
+        tokens_cached: v["tokens_cached"].as_u64(),
         cache_tokens,
         wall_ms,
         prompt_tokens_sent: v["timings"]["prompt_n"].as_u64(),
@@ -382,6 +402,11 @@ fn patch(p: &mut Profile, v: &Variant) {
     set!(opt threads);
     set!(opt threads_batch);
     if let Some(x) = v.speculative.kind.clone() {
+        // Spegnere la speculazione vuol dire togliere anche le sue leve: il profilo rifiuta
+        // `type = none` con un draft_n_max ereditato dalla base, e ha ragione — non avrebbe effetto.
+        if x == "none" {
+            p.speculative = aethera_lib::profile::Speculative::default();
+        }
         p.speculative.kind = x;
     }
     if v.speculative.draft_n_max.is_some() {
@@ -465,6 +490,22 @@ fn start_variant(root: &DataRoot, engine: &Engine, sc: &Scenario, v: &Variant) -
     })
 }
 
+/// Aethera rifiuta l'arresto per trenta secondi dopo l'ultima richiesta («motore in uso»): è la
+/// protezione che serve quando c'è un client vero. Qui il client siamo noi e abbiamo appena finito,
+/// quindi si aspetta che la finestra passi invece di forzare la mano al motore.
+fn stop_when_free(engine: &Engine) -> Result<(), String> {
+    let t0 = Instant::now();
+    loop {
+        match engine.stop() {
+            Ok(()) => return Ok(()),
+            Err(e) if e.contains("in uso") && t0.elapsed() < Duration::from_secs(90) => {
+                std::thread::sleep(Duration::from_secs(3));
+            }
+            Err(e) => return Err(e),
+        }
+    }
+}
+
 // ---------------------------------------------------------------- main
 
 fn main() -> Result<(), String> {
@@ -512,25 +553,6 @@ fn main() -> Result<(), String> {
                 continue;
             }
         };
-        let m = manifest::read(&started.manifest_path).ok();
-        let mem = m.as_ref().and_then(|m| m.memory.clone()).and_then(|m| m.after_load);
-        if let Some(mem) = &mem {
-            println!(
-                "  memoria: VRAM dedicata {:?} GiB · condivisa {:?} GiB · working set {:?} GiB · RAM libera {:?} GiB · doppia copia {:?}",
-                mem.vram_dedicated_gib, mem.vram_shared_gib, mem.working_set_gib, mem.ram_available_gib, mem.double_copy
-            );
-        }
-        meta.push(json!({
-            "variant": v.name,
-            "note": v.note,
-            "run_id": started.run_id,
-            "load_ms": started.load_ms,
-            "command": m.as_ref().map(|m| m.command.line.clone()),
-            "build": m.as_ref().and_then(|m| m.engine.build.clone()),
-            "memory_after_load": mem,
-            "ctx_served": m.as_ref().and_then(|m| m.server.ctx_served),
-        }));
-
         for (wi, w) in sc.workload.iter().enumerate() {
             let body = &bodies[wi];
             let turns = if w.kind == "turns" { w.turns } else { 1 };
@@ -560,7 +582,7 @@ fn main() -> Result<(), String> {
                     let pps = row.timings["prompt_per_second"].as_f64();
                     let dps = row.timings["predicted_per_second"].as_f64();
                     println!(
-                        "  {} {}{}.{} · prefill {:>7.1} tok/s ({:?} tok) · decode {:>5.2} tok/s · cache {:?} · {} ms",
+                        "  {} {}{}.{} · prefill {:>7.1} tok/s ({:?} tok) · decode {:>5.2} tok/s · cache_n {:?} · slots {:?} · {} ms",
                         w.name,
                         if warm { "riscaldamento " } else { "" },
                         rep,
@@ -568,6 +590,7 @@ fn main() -> Result<(), String> {
                         pps.unwrap_or(f64::NAN),
                         row.timings["prompt_n"].as_u64(),
                         dps.unwrap_or(f64::NAN),
+                        row.timings["cache_n"].as_u64(),
                         row.cache_tokens,
                         row.wall_ms
                     );
@@ -592,7 +615,36 @@ fn main() -> Result<(), String> {
                 spread(&decode).map(|x| (x * 100.0).round() / 100.0),
             );
         }
-        engine.stop()?;
+        // Il manifest si rilegge **ora**, non appena il motore è pronto: la memoria misurata ci
+        // finisce qualche secondo dopo il «pronto», quando i buffer di calcolo sono allocati.
+        let m = manifest::read(&started.manifest_path).ok();
+        let mem = m.as_ref().and_then(|m| m.memory.clone()).and_then(|m| m.after_load);
+        if let Some(mem) = &mem {
+            println!(
+                "  memoria: VRAM dedicata {:?} GiB · condivisa {:?} GiB · working set {:?} GiB · RAM libera {:?} GiB · doppia copia {:?}",
+                mem.vram_dedicated_gib, mem.vram_shared_gib, mem.working_set_gib, mem.ram_available_gib, mem.double_copy
+            );
+        }
+        meta.push(json!({
+            "variant": v.name,
+            "note": v.note,
+            "run_id": started.run_id,
+            "load_ms": started.load_ms,
+            "command": m.as_ref().map(|m| m.command.line.clone()),
+            "build": m.as_ref().and_then(|m| m.engine.build.clone()),
+            "memory_before": m.as_ref().and_then(|m| m.memory.clone()).and_then(|m| m.before),
+            "memory_after_load": mem,
+            "ctx_served": m.as_ref().and_then(|m| m.server.ctx_served),
+        }));
+        // Il file delle condizioni si riscrive a ogni variante: se la notte si interrompe a metà,
+        // quello che è già stato misurato resta leggibile.
+        std::fs::write(&meta_path, serde_json::to_string_pretty(&json!({
+            "measure": sc.measure, "title": sc.title, "at": chrono::Local::now().to_rfc3339(),
+            "scenario_file": scenario_path.display().to_string(),
+            "repetitions": sc.repetitions, "warmup": sc.warmup, "variants": meta,
+        })).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+
+        stop_when_free(&engine)?;
         // Fra una variante e l'altra: il processo deve davvero lasciare la memoria.
         std::thread::sleep(Duration::from_secs(5));
     }

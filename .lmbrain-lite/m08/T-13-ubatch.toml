@@ -1,0 +1,58 @@
+measure = "T-13"
+title = "Costo fisso di ogni turno in funzione di ubatch (il riuso si ferma a «prompt meno un ubatch»)"
+base = "qwen3.6-35b-a3b.q4_k_m.vulkan"
+repetitions = 4
+warmup = 1
+
+# Nata da T-04: il motore riusa il prefisso fino a «lunghezza del prompt meno un ubatch», e
+# rielabora l'ultimo pezzo anche quando il prompt non e' cambiato. Con -ub 4096 sono 4.096 token
+# di prefill per ogni turno, circa tredici secondi. La domanda non e' piu' «quanto va veloce il
+# prefill a freddo» ma «quanto costa il turno numero due», che e' quello che vive un agente.
+#
+# -b resta 4096 in tutte le varianti: l'unica variabile e' -ub.
+
+[[variant]]
+name = "ub-4096"
+note = "la riga di oggi"
+[variant.server]
+ubatch = 4096
+
+[[variant]]
+name = "ub-2048"
+[variant.server]
+ubatch = 2048
+
+[[variant]]
+name = "ub-1024"
+[variant.server]
+ubatch = 1024
+
+[[variant]]
+name = "ub-512"
+note = "il default del motore"
+[variant.server]
+ubatch = 512
+
+# Quattro turni: 0 a freddo, 1 identico nel prefisso (qui si vede il costo fisso puro),
+# 2 e 3 con una riga cambiata a meta' del prompt (il caso dell'agente che riscrive un file).
+[[workload]]
+name = "turni-7k"
+kind = "turns"
+prompt = "prompt-7k.txt"
+turns = 4
+divergence_at = 0.5
+instruction = "Leggi il codice qui sopra. Elenca in italiano, in non piu' di dieci righe, le tre funzioni piu' a rischio di regressione e perche'."
+n_predict = 128
+temperature = 0.0
+seed = 1234
+
+# Variante che risponde all'altra meta' della domanda di T-04: --cache-reuse permette al motore di
+# riusare anche quello che sta DOPO una modifica, spostando la cache invece di rielaborarla. Si
+# confronta con «ub-4096», da cui differisce per questa sola leva.
+[[variant]]
+name = "ub-4096-cache-reuse-256"
+note = "come la riga di oggi, piu' --cache-reuse 256"
+[variant.server]
+ubatch = 4096
+[variant.cache]
+cache_reuse = 256

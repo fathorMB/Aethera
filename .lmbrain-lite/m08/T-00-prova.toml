@@ -1,0 +1,19 @@
+measure = "T-00"
+title = "Prova del banco: che il giro completo funzioni prima di spenderci la notte"
+base = "qwen3.6-35b-a3b.q4_k_m.vulkan"
+repetitions = 1
+warmup = 0
+
+[[variant]]
+name = "oggi"
+
+[[workload]]
+name = "turni-7k"
+kind = "turns"
+prompt = "prompt-7k.txt"
+turns = 3
+divergence_at = 0.5
+instruction = "Elenca in italiano, in tre righe, le tre funzioni piu' a rischio di regressione."
+n_predict = 32
+temperature = 0.0
+seed = 1234

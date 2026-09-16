@@ -1,0 +1,31 @@
+{
+  "prompt-7k.txt": {
+    "tokens": 7015,
+    "chars": 22622,
+    "files": [
+      "cmdline.rs",
+      "estimate.rs",
+      "telemetry.rs",
+      "memory.rs",
+      "diagnose.rs"
+    ]
+  },
+  "prompt-21k.txt": {
+    "tokens": 20618,
+    "chars": 67346,
+    "files": [
+      "cmdline.rs",
+      "estimate.rs",
+      "telemetry.rs",
+      "memory.rs",
+      "diagnose.rs",
+      "catalog.rs",
+      "download.rs",
+      "profile.rs",
+      "engine.rs",
+      "gguf.rs",
+      "launch.rs",
+      "machine.rs"
+    ]
+  }
+}

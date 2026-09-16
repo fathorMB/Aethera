@@ -7,10 +7,16 @@ Mediana e scarto tipo sui soli giri buoni: i riscaldamenti restano nel file ma n
 
     python analisi.py C:/AetheraData/m08 T-04 T-05 …
 """
+import io
 import json
 import os
 import statistics
 import sys
+import tomllib
+
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 
 def load(dirpath, measure):
@@ -28,6 +34,17 @@ def load(dirpath, measure):
     return rows, meta
 
 
+def from_manifest(runs_dir, run_id):
+    """Le condizioni vere stanno nel manifest dell'avvio: il banco ne tiene una copia, ma se l'ha
+    letto troppo presto (la memoria misurata arriva qualche secondo dopo il «pronto») la fonte
+    buona resta `runs/<id>/manifest.toml`."""
+    path = os.path.join(runs_dir, run_id, "manifest.toml")
+    if not run_id or not os.path.exists(path):
+        return {}
+    with open(path, "rb") as fh:
+        return tomllib.load(fh)
+
+
 def stat(values):
     values = [v for v in values if v is not None]
     if not values:
@@ -43,7 +60,7 @@ def fmt(med, sd, digits=1):
     return "%.*f ± %.*f" % (digits, med, digits, sd or 0.0)
 
 
-def table(rows, meta, measure):
+def table(rows, meta, measure, dirpath):
     by = {}
     for r in rows:
         if r.get("warmup"):
@@ -99,8 +116,11 @@ def table(rows, meta, measure):
     print("\n**Condizioni**\n")
     print("| variante | build | ctx servito | caricamento ms | VRAM dedicata GiB | VRAM condivisa GiB | working set GiB | RAM libera GiB | doppia copia |")
     print("|---|---|---:|---:|---:|---:|---:|---:|---|")
+    runs_dir = os.path.join(os.path.dirname(os.path.abspath(dirpath)), "runs")
     for v in meta.get("variants", []):
         m = v.get("memory_after_load") or {}
+        if not m:
+            m = (from_manifest(runs_dir, v.get("run_id", "")).get("memory") or {}).get("after_load") or {}
         print("| %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
             v.get("variant"), v.get("build", "—"), v.get("ctx_served", "—"), v.get("load_ms", "—"),
             m.get("vram_dedicated_gib", "—"), m.get("vram_shared_gib", "—"),
@@ -121,7 +141,7 @@ def main():
         if not rows:
             print("\n### %s — nessuna riga" % m)
             continue
-        table(rows, meta, m)
+        table(rows, meta, m, d)
 
 
 if __name__ == "__main__":

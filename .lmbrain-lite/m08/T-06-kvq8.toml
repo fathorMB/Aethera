@@ -1,8 +1,13 @@
 measure = "T-06"
 title = "KV cache q8_0 contro f16 a 32k, 64k e 128k sul 35B"
 base = "qwen3.6-35b-a3b.q4_k_m.vulkan"
-repetitions = 5
+repetitions = 3
 warmup = 1
+
+# Tre giri invece di cinque, e un carico solo: sei varianti da avviare una per volta, e il carico
+# da 21k token costa 92 s a richiesta. Il carico corto e' stato tolto di proposito: la domanda qui
+# e' che cosa costa la cache KV, e la cache KV si vede a contesto lungo. Lo scarto tipo su tre giri
+# e' piu' largo: le differenze sotto il 3% non si leggono.
 
 # Il contesto e' l'altra variabile, quindi le coppie si leggono a due a due: f16/q8_0 a parita' di ctx.
 [[variant]]
@@ -49,16 +54,10 @@ cache_type_v = "q8_0"
 
 # Temperatura 0 e stesso seme: il testo generato si confronta fra f16 e q8_0 (colonna text_sha256_12).
 [[workload]]
-name = "codice-7k"
-prompt = "prompt-7k.txt"
-instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
-n_predict = 384
-temperature = 0.0
-seed = 1234
-
-[[workload]]
 name = "riassunto-21k"
 prompt = "prompt-21k.txt"
+# Temperatura 0 e stesso seme; il confronto di qualita' vero fra f16 e q8_0 non e' pero' il testo
+# generato (su Vulkan due giri identici divergono gia' fra loro) ma la perplessita': run-T06-perplexity.sh.
 instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
 n_predict = 384
 temperature = 0.0
