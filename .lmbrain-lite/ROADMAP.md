@@ -18,11 +18,11 @@ generated: true
 | 7 | M-07 | Confezionamento, prima esecuzione e documentazione | active | 5/7 (2 blocked) | 71% |
 | 8 | M-08 | Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU | done | 14/14 | 100% |
 | 9 | M-09 | Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove | active | 10/11 (1 blocked) | 91% |
-| 10 | M-10 | Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD | active | 4/13 | 31% |
+| 10 | M-10 | Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD | active | 6/13 (1 blocked) | 46% |
 | 11 | M-11 | Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48 | active | 3/6 | 50% |
 | 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | active | 0/11 | 0% |
-| 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | active | 4/7 (1 blocked) | 57% |
-| 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | proposed | 0/9 | 0% |
+| 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | active | 6/7 | 86% |
+| 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | approved | 0/9 | 0% |
 
 ## M-01 — Mockup di design della v1
 
@@ -117,7 +117,7 @@ generated: true
 
 ## M-14 — Fork leggero di llama.cpp: build locali con patch misurate sopra master
 
-- `status`: proposed
+- `status`: approved
 - `priority`: 14
 - `file`: milestones/M-14.md
 - `outcome`: Aethera può usare build di llama.cpp compilate su questa macchina da master più una serie corta di patch, ognuna in un ramo suo, ribasata a ogni build adottata e tenuta solo se una misura la giustifica. Uno script fa checkout, rebase, build Vulkan e copia in builds/ con un id che dichiara base, serie di patch e backend (per esempio b10991+moro1-vulkan); il manifest di ogni avvio lo registra e Benchmark non confronta una build patchata con una liscia senza dirlo. La prima patch (int8 coopmat, PR #27952) è misurata contro la base con la procedura di M-08, e il rapporto dice se entra o si butta.

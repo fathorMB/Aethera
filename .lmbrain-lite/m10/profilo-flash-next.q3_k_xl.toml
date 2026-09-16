@@ -1,4 +1,4 @@
-# M-10 — bozza del profilo, da copiare in C:\AetheraData\profiles\ quando T-01 e T-02 sono chiusi.
+# M-10 — bozza del profilo, da copiare in <radice>\profiles\ quando T-01 e T-02 sono chiusi.
 # Nome del file dei pesi e size_gb vanno controllati sul file scaricato (T-01).
 schema_version = 1
 name = "qwen3.8-flash-next.q3_k_xl.vulkan"
