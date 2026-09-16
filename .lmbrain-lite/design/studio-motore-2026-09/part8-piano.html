@@ -1,34 +1,35 @@
 <section class="page" id="p-piano">
 <h1>Piano di prova</h1>
 <p class="sub">Esperimenti ordinati per informazione ottenuta ÷ ore spese. Una variabile alla volta, stessa riga, stesso prompt di codice vero, telemetria di Aethera come unica fonte. Ogni prova è un profilo, non una modifica a mano.</p>
+<div class="note">Le fasi 0, 1, 2 e 4 sono state eseguite nel milestone M-08 (notte e pomeriggio del 16-09). L'esito sta in corsivo sotto ogni riga; i dettagli in <code>reports/misure-motore-2026-09.md</code>.</div>
 
 <h2>Fase 0 · condizioni della misura (mezza giornata)</h2>
 <table>
 <tr><th>#</th><th>Prova</th><th>Come</th><th>Cosa decide</th></tr>
-<tr><td>0.1</td><td>Banda raggiungibile con un denso piccolo (Qwen3-8B Q4, 4,7 GB) e confronto con il MoE</td><td><code>llama-bench</code> in decode; tok/s × 4,7 GB = banda utile. La modalità alimentazione è già «Massime prestazioni»</td><td>Se il denso arriva a 60–67 GB/s il divario del MoE è nei kernel (MTP, coopmat1); se resta a ~45 è la piattaforma (BIOS, driver, clock)</td></tr>
-<tr><td>0.2</td><td>Banda dell'SSD sul GGUF</td><td>DiskSpd 4K/2 MiB, QD 1/8/32, unbuffered</td><td>La colonna giusta della tabella dei tetti di streaming</td></tr>
-<tr><td>0.3</td><td>Manifest arricchito</td><td>Piano energetico, versione driver GPU/NPU, VGM, disco dei pesi</td><td>Confrontabilità di tutto ciò che segue</td></tr>
+<tr><td>0.1</td><td>Banda raggiungibile con un denso piccolo (Qwen3-8B Q4, 4,7 GB) e confronto con il MoE</td><td><code>llama-bench</code> in decode; tok/s × 4,7 GB = banda utile. La modalità alimentazione è già «Massime prestazioni»</td><td>Se il denso arriva a 60–67 GB/s il divario del MoE è nei kernel (MTP, coopmat1); se resta a ~45 è la piattaforma (BIOS, driver, clock)<br><i>Esito: 62,7 GB/s col driver vecchio, <b>74,8</b> col nuovo; MoE 49,4 → 55,0. Il driver frenava <span class="v">M</span></i></td></tr>
+<tr><td>0.2</td><td>Banda dell'SSD sul GGUF</td><td>DiskSpd 4K/2 MiB, QD 1/8/32, unbuffered</td><td>La colonna giusta della tabella dei tetti di streaming<br><i>Esito: 27 MB/s – 4,4 GB/s, variabile fino a 3,7× fra due giri; leggere pesi dal disco a ogni token non è una via <span class="v">M</span></i></td></tr>
+<tr><td>0.3</td><td>Manifest arricchito</td><td>Piano energetico, versione driver GPU/NPU, VGM, disco dei pesi</td><td>Confrontabilità di tutto ciò che segue<br><i>Non ancora nel codice. Il cambio di driver del 16-09 (+14–21%) mostra quanto serve</i></td></tr>
 </table>
 
 <h2>Fase 1 · leve gratuite sul modello attuale (un giorno)</h2>
 <table>
 <tr><th>#</th><th>Prova</th><th>Riga</th><th>Esito atteso</th></tr>
-<tr><td>1.1</td><td>Checkpoint dello stato ricorrente</td><td><code>--ctx-checkpoints 128 --checkpoint-min-step 128 --cache-ram 15000 --kv-unified</code></td><td>TTFT dei turni con prefisso divergente: da decine di secondi a meno di uno. La misura è <code>n_prompt_tokens_cache</code> per turno da <code>/slots</code></td></tr>
-<tr><td>1.2</td><td>MTP adattivo contro MTP 3 fisso</td><td><code>--spec-draft-adaptive --spec-draft-n-min 2 --spec-draft-n-max 4 --spec-draft-p-min 0.75</code></td><td>Decode +5–15% sul codice senza perdere sui riassunti</td></tr>
-<tr><td>1.3</td><td>Build ≥ b10982 come variabile</td><td>Download verificato da Aethera, stesso profilo</td><td>Pochi punti; serve comunque per la fase 3</td></tr>
-<tr><td>1.4</td><td>KV q8_0 a 64k e 128k</td><td><code>-ctk q8_0 -ctv q8_0 -c 131072</code></td><td>Nessun guadagno sotto 64k (KV di 0,67 GiB a 32k); da +10% oltre. Controllare la coerenza dell'output a temperatura 0</td></tr>
-<tr><td>1.5</td><td>Stabilità del prefisso dei client</td><td>Nonio, OpenCode, Claude Code contro lo stesso motore</td><td>Scoprire quale client azzera la cache (caso <code>CLAUDE_CODE_ATTRIBUTION_HEADER</code>)</td></tr>
+<tr><td>1.1</td><td>Checkpoint dello stato ricorrente</td><td><code>--ctx-checkpoints 128 --checkpoint-min-step 128 --cache-ram 15000 --kv-unified</code></td><td>TTFT dei turni con prefisso divergente: da decine di secondi a meno di uno. La misura è <code>n_prompt_tokens_cache</code> per turno da <code>/slots</code><br><i>Esito: nessun effetto, token riusati identici. La fonte giusta dei token riusati è <code>timings.cache_n</code> della risposta <span class="v">M</span></i></td></tr>
+<tr><td>1.2</td><td>MTP adattivo contro MTP 3 fisso</td><td><code>--spec-draft-n-min 2 --spec-draft-n-max 4 --spec-draft-p-min 0.75</code> (il flag <code>--spec-draft-adaptive</code> non esiste in b10809)</td><td>Decode +5–15% sul codice senza perdere sui riassunti<br><i>Esito: −2% sul codice, +8% sul riassunto rispetto a MTP 3 fisso <span class="v">M</span></i></td></tr>
+<tr><td>1.3</td><td>Build ≥ b10982 come variabile</td><td>Download verificato da Aethera, stesso profilo</td><td>Pochi punti; serve comunque per la fase 3<br><i>Esito: b10991 +5–8% di prefill, decode uguale. Entra <span class="v">M</span></i></td></tr>
+<tr><td>1.4</td><td>KV q8_0 a 64k e 128k</td><td><code>-ctk q8_0 -ctv q8_0 -c 131072</code></td><td>Nessun guadagno sotto 64k (KV di 0,67 GiB a 32k); da +10% oltre. Controllare la coerenza dell'output a temperatura 0<br><i>Esito: nessun guadagno nemmeno oltre 64k, decode sempre peggiore. Scartata <span class="v">M</span></i></td></tr>
+<tr><td>1.5</td><td>Stabilità del prefisso dei client</td><td>Nonio, OpenCode, Claude Code contro lo stesso motore</td><td>Scoprire quale client azzera la cache (caso <code>CLAUDE_CODE_ATTRIBUTION_HEADER</code>)<br><i>Esito: Nonio e OpenCode 100%; OpenCode perde il prefisso solo compattando. Claude Code si collega con <code>ANTHROPIC_BASE_URL</code> (<code>/v1/messages</code>): da misurare quando la CLI è installata <span class="v">M</span></i></td></tr>
 </table>
 
 <h2>Fase 2 · la memoria oltre i 48 GB (due giorni)</h2>
 <p>È la prova che sblocca tutto ciò che sta fra 48 e 70 GB. Modello di test: Qwen3-Coder-Next Q4_K_M (48,5 GB), già nel piano G3.</p>
 <table>
 <tr><th>#</th><th>Configurazione</th><th>Cosa misura</th></tr>
-<tr><td>2.1</td><td>VGM 48 GB, <code>-ngl 999</code>, esperti eccedenti in memoria condivisa WDDM (Vulkan lo fa da solo)</td><td>Quanto costa la memoria «shared» su Windows: nessuna fonte lo sa</td></tr>
-<tr><td>2.2</td><td>VGM 48 GB, <code>--n-cpu-moe 8 / 16</code></td><td>Gli esperti su Zen 5 AVX-512 contro la iGPU: su UMA la banda è la stessa</td></tr>
-<tr><td>2.3</td><td>VGM 64 GB (riavvio), tutto dedicato</td><td>Il costo per Windows (32 GB) e se il decode torna al tetto</td></tr>
-<tr><td>2.4</td><td><code>--fit on</code> senza <code>-ngl</code></td><td>Se il motore decide meglio di noi</td></tr>
-<tr><td>2.5</td><td><code>--load-mode mmap</code> contro <code>none</code> con RAMMap aperto</td><td>Doppia copia contro pagine mappate: la telemetria deve distinguerle</td></tr>
+<tr><td>2.1</td><td>VGM 48 GB, <code>-ngl 999</code>, esperti eccedenti in memoria condivisa WDDM (Vulkan lo fa da solo)</td><td>Quanto costa la memoria «shared» su Windows: nessuna fonte lo sa<br><i>Esito: quasi niente ci finisce (0,37 GiB); 17,75 tok/s, caricamento 27 s. Diventa la ricetta <span class="v">M</span></i></td></tr>
+<tr><td>2.2</td><td>VGM 48 GB, <code>--n-cpu-moe 8 / 16</code></td><td>Gli esperti su Zen 5 AVX-512 contro la iGPU: su UMA la banda è la stessa<br><i>Esito: −15% e −22%, e meno RAM a Windows. Scartata <span class="v">M</span></i></td></tr>
+<tr><td>2.3</td><td>VGM 64 GB (riavvio), tutto dedicato</td><td>Il costo per Windows (32 GB) e se il decode torna al tetto<br><i>Non fatta: serve Adrenalin e un riavvio. Non serve a far girare Coder-Next</i></td></tr>
+<tr><td>2.4</td><td><code>--fit on</code> senza <code>-ngl</code></td><td>Se il motore decide meglio di noi<br><i>Non fatta: lo schema di Aethera impone sempre <code>-ngl</code></i></td></tr>
+<tr><td>2.5</td><td><code>--load-mode mmap</code> contro <code>none</code> con RAMMap aperto</td><td>Doppia copia contro pagine mappate: la telemetria deve distinguerle<br><i>Esito: è <code>mmap</code> a fare la doppia copia (39 GiB di working set, 0,4 GiB di RAM libera, caricamento 70 s); <code>none</code> e <code>auto</code> no <span class="v">M</span></i></td></tr>
 </table>
 <p>Criterio: la configurazione che regge ≥ 15 tok/s con la cache del prefisso intatta diventa la ricetta standard per i modelli 48–70 GB.</p>
 
@@ -44,10 +45,10 @@
 <h2>Fase 4 · la NPU come secondo motore (due giorni, indipendente dalle altre)</h2>
 <table>
 <tr><th>#</th><th>Configurazione</th><th>Cosa misura</th></tr>
-<tr><td>4.1</td><td>FastFlowLM 1.0.5, EmbeddingGemma sulla NPU, Vulkan 35B acceso</td><td>Decode e TTFT del 35B con e senza NPU al lavoro (contesa di banda)</td></tr>
-<tr><td>4.2</td><td>FLM Qwen3.5-4B come sotto-agente (commit, riassunti)</td><td>tok/s del 4B e degrado del 35B durante l'uso concorrente</td></tr>
+<tr><td>4.1</td><td>FastFlowLM 1.0.5, EmbeddingGemma sulla NPU, Vulkan 35B acceso</td><td>Decode e TTFT del 35B con e senza NPU al lavoro (contesa di banda)<br><i>Esito: gli embedding bloccano la NPU (evento 141; schermata blu col driver vecchio). Misura interrotta e non ripetuta <span class="v">M</span></i></td></tr>
+<tr><td>4.2</td><td>FLM Qwen3.5-4B come sotto-agente (commit, riassunti)</td><td>tok/s del 4B e degrado del 35B durante l'uso concorrente<br><i>Esito: 4B 16,0 tok/s da solo, 13,8 in concorrenza; 35B −40% su prefill e decode <span class="v">M</span></i></td></tr>
 <tr><td>4.3</td><td>FLM Qwen3.6-35B-A3B come stack completo</td><td>Confronto di famiglia; il TTFT fisso di 2,7 s nei loop agentici</td></tr>
-<tr><td>4.4</td><td>Driver NPU 32.00.20102.3930 preso da solo (senza Adrenalin 26.9.1)</td><td>Se FLM lo accetta e se cambia qualcosa</td></tr>
+<tr><td>4.4</td><td>Driver NPU 32.00.20102.3930 preso da solo (senza Adrenalin 26.9.1)</td><td>Se FLM lo accetta e se cambia qualcosa<br><i>Esito: arrivato con Adrenalin 26.8.1. FLM lo accetta; il reset della NPU passa da ~40 s a ~10 s, ma il blocco degli embedding resta <span class="v">M</span></i></td></tr>
 </table>
 
 <h2>Fase 5 · i candidati alternativi (un giorno ciascuno)</h2>

@@ -8,7 +8,7 @@ updated: 2026-09-16
 Sintesi per chi progetta le prossime versioni. I numeri e il modo in cui sono stati presi stanno in
 [`reports/misure-motore-2026-09.md`](../reports/misure-motore-2026-09.md) e
 [`reports/npu-blocco-2026-09-16.md`](../reports/npu-blocco-2026-09-16.md); qui c'è solo quello che ne
-segue per l'app. Macchina: Minisforum, Radeon 890M con VGM 48 GB, NPU XDNA2, 96 GB LPDDR5X.
+segue per l'app. Macchina: Minisforum, Radeon 890M con VGM 48 GB, NPU XDNA2, 96 GB DDR5-5600 SODIMM (89,6 GB/s teorici).
 
 ## 1. Il client pesa più del motore
 
@@ -56,7 +56,7 @@ resto identico (overlay «Massime prestazioni», VGM 48, stessi profili e carich
 | server, scenario T-07, b10991: prefill 7k / 21k | 377 / 321 tok/s | 444 / 372 (+18% / +16%) |
 
 Vale più di ogni leva di llama-server misurata. E corregge una conclusione del rapporto: i 62,7 GB/s del
-denso non erano il tetto della piattaforma, erano il driver.
+denso non erano il tetto della piattaforma, erano il driver: col driver nuovo il denso usa l'83% dei 89,6 GB/s teorici, il MoE il 61%.
 
 **Cosa serve in Aethera:** il manifest di ogni avvio deve registrare la **versione dei driver GPU e
 NPU** (e l'overlay di alimentazione, la VGM, il volume dei pesi). Senza, due avvii con numeri diversi

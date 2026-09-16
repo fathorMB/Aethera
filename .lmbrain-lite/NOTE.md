@@ -14,7 +14,6 @@ by: lead
 ## Cosa resta
 - **M-08 T-08** (VGM 64 GB) e **T-10** (Claude Code: serve la CLI).
 - **M-06 T-09**, **M-07 T-02** (VM) e **T-07** (tag).
-- Correzioni allo studio `design/studio-motore-2026-09/`, da aggiornare anche coi numeri del driver nuovo.
 - Tre milestone attivi insieme (M-06, M-07, M-08): il kit ne vuole uno.
 
 Motori spenti. WinDbg installato; dump in `C:\AetheraData\m08\dumps`.

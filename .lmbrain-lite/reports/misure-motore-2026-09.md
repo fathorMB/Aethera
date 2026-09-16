@@ -13,7 +13,7 @@ studio, la correzione è segnata con **[correzione]** e va riportata nella pagin
 ## Come sono state prese
 
 **La macchina, mentre misurava.** Minisforum AI X1 Pro, AMD Ryzen AI 9 HX 470 con Radeon 890M,
-96 GB di LPDDR5X di cui **48 GB assegnati alla GPU** (Windows ne vede 47,65 GiB). Driver GPU
+96 GB di DDR5-5600 SODIMM (2 × 48 GB, 89,6 GB/s teorici) di cui **48 GB assegnati alla GPU** (Windows ne vede 47,65 GiB). Driver GPU
 32.0.22042.1, driver NPU 32.0.203.314. Modalità di alimentazione **«Massime prestazioni»**:
 `powercfg /getactivescheme` dice «Bilanciato» e mente, perché l'overlay sta in
 `HKLM\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\ActiveOverlayAcPowerScheme` e vale
@@ -470,6 +470,8 @@ sul turno intero. Nonio fa la cosa giusta (T-10); per gli altri client va verifi
 ---
 
 # Correzioni da riportare nello studio `design/studio-motore-2026-09/`
+
+**Applicate il 16-09**, insieme ai numeri del driver GPU nuovo: riquadro in cima alla Sintesi, esiti in corsivo nel Piano di prova.
 
 | dove | cosa dice oggi | cosa dicono le misure |
 |---|---|---|

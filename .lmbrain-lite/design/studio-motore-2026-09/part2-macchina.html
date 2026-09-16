@@ -4,7 +4,7 @@
 
 <div class="grid3">
   <div class="kpi"><b>89,6 GB/s</b><span>banda DDR5-5600 dual channel, teorica <span class="v">V</span> — il tetto di tutto il decode</span></div>
-  <div class="kpi"><b>~42 GB/s</b><span>banda effettiva che il 35B-A3B usa oggi a 21 tok/s <span class="v">I</span> (≈47% del teorico)</span></div>
+  <div class="kpi"><b>55 / 75 GB/s</b><span>banda utile misurata col driver nuovo: 35B-A3B a 24,3 tok/s e denso 8B a 16,0 <span class="v">M</span> (61% e 83% del teorico; col driver vecchio 49,4 e 62,7)</span></div>
   <div class="kpi"><b>73,5 GB</b><span>memoria che Vulkan dichiara: 48 GB VGM + ~25,5 GB condivisa WDDM <span class="v">M</span></span></div>
 </div>
 
@@ -12,13 +12,13 @@
 <table>
 <tr><th>Componente</th><th>Valore letto</th><th>Nota</th></tr>
 <tr><td>CPU</td><td class="mono">AMD Ryzen AI 9 HX 470 — 12 core / 24 thread, 2,0 GHz base, L2 12 MB, L3 24 MB</td><td>Gorgon Point: 4 Zen 5 + 8 Zen 5c, boost 5,2 GHz, AVX-512 <span class="v">V</span>. Refresh di Strix Point: stesso silicio di HX 370/375 <span class="v">V</span></td></tr>
-<tr><td>iGPU</td><td class="mono">Radeon 890M, 16 CU RDNA 3.5, driver 32.0.22042.1 (pacchetto 25.20.42, 09-12-2025), Vulkan 1.4.329</td><td>Adrenalin corrente: 26.9.1. Dalla 26.5.1 alla 26.9.1 è segnalata una regressione DPM che svuota la VRAM a riposo (fix atteso in 26.9.2) <span class="v">V</span>. Il nostro driver è precedente: non aggiornare senza motivo</td></tr>
-<tr><td>NPU</td><td class="mono">"NPU Compute Accelerator Device", PCI 1022:17F0, driver AMD 32.0.203.314 (10-10-2025)</td><td>XDNA 2, 32 tile, 55 TOPS INT8 <span class="v">V</span>. Ryzen AI SW 1.8 richiede ≥ .280; FastFlowLM richiede ≥ .311: siamo sopra entrambi. Con Adrenalin 26.8/26.9 arriva un driver NPU MCDM 32.00.20102.3930 <span class="v">V</span></td></tr>
+<tr><td>iGPU</td><td class="mono">Radeon 890M, 16 CU RDNA 3.5, driver 32.0.22042.1 (pacchetto 25.20.42, 09-12-2025), Vulkan 1.4.329</td><td><b>Aggiornato il 16-09</b> ad Adrenalin 26.8.1, driver <b>32.0.31041.1004</b>: +17% prefill, +14–21% decode sul server <span class="v">M</span>. La regressione DPM segnalata per 26.5.1–26.9.1 <span class="v">V</span> qui non si vede: VRAM del motore ferma a 23,13 GiB dopo 100 s di riposo <span class="v">M</span></td></tr>
+<tr><td>NPU</td><td class="mono">"NPU Compute Accelerator Device", PCI 1022:17F0, driver AMD 32.0.203.314 (10-10-2025)</td><td>XDNA 2, 32 tile, 55 TOPS INT8 <span class="v">V</span>. Ryzen AI SW 1.8 richiede ≥ .280; FastFlowLM richiede ≥ .311: siamo sopra entrambi. Con Adrenalin 26.8.1 è arrivato il driver NPU 32.00.20102.3930 (<code>ipustack.sys</code>), installato il 16-09. Con entrambi i driver gli embedding di FastFlowLM bloccano la NPU <span class="v">M</span></td></tr>
 <tr><td>RAM</td><td class="mono">2 × 48 GB SODIMM DDR5-5600 (SMBIOS tipo 34), 96 GB; Windows ne vede 47,6 GB</td><td>48 GB riservati alla iGPU (VGM). 5600 MT/s è il massimo della piattaforma su SODIMM: nessuna banda da recuperare con altri moduli <span class="v">V</span></td></tr>
 <tr><td>SSD</td><td class="mono">Kingston OM8TAP42048K1-A00, 2 TB NVMe, NTFS, 1,9 TB liberi</td><td>Un solo M.2 occupato. La X1 Pro ha tre slot M.2: due PCIe 4.0 ×4 e uno ×1 <span class="v">V</span>. Vedi «Streaming da SSD»</td></tr>
 <tr><td>Sistema</td><td class="mono">Windows 11 Pro 26200 (25H2), BIOS 1.01 del 09-04-2026, modalità alimentazione «Massime prestazioni» (overlay ded574b5 sopra lo schema Bilanciato)</td><td>Il TDP dichiarato dell'X1 Pro 470 è 54 W condiviso CPU+iGPU <span class="v">V</span>; le modalità BIOS non sono documentate nelle fonti trovate</td></tr>
 <tr><td>Motore</td><td class="mono">llama-server b10809 (5266f24da, 4 settembre 2026), Vulkan, in C:\Nonio</td><td>L'ultima release il 15 settembre era b10991: 180 build di distanza <span class="v">M</span></td></tr>
-<tr><td>Pesi presenti</td><td class="mono">Qwen3.6-35B-A3B Q4_K_M (22,29 GB, 2 hard link) + MTP Q8_0 separato (1,99 GB)</td><td>Unico modello sul disco. Coder-Next, Coder-30B e gpt-oss-20b hanno un profilo ma nessun file</td></tr>
+<tr><td>Pesi presenti</td><td class="mono">Qwen3.6-35B-A3B Q4_K_M (22,29 GB, 2 hard link) + MTP Q8_0 separato (1,99 GB)</td><td>Alla stesura era l'unico modello. Dopo M-08 ci sono anche Qwen3-Coder-Next Q4_K_M (48,53 GB), Qwen3-8B Q4_K_M e la build b10991</td></tr>
 </table>
 
 <h2>Mappa della memoria</h2>
@@ -33,33 +33,34 @@
 </div>
 <ul>
 <li><b>Il tetto VGM è 75% della RAM</b>, quindi 72 GB, secondo la FAQ AMD <span class="v">V</span>. Si cambia solo dalla GUI Adrenalin con riavvio: nessun tool a riga di comando trovato <span class="v">V</span>.</li>
-<li><b>Sconfinare oltre i 48 GB</b> costa: su Linux (HX 370, GTT 40 GB) Qwen3-Next-80B Q8 gira a 10,9 tok/s con 85 GB occupati <span class="v">V</span>; su Windows nessuna misura pubblica. È la prova numero uno da fare in casa, perché decide tutto ciò che sta fra 48 e 70 GB.</li>
-<li><b>Ricetta alternativa a VGM alta</b>: tenere la VGM a 48 GB e mettere gli esperti eccedenti in RAM con <code>--n-cpu-moe</code>. Su UMA la banda è la stessa per CPU e iGPU: la differenza è solo di calcolo, e i 12 core Zen 5 con AVX-512 non sono lenti su matrici Q4. Nessuno l'ha misurato su HX 470 <span class="v">I</span>.</li>
+<li><b>Sconfinare oltre i 48 GB</b>: Qwen3-Coder-Next da 48,53 GB sta quasi tutto nella VGM (46,10 GiB dedicati, 0,37 condivisi), 17,75 tok/s, 33 GiB di RAM ancora liberi per Windows <span class="v">M</span>. Su Linux (HX 370, GTT 40 GB) Qwen3-Next-80B Q8 gira a 10,9 tok/s <span class="v">V</span>.</li>
+<li><b>Ricetta alternativa a VGM alta</b>: tenere la VGM a 48 GB e mettere gli esperti eccedenti in RAM con <code>--n-cpu-moe</code>. Su UMA la banda è la stessa per CPU e iGPU, e proprio per questo <b>peggiora</b>: 8 blocchi −15%, 16 blocchi −22% di decode, e meno RAM per Windows <span class="v">M</span>.</li>
 </ul>
 
 <h2>Fisica del decode: banda ÷ byte per token</h2>
-<p>Un token di decode legge tutti i pesi attivi una volta. Il tetto è banda effettiva diviso byte letti per token. Con i 42 GB/s effettivi misurati oggi <span class="v">I</span> e con un ottimistico 60 GB/s (i migliori report su Strix Point arrivano al 67–75% del teorico <span class="v">V</span>):</p>
+<p>Un token di decode legge tutti i pesi attivi una volta. Il tetto è banda effettiva diviso byte letti per token. Le due colonne usano la banda misurata col driver nuovo: 55 GB/s per un MoE come il 35B e 75 GB/s per un denso <span class="v">M</span>. I byte per token dei modelli presenti sono sommati dal GGUF (<code>m08_bytes</code>) <span class="v">M</span>; gli altri sono stime.</p>
 <table>
-<tr><th>Modello</th><th class="n">Attivi</th><th class="n">GB letti/token</th><th class="n">Tetto a 42 GB/s</th><th class="n">Tetto a 60 GB/s</th><th>Riscontri esterni</th></tr>
-<tr class="hl"><td>Qwen3.6-35B-A3B Q4_K_M</td><td class="n">3B</td><td class="n">~2,0</td><td class="n">21</td><td class="n">30</td><td>misurato 17–26, MTP fino a 28 <span class="v">M</span>; Strix Halo 77 (banda ×2,9) <span class="v">V</span></td></tr>
-<tr><td>Qwen3-Coder-Next 80B-A3B Q4_K_M</td><td class="n">3B</td><td class="n">~2,1</td><td class="n">20</td><td class="n">28</td><td>17,6 su 890M Vulkan (issue #19480) <span class="v">V</span>; 48,5 GB non entrano nella VGM</td></tr>
-<tr><td>gpt-oss-120b MXFP4</td><td class="n">5,1B</td><td class="n">~3,0</td><td class="n">14</td><td class="n">20</td><td>19,6 su 890M riportato ma non verificato; 55,6 su Strix Halo <span class="v">V</span></td></tr>
-<tr><td>Qwen3.8-Flash-Next 125B-A6B Q3</td><td class="n">6B + n-gram</td><td class="n">~3,3</td><td class="n">13</td><td class="n">18</td><td>27 su Strix Halo Vulkan IQ4_XS, 47 con MTP <span class="v">V</span>; nessun dato su 890M</td></tr>
-<tr><td>Nemotron 3 Super 120B-A12B Q3</td><td class="n">12B</td><td class="n">~5,8</td><td class="n">7</td><td class="n">10</td><td>nessun dato su APU</td></tr>
-<tr><td>Qwen3.8-27B denso Q4_K_M</td><td class="n">27B</td><td class="n">16,5</td><td class="n">2,5</td><td class="n">3,6</td><td>14B Q4 fa 9,2 su 890M <span class="v">V</span>; 27B stimato 5 base, 9–12 con MTP; Strix Halo 20 <span class="v">V</span></td></tr>
+<tr><th>Modello</th><th class="n">Attivi</th><th class="n">GB letti/token</th><th class="n">Tetto a 55 GB/s</th><th class="n">Tetto a 75 GB/s</th><th>Riscontri</th></tr>
+<tr><td>Qwen3-8B Q4_K_M (denso, controllo)</td><td class="n">8B</td><td class="n">4,672</td><td class="n">12</td><td class="n">16</td><td>16,01 col driver nuovo, 13,42 col vecchio <span class="v">M</span></td></tr>
+<tr class="hl"><td>Qwen3.6-35B-A3B Q4_K_M</td><td class="n">3B</td><td class="n">2,265</td><td class="n">24</td><td class="n">33</td><td>24,3 (llama-bench), 31–33 con MTP sul server <span class="v">M</span>; Strix Halo 77 (banda ×2,9) <span class="v">V</span></td></tr>
+<tr><td>Qwen3-Coder-Next 80B-A3B Q4_K_M</td><td class="n">3B</td><td class="n">2,453</td><td class="n">22</td><td class="n">31</td><td>17,75 col driver vecchio, in VGM 48 <span class="v">M</span>; 17,6 su 890M Vulkan (issue #19480) <span class="v">V</span></td></tr>
+<tr><td>gpt-oss-120b MXFP4</td><td class="n">5,1B</td><td class="n">~3,0</td><td class="n">18</td><td class="n">25</td><td>19,6 su 890M riportato ma non verificato; 55,6 su Strix Halo <span class="v">V</span></td></tr>
+<tr><td>Qwen3.8-Flash-Next 125B-A6B Q3</td><td class="n">6B + n-gram</td><td class="n">~3,3</td><td class="n">17</td><td class="n">23</td><td>27 su Strix Halo Vulkan IQ4_XS, 47 con MTP <span class="v">V</span>; nessun dato su 890M</td></tr>
+<tr><td>Nemotron 3 Super 120B-A12B Q3</td><td class="n">12B</td><td class="n">~5,8</td><td class="n">9</td><td class="n">13</td><td>nessun dato su APU</td></tr>
+<tr><td>Qwen3.8-27B denso Q4_K_M</td><td class="n">27B</td><td class="n">16,5</td><td class="n">3,3</td><td class="n">4,5</td><td>14B Q4 fa 9,2 su 890M <span class="v">V</span>; 27B stimato 5 base, 9–12 con MTP; Strix Halo 20 <span class="v">V</span></td></tr>
 </table>
 <div class="note">Conclusione fisica: su questa banda contano i <b>byte attivi per token</b>, non i parametri totali. Un MoE da 125B con 6B attivi è più veloce di un denso da 27B di tre o quattro volte. È il motivo per cui Flash-Next è interessante nonostante la mole, e per cui il 27B denso non lo è.</div>
 
 <h2>Prefill: calcolo, non banda</h2>
 <ul>
-<li>16 CU RDNA 3.5 a 3,1 GHz: oltre 5 TFLOPS FP32 misurati, FP16 non misurato <span class="v">V</span>. Il prefill del 35B sta a 267–366 tok/s <span class="v">M</span>; Strix Halo con 40 CU fa 1100–1300 <span class="v">V</span>, quindi il rapporto è quello dei CU.</li>
+<li>16 CU RDNA 3.5 a 3,1 GHz: oltre 5 TFLOPS FP32 misurati, FP16 non misurato <span class="v">V</span>. Il prefill del 35B stava a 267–366 tok/s; col driver nuovo e b10991 arriva a 444 sul codice 7k e 372 sul 21k <span class="v">M</span>; Strix Halo con 40 CU fa 1100–1300 <span class="v">V</span>, quindi il rapporto è quello dei CU.</li>
 <li>Il guadagno grosso è software e non è ancora in master: la PR #27952 (int8 coopmat1 su RDNA3/3.5) misura +33% sul prefill MoE <span class="v">V</span>. Vedi «Motore».</li>
 <li>Con la cache del prefisso al 93–99% (banco del 15-09) il prefill pesa solo sul primo turno e sui rami divergenti; per un agente conta più <b>non perdere la cache</b> che accelerare il prefill.</li>
 </ul>
 
 <h2>Consumo, temperatura, piano energetico</h2>
 <ul>
-<li>La modalità alimentazione è già «Massime prestazioni» (Impostazioni di Windows; <code>powercfg /getactivescheme</code> mostra solo lo schema Bilanciato sottostante, l’overlay si legge nel registro) <span class="v">M</span>. Quindi i 21 tok/s sono già a piena potenza: il +36% visto su Linux fra risparmio e prestazioni <span class="v">V</span> qui non c’è da prendere. Resta da verificare la modalità del BIOS.</li>
-<li>La NPU dichiara meno di 2 W per l'inferenza FLM <span class="v">V</span>: il suo interesse non è la velocità ma il fatto che lavora <b>senza sottrarre potenza termica</b> alla iGPU nel budget di 54 W.</li>
+<li>La modalità alimentazione è già «Massime prestazioni» (Impostazioni di Windows; <code>powercfg /getactivescheme</code> mostra solo lo schema Bilanciato sottostante, l’overlay si legge nel registro) <span class="v">M</span>. Quindi i numeri misurati sono già a piena potenza: il +36% visto su Linux fra risparmio e prestazioni <span class="v">V</span> qui non c’è da prendere. Resta da verificare la modalità del BIOS.</li>
+<li>La NPU dichiara meno di 2 W per l'inferenza FLM <span class="v">V</span>, e l'idea era che lavorasse <b>senza sottrarre potenza</b> alla iGPU nel budget di 54 W. La misura dice altro: con la NPU che genera, il 35B perde ~40% <b>anche sul prefill</b>, che è calcolo e non banda <span class="v">M</span>. La contesa non è solo di memoria.</li>
 </ul>
 </section>
