@@ -1,0 +1,145 @@
+# Release automatica (M-13 T-01, T-02).
+#
+# Un push di un tag vX.Y.Z (o vX.Y.Z-rc.N per le prove) produce una GitHub Release IN BOZZA con:
+#   - l'installatore NSIS di Aethera (non firmato, per scelta dell'operatore);
+#   - il suo file .sha256, nel formato di `sha256sum`;
+#   - le note prese dalla sezione della versione in RELEASE-NOTES.md.
+# La pubblicazione della bozza resta un gesto a mano dell'operatore.
+#
+# Tre job, per spendere minuti Windows solo dove servono (il repository è privato e i minuti
+# Windows costano il doppio):
+#   1. controllo  (ubuntu)  la versione del tag coincide con quella dei file; se no, niente build;
+#   2. build      (windows) npm ci + tauri build con il solo bundle NSIS; l'installatore diventa
+#                           un artifact del run;
+#   3. bozza      (ubuntu)  SHA-256, note e `gh release create --draft`. È l'unico job con il
+#                           permesso di scrittura.
+#
+# Nessun segreto oltre GITHUB_TOKEN. Si usa `gh` e non tauri-action: la release, il file .sha256 e
+# il corpo delle note li scriviamo comunque noi, e `gh` è già sui runner.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Per impostazione nessun permesso di scrittura: lo ottiene solo il job «bozza».
+permissions:
+  contents: read
+
+# Due push dello stesso tag non devono creare due bozze in parallelo; un run avviato non si annulla.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  controllo:
+    name: Controllo della versione
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      versione: ${{ steps.versione.outputs.versione }}
+      prova: ${{ steps.versione.outputs.prova }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Tag, tauri.conf.json, Cargo.toml, Cargo.lock, package.json e titolo della finestra
+      # (se contiene una versione) devono coincidere. Il messaggio dice quale file correggere.
+      - name: Tag e file dicono la stessa versione
+        id: versione
+        run: python3 .github/scripts/controlla_versione.py --tag "$GITHUB_REF_NAME"
+
+  build:
+    name: Installatore NSIS
+    needs: controllo
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # La cache dei tag vede solo quella del branch predefinito: sul primo tag la build release
+      # parte quasi da zero (vedi README, «Come si fa una release»).
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: release
+
+      - name: Dipendenze del frontend
+        run: npm ci
+
+      # beforeBuildCommand (npm run build) compila il frontend; i target del bundle sono in
+      # tauri.conf.json, qui si ribadisce solo NSIS.
+      - name: Build di Tauri
+        run: npm run tauri -- build --bundles nsis
+
+      - name: Trova l'installatore
+        id: installatore
+        shell: pwsh
+        env:
+          VERSIONE: ${{ needs.controllo.outputs.versione }}
+        run: |
+          $cartella = "src-tauri/target/release/bundle/nsis"
+          $trovati = @(Get-ChildItem -Path $cartella -Filter "*_${env:VERSIONE}_*-setup.exe" -File)
+          if ($trovati.Count -ne 1) {
+            Get-ChildItem -Path $cartella -ErrorAction SilentlyContinue | Format-Table Name, Length
+            Write-Output "::error::attesi un solo installatore per la versione $env:VERSIONE in $cartella, trovati $($trovati.Count)"
+            exit 1
+          }
+          $exe = $trovati[0]
+          Write-Output ("Installatore: {0} ({1:N1} MB)" -f $exe.Name, ($exe.Length / 1MB))
+          "percorso=$($exe.FullName)" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installatore
+          path: ${{ steps.installatore.outputs.percorso }}
+          if-no-files-found: error
+          retention-days: 7
+
+  bozza:
+    name: Release in bozza
+    needs: [controllo, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: installatore
+          path: uscita
+
+      - name: SHA-256 dell'installatore
+        working-directory: uscita
+        run: |
+          for exe in *.exe; do
+            sha256sum "$exe" > "$exe.sha256"
+            cat "$exe.sha256"
+          done
+
+      # La sezione della versione più la nota sull'installatore non firmato; per un tag -rc.N
+      # una riga in testa dice che è una prova.
+      - name: Note di rilascio
+        env:
+          VERSIONE: ${{ needs.controllo.outputs.versione }}
+        run: python3 .github/scripts/note_di_rilascio.py --versione "$VERSIONE" --tag "$GITHUB_REF_NAME" --uscita "$RUNNER_TEMP/note.md"
+
+      - name: Crea la release in bozza
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROVA: ${{ needs.controllo.outputs.prova }}
+        run: |
+          opzioni=(--draft --verify-tag --title "Aethera $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/note.md")
+          if [ "$PROVA" = "true" ]; then opzioni+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" "${opzioni[@]}" uscita/*.exe uscita/*.exe.sha256
+          echo "Bozza creata: la pubblica l'operatore, dalla pagina Releases."

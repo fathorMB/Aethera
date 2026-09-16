@@ -1,0 +1,94 @@
+# Controlli su ogni pull request e su ogni push su main (M-13 T-03).
+#
+#   frontend  (ubuntu)   controllo della versione, npm ci, build del frontend (tsc + vite), vitest
+#   rust      (windows)  cargo test e cargo clippy su src-tauri
+#
+# Il frontend gira su Linux perché non tocca API di Windows e i minuti Linux costano la metà.
+# Il crate Rust usa API di Windows (PDH, Job Object, registro): gira su Windows.
+#
+# Esclusi di proposito:
+#   - gli esempi in src-tauri/examples (e2e_*, m08_*, m09_*…): vogliono llama-server, la GPU e
+#     C:\AetheraData. Per questo cargo riceve --lib --bins --tests e non --all-targets: gli
+#     esempi non vengono né eseguiti né compilati.
+#   - nessun test unitario oggi richiede GPU, motore o C:\AetheraData (verificato il 16-09-2026:
+#     usano cartelle temporanee, socket su 127.0.0.1:0 e testi fissi), quindi non serve un filtro.
+#     Un test nuovo che ne avesse bisogno va marcato #[ignore] con il motivo.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# Un push nuovo sullo stesso branch o sulla stessa PR annulla il run superato.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (build e vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Senza tag: i file devono solo dire la stessa versione fra loro.
+      - name: Versione coerente nei file
+        run: python3 .github/scripts/controlla_versione.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Dipendenze
+        run: npm ci
+
+      - name: Build del frontend
+        run: npm run build
+
+      - name: Vitest
+        run: npm test
+
+  rust:
+    name: Rust (test e clippy)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: src-tauri
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ci
+
+      # tauri::generate_context! vuole che frontendDist (../dist) esista già in compilazione.
+      # Per i test basta una pagina segnaposto: il frontend vero lo controlla il job «frontend».
+      - name: Segnaposto per dist
+        shell: pwsh
+        working-directory: .
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Set-Content -Path dist/index.html -Value "<!doctype html><title>Aethera</title>" -Encoding utf8
+
+      - name: cargo test
+        run: cargo test --locked --lib --bins --tests
+
+      # Fallisce sugli errori di clippy; gli avvisi restano visibili nel log senza fermare il run.
+      - name: cargo clippy
+        run: cargo clippy --locked --lib --bins --tests
