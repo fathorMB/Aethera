@@ -1,17 +1,22 @@
 ---
-updated: 2026-09-16
+updated: 2026-09-17
 by: lead
 ---
-**Notte del 16-09 — VGM a 64 GB, banco in corso** (`<radice>\m10\VGM64.out`).
+**Priorità della notte 16→17-09: M-14, fork leggero di llama.cpp** (approvato dall'operatore in chat).
 
-- **M-10**: T-01, T-02, T-04, T-06 chiusi. T-07b fatto: IQ3_XXS a VGM 64 con mmap + lazy auto, prefill 137, decode 9,3 tok/s, Windows senza memoria disponibile per tutta la sessione.
-- **Ora gira** (scelta dell'operatore): T-07c Q3_K_XL, poi T-08 (contesto ~30k e ~60k, ctx 65536), poi T-09 (riuso del prefisso). Sorvegliante: file di paging +2 GiB o motore non pronto dopo 300 s. Circa 3-4 ore.
-- T-11/T-12 non scattano: decode sotto i 12 tok/s.
-- **M-11**: T-01…T-03 chiusi; restano contesto lungo, batteria e rapporto.
+- Quando la macchina è libera dalle misure a VGM 64 di M-10, si passa M-14 a un sub-agent Opus.
+- Toolchain: Build Tools 2022 con MSVC 14.44, CMake e Ninja ci sono. **Manca il Vulkan SDK**: senza, niente build (T-04…T-06).
+- Le misure di T-04/T-06 si confrontano con M-08, quindi vanno fatte **a VGM 48**.
 
-## Dopo, con te
-- Riportare la VGM a **48** (fine delle prove a 64).
-- Batteria Nonio (M-10 T-10, M-11 T-05) e rapporti.
-- Commit: modifiche a `src-tauri/examples/m08_bench.rs` e script in `.lmbrain-lite/m10` e `m11`. Il push solo con il tuo via.
+**In corso**
+- M-10 a VGM 64: T-08 all'ultimo giro, poi T-09.
+- M-12: sub-agent sulla finestra v2.
 
-**Non aprire client né programmi pesanti: la macchina è senza RAM libera.**
+**Fatto stasera**
+- M-13: release di prova v0.1.0-rc.1 in bozza; installatore provato dall'operatore. Bozza e tag restano fino alla v0.1.0.
+- Repo pubblico, percorsi tolti (PR #2); `.lmbrain-lite/m10` segue a misure finite.
+
+**Tu**
+- Vulkan SDK.
+- VGM a 48 a fine misure.
+- T-07 di M-13 quando vuoi la v0.1.0.

@@ -2,9 +2,9 @@
 # VGM 48 (T-04): soglia sulla RAM libera. VGM 64 (T-07, scelta dell'operatore del 16-09): la soglia
 # e' sulla RAM *disponibile* (libera + standby), perche' le pagine mappate dal file Windows le puo'
 # rilasciare; in piu' si ferma se il file di paging cresce oltre -MaxPagefileMB dall'inizio.
-# Uso: powershell -File sorveglia-ram.ps1 -StopFile f -Seconds 3600 -MinGiB 2 -Log C:\AetheraData\m10\sorveglia.log
+# Uso: powershell -File sorveglia-ram.ps1 -StopFile f -Seconds 3600 -MinGiB 2 -Log <radice>\m10\sorveglia.log
 param([string]$StopFile = "", [int]$Seconds = 3600, [double]$MinGiB = 2.0, [int]$MaxPagefileMB = 4096, [int]$MaxLoadSeconds = 0,
-      [string]$Log = "C:\AetheraData\m10\sorveglia.log")
+      [Parameter(Mandatory = $true)][string]$Log)
 $deadline = (Get-Date).AddSeconds($Seconds)
 $pf0 = (Get-CimInstance Win32_PageFileUsage | Measure-Object CurrentUsage -Sum).Sum
 "$((Get-Date).ToString('s')) inizio: file di paging $pf0 MB, soglia disponibile $MinGiB GiB, crescita massima $MaxPagefileMB MB" | Out-File $Log -Append -Encoding utf8

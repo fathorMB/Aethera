@@ -114,6 +114,54 @@ in cloud.
 
 ---
 
+**Nota del 17-09 (M-12).** Con la finestra v2 alcune voci del punto 6 hanno cambiato posto:
+«Applica come modifiche» è ora il pulsante **Applica** nell'avviso azzurro sopra le leve;
+`chat_template_file` è la leva **Template di chat**; le etichette «M-08: scartata» della cache
+stanno in **Avanzate → Riuso della cache / Checkpoint dello stato**; il budget di contesto è in
+**Impostazioni → Client**.
+
+## 6b · La finestra v2 (circa 30 minuti) — M-12 T-10
+
+Il codice è nel branch `m12-finestra-v2` (worktree `.claude/worktrees/agent-add2b9ea593665a23`), non
+ancora su `main`. Prima: unisci il branch e ricostruisci (`npm.cmd run tauri build`), poi apri
+`src-tauri\target\release\aethera.exe`. Serve un motore acceso e un client che lavora (Nonio con il
+lock, o Claude Code). **Non farlo mentre gira un banco di M-10/M-11.**
+
+- [ ] **Striscia in alto, da ogni pagina** (tasti 1–5): stato, profilo, build e porta, prefill ·
+      decode · % riuso, «IN USO · motivo» mentre il client lavora. **Riavvia** e **Ferma** devono
+      essere spenti mentre è in uso (il motivo al passaggio del mouse) e accendersi quando torna
+      libero. «Proteggi» deve spegnerli anche a motore libero. Prova qui anche il tema.
+- [ ] **Piede della colonna**: radice dati, avvio acceso con durata e richieste, e i lavori in
+      corso quando c'è un download (con il pallino sul Catalogo).
+- [ ] **Motore**: un riquadro di stato solo; la fascia di avvisi (condizioni cambiate con «Vedi in
+      Benchmark», compattazione con «Budget di contesto» che apre Impostazioni → Client); i quattro
+      numeri con la scintilla; la tabella richiesta per richiesta con le righe ambra della
+      compattazione e «come si legge»; la memoria come barra (passa il mouse per i numeri).
+      «Riga di comando» e «Log del motore» sono chiusi; il log si deve aprire da solo dopo
+      un'uscita con errore (prova: una leva inesistente in `extra_args`).
+- [ ] **Avvio**: cambia una leva (per esempio Micro-batch): ● sulla riga, «1 modifica» nella fascia
+      in alto, la riga di comando a destra si aggiorna. Scorri: **la fascia resta in cima**. Poi
+      **Salva come…** con un nome nuovo (dialogo della finestra) e controlla che il profilo compaia
+      nell'elenco. Apri **Avanzate**: le leve con le pillole rosse dei verdetti. «Layer sulla GPU»:
+      i tre bottoni tutti / numero / decide fit.
+- [ ] **Catalogo con un download in corso**: la fascia con la barra e **Ferma** (poi **Riprendi**
+      nel dettaglio); i filtri per stato con i conteggi; la ricerca; **Aggiungi da Hugging Face…**
+      apre il modulo; **Rimuovi…** apre un dialogo con la casella «Cancella anche il file» (non
+      confermare su un file che ti serve). Scheda **Build**: elenco a sinistra, «--list-devices» a
+      destra.
+- [ ] **Benchmark**: spunta due avvii: in basso compare la fascia con i tre Δ e, se serve, l'avviso
+      «non differiscono solo per il profilo»; **Apri il confronto** mostra la tabella completa. Il
+      separatore «da qui in su…» è rimasto.
+- [ ] **Impostazioni**: le tre schede. Macchina (radice, pesi, margine, build, cosa Aethera legge),
+      Client (righe da copiare e budget), App (uscita, tema, soglie, endpoint a scomparsa).
+- [ ] **Finestra stretta** (circa 1280 px): niente scorrimento orizzontale.
+
+**Una decisione tua (tavolozza della v1, non toccata):** sotto 4,5:1 restano il bianco dei pulsanti
+primari su `--acc` scuro (3,1:1), `badge acc` e il numero del passo attivo su `--bg3` chiaro
+(3,8:1) e il ✓ bianco su `--ok` scuro nel Primo avvio (2,3:1).
+
+Se qualcosa non ti piace, scrivilo qui sotto: M-12 resta aperto finché non hai guardato.
+
 ## 7 · Due cose da decidere, non da provare
 
 - [ ] **Il tag della v1.** Le note di rilascio ci sono (`RELEASE-NOTES.md`, 0.1.0). Il tag lo metti tu
