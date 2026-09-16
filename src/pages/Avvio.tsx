@@ -2,7 +2,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { createEffect, createMemo, createSignal, For, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
 import * as api from "../api";
 import type { EngineStatus, Issue, Overview, Preview, Profile, ProfileEntry } from "../api";
-import { AskName, CommandLine, Confirm, copy, Val } from "../components";
+import { AskName, CommandLine, Confirm, copy, Empty, Val } from "../components";
 import { fixed, getPath, sameValue, setPath, show } from "../format";
 
 type Kind = "text" | "opttext" | "int" | "optint" | "optfloat" | "bool" | "select" | "list";
@@ -429,7 +429,17 @@ export default function Avvio(props: {
                 </div>
               </div>
             </Show>
-            <For each={entries()} fallback={<Show when={!creating()}><div class="cond">Nessun profilo: fanne uno con «Nuovo profilo…» oppure importa i JSON di minis-config.</div></Show>}>
+            <For
+              each={entries()}
+              fallback={
+                <Show when={!creating()}>
+                  <div class="cond">
+                    Nessun profilo ancora. «Nuovo profilo…» ne scrive uno con valori sensati sul modello che scegli;
+                    se vieni da minis-config, «Importa JSON…» li converte.
+                  </div>
+                </Show>
+              }
+            >
               {(e) => (
                 <div class="it" classList={{ on: e.name === selected() }} onClick={() => select(e.name)}>
                   <div class="n">{e.name}</div>
@@ -446,11 +456,13 @@ export default function Avvio(props: {
                     <Show when={e.issues.length}>
                       <span class="badge err tight">
                         <i />
-                        {e.issues.length} errori
+                        {e.issues.length} {e.issues.length === 1 ? "errore" : "errori"}
                       </span>
                     </Show>
                     <Show when={e.name === selected() && (preview()?.overrides.length ?? 0) > 0}>
-                      <span class="pill mod">{preview()!.overrides.length} modifiche</span>
+                      <span class="pill mod">
+                        {preview()!.overrides.length} {preview()!.overrides.length === 1 ? "modifica" : "modifiche"}
+                      </span>
                     </Show>
                   </div>
                 </div>
@@ -550,6 +562,20 @@ export default function Avvio(props: {
         </div>
 
         <div>
+          <Show when={!edited() && !entries().length}>
+            <Empty title="Un profilo dice come si accende il motore.">
+              <div>
+                Modello, contesto, tipi di cache, speculazione, porta: tutto esplicito, niente lasciato al default del
+                motore, così la riga di comando racconta per intero com'è stato avviato. Il nome del profilo è anche
+                l'alias che i client chiedono.
+              </div>
+            </Empty>
+          </Show>
+          <Show when={!edited() && entries().length > 0}>
+            <Empty title="Scegli un profilo dall'elenco.">
+              <div>Le sue leve compaiono qui, e ogni modifica aggiorna la riga di comando e la stima di memoria.</div>
+            </Empty>
+          </Show>
           <Show when={entry() && !entry()!.profile}>
             <div class="card mb">
               <h2>{entry()!.name}.toml non leggibile</h2>
@@ -648,7 +674,8 @@ export default function Avvio(props: {
                   <h2>
                     Riga di comando{" "}
                     <span class="r">
-                      aggiornata in tempo reale · {preview()?.overrides.length ?? 0} differenze dal profilo
+                      aggiornata in tempo reale · {preview()?.overrides.length ?? 0}{" "}
+                      {preview()?.overrides.length === 1 ? "differenza" : "differenze"} dal profilo
                     </span>
                   </h2>
                   <Show when={preview()}>{(pv) => <CommandLine binary={binary()} args={pv().args} />}</Show>

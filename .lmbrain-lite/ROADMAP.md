@@ -15,7 +15,7 @@ generated: true
 | 4 | M-04 | Catalogo: metadati GGUF, stima di memoria, verifica e download di pesi e build | done | 10/10 | 100% |
 | 5 | M-05 | Uso quotidiano senza toccare i file a mano | active | 7/8 (1 blocked) | 88% |
 | 6 | M-06 | Comportamento quando qualcosa va storto | active | 8/9 (1 blocked) | 89% |
-| 7 | M-07 | Confezionamento, prima esecuzione e documentazione | approved | 0/7 | 0% |
+| 7 | M-07 | Confezionamento, prima esecuzione e documentazione | active | 5/7 (2 blocked) | 71% |
 
 ## M-01 — Mockup di design della v1
 
@@ -61,7 +61,7 @@ generated: true
 
 ## M-07 — Confezionamento, prima esecuzione e documentazione
 
-- `status`: approved
+- `status`: active
 - `priority`: 7
 - `file`: milestones/M-07.md
 - `outcome`: Aethera si installa e si avvia su una macchina pulita senza toolchain di sviluppo, guida chi la apre per la prima volta dalla radice dati fino al motore acceso, e chi non l'ha mai vista capisce dal README cosa fa, cosa serve e dove finiscono i suoi dati.

@@ -2,7 +2,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import * as api from "../api";
 import type { AdoptPlan, BuildsView, Device, Estimate, ModelRow, TaskView } from "../api";
-import { AskName, Confirm, Val } from "../components";
+import { AskName, Confirm, Empty, Val } from "../components";
 import { clock, fixed, num, show } from "../format";
 
 const STATES: Record<api.ModelState, { cls: string; text: string }> = {
@@ -212,7 +212,23 @@ function BuildsTab(props: { onError: (e: string) => void; onMessage: (m: string)
           </tr>
         </thead>
         <tbody>
-          <For each={view()?.installed ?? []} fallback={<tr><td colspan={4} class="cond">Nessuna build installata.</td></tr>}>
+          <For
+            each={view()?.installed ?? []}
+            fallback={
+              <tr>
+                <td colspan={4}>
+                  <Empty title="Nessuna build di llama.cpp su questa macchina.">
+                    <div>
+                      Senza build non c'è niente che possa caricare i pesi. «Cerca le release di ggml-org» le elenca e
+                      le installa verificandone il digest; «Importa cartella…» dichiara una cartella che hai già
+                      scaricato a mano. La build resta fissata nel profilo: cambiarla è una variabile di prova, non un
+                      aggiornamento automatico.
+                    </div>
+                  </Empty>
+                </td>
+              </tr>
+            }
+          >
             {(b) => (
               <tr>
                 <td class="mono">{b.id}</td>
@@ -511,7 +527,23 @@ export default function Catalogo(props: { onLaunch?: (file: string) => void }) {
               </tr>
             </thead>
             <tbody>
-              <For each={rows()} fallback={<tr><td colspan={9} class="cond">Nessun modello: aggiungine uno da Hugging Face o metti un .gguf nella cartella dei pesi.</td></tr>}>
+              <For
+                each={rows()}
+                fallback={
+                  <tr>
+                    <td colspan={9}>
+                      <Empty title="Nessun modello nel catalogo.">
+                        <div>
+                          Scrivi repository e nome file qui sopra per aggiungerne uno da Hugging Face — Aethera ne legge
+                          dimensione e oid LFS dal publisher e lo scarica verificandolo — oppure «Importa da disco…» per
+                          registrare un <code>.gguf</code> che hai già, senza duplicarlo. Un file messo a mano nella
+                          cartella dei pesi compare qui da solo.
+                        </div>
+                      </Empty>
+                    </td>
+                  </tr>
+                }
+              >
                 {(r) => (
                   <tr class="click" classList={{ sel: focus() === r.id }} onClick={() => setFocus(r.id)}>
                     <td class="mono">{r.id}</td>
@@ -559,6 +591,7 @@ export default function Catalogo(props: { onLaunch?: (file: string) => void }) {
                       </Show>
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
+                      <div class="row" style={{ "justify-content": "flex-end" }}>
                       <Show when={r.state === "downloadable" || r.state === "downloading"}>
                         <button class="btn sm" disabled={busy()} onClick={() => act(() => api.catalogDownload(r.id))}>
                           {r.state === "downloading" ? "Riprendi" : "Scarica"}
@@ -581,6 +614,7 @@ export default function Catalogo(props: { onLaunch?: (file: string) => void }) {
                           Avvia…
                         </button>
                       </Show>
+                      </div>
                     </td>
                   </tr>
                 )}

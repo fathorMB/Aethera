@@ -1,13 +1,22 @@
 /* Token e componenti dal mockup approvato: .lmbrain-lite/design/aethera-v1/index.html */
 :root {
-  --bg: #f4f5f7; --bg2: #ffffff; --bg3: #e9ebef; --line: #d5d8de; --fg: #1a1c20; --fg2: #5b6270; --fg3: #8a9099;
-  --acc: #2f6fed; --ok: #1f9d55; --warn: #c77d0a; --err: #d23b3b; --busy: #8a4fd6; --mod: #c77d0a;
+  --bg: #f4f5f7; --bg2: #ffffff; --bg3: #e9ebef; --line: #d5d8de; --fg: #1a1c20; --fg2: #515866;
+  /* --fg3 è il grigio delle condizioni: su fondo bianco #8a9099 arriva a 2,9:1 e a 11px non si
+     legge. Scurito a 4,8:1, che resta smorzato ma leggibile. */
+  --fg3: #616878;
+  /* Verde, ambra e viola sono scuriti apposta: sul fondo chiaro delle etichette (--bg3) i toni
+     del tema scuro scendono sotto 4,5:1 e a 11px smettono di leggersi. */
+  --acc: #2f6fed; --ok: #187038; --warn: #8f5605; --err: #c62f2f; --busy: #6f39b8; --mod: #8f5605;
   --mono: "Cascadia Mono", "JetBrains Mono", Consolas, ui-monospace, monospace;
   --sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  /* Dice alla webview di che colore disegnare tendine, caselle e barre di scorrimento: senza
+     questo restano del tema del sistema e in tema chiaro spuntano widget scuri. */
+  color-scheme: light;
 }
 [data-theme="dark"] {
   --bg: #141619; --bg2: #1c1f24; --bg3: #24282f; --line: #30353d; --fg: #e6e8eb; --fg2: #a3a9b3; --fg3: #6f7680;
   --acc: #5b8dff; --ok: #3ec46f; --warn: #e5a23a; --err: #ef5a5a; --busy: #b287f0; --mod: #e5a23a;
+  color-scheme: dark;
 }
 * { box-sizing: border-box }
 html, body { margin: 0; height: 100% }
@@ -113,6 +122,26 @@ tr.click:hover td { background: var(--bg3) }
 hr { border: 0; border-top: 1px solid var(--line); margin: 10px 0 }
 .errors { margin: 6px 0 0; padding-left: 18px; color: var(--err) }
 .errors li { margin: 2px 0 }
+/* Stato vuoto: al posto di una tabella senza righe, la frase che dice cosa fare. */
+.empty { border: 1px dashed var(--line); border-radius: 4px; padding: 18px 20px; color: var(--fg2); background: var(--bg2) }
+.empty b { display: block; color: var(--fg); font-weight: 600; margin-bottom: 4px }
+.empty .row { margin-top: 10px }
+td .empty, th .empty { border: 0; background: none; padding: 10px 2px }
+
+/* Primo avvio: i passi in ordine, con il prossimo in evidenza. */
+.steps { display: flex; flex-direction: column; gap: 2px }
+.step { display: grid; grid-template-columns: 22px 1fr max-content; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 3px; border: 1px solid transparent }
+.step .n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-family: var(--mono); background: var(--bg3); color: var(--fg3); border: 1px solid var(--line) }
+.step.done .n { background: var(--ok); border-color: var(--ok); color: #fff }
+.step.now { border-color: var(--acc); background: var(--bg3) }
+.step.now .n { border-color: var(--acc); color: var(--acc) }
+.step .t { color: var(--fg2) }
+.step.now .t, .step.done .t { color: var(--fg) }
+.step .d { font-size: 11px; color: var(--fg3) }
+
+/* La tastiera deve vedersi: senza contorno di fuoco non si sa mai dove si è. */
+:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px }
+
 .welcome { max-width: 620px; margin: 60px auto }
 .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; z-index: 10 }
 .dialog { max-width: 440px; box-shadow: 0 8px 30px rgba(0, 0, 0, .4) }

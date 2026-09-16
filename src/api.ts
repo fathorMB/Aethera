@@ -514,6 +514,21 @@ export const tasksList = () => invoke<TaskView[]>("tasks_list");
 export const taskCancel = (id: string) => invoke<void>("task_cancel", { id });
 export const tasksClear = () => invoke<number>("tasks_clear");
 
+export interface Step {
+  id: string;
+  title: string;
+  what: string;
+  done: boolean;
+  detail: string | null;
+  page: string;
+}
+
+export interface Setup {
+  steps: Step[];
+  complete: boolean;
+}
+
+export const setup = () => invoke<Setup>("setup");
 export const overview = () => invoke<Overview>("overview");
 export const setDataRoot = (path: string) => invoke<Overview>("set_data_root", { path });
 export const saveMachine = (machine: MachineConfig) => invoke<Overview>("save_machine", { machine });

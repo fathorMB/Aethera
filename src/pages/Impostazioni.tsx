@@ -2,7 +2,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import * as api from "../api";
 import type { ClientSnippets, EngineStatus, ExitBehavior, MachineConfig, MachineText, Overview } from "../api";
-import { Confirm, copy, Val } from "../components";
+import { Confirm, copy, Empty, Val } from "../components";
 
 const input = {
   background: "var(--bg)",
@@ -240,7 +240,17 @@ export default function Impostazioni(props: { overview: Overview; status: Engine
             <h2>
               Riga per i client <span class="r">derivata dall'avvio acceso</span>
             </h2>
-            <Show when={snippets()} fallback={<div class="cond">Nessun motore acceso da questo Aethera: le righe compaiono con l'avvio.</div>}>
+            <Show
+              when={snippets()}
+              fallback={
+                <Empty title="Nessun motore acceso da questo Aethera.">
+                  <div>
+                    Le righe da incollare nei client nascono da un avvio vero: indirizzo, alias servito, contesto
+                    davvero servito e campionamento consigliato del modello. Prima dell'avvio sarebbero un'ipotesi.
+                  </div>
+                </Empty>
+              }
+            >
               {(sn) => (
                 <>
                   <div class="mini" style={{ "margin-bottom": "4px" }}>

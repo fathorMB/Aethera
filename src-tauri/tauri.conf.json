@@ -19,7 +19,6 @@
         "minWidth": 1180,
         "minHeight": 640,
         "resizable": true,
-        "theme": "Dark",
         "backgroundColor": "#141619"
       }
     ],
@@ -32,6 +31,17 @@
     "active": true,
     "targets": ["nsis"],
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"],
-    "shortDescription": "Launcher per llama-server"
+    "publisher": "Moreno Bruschi",
+    "copyright": "© 2026 Moreno Bruschi",
+    "category": "DeveloperTool",
+    "shortDescription": "Launcher per llama-server",
+    "longDescription": "Aethera avvia e ferma un llama-server da profili dichiarati, misura la memoria che occupa davvero, tiene il catalogo dei pesi e delle build verificate per hash e registra ogni avvio con le sue condizioni. Non lancia banchi: serve il motore su cui i banchi girano.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["Italian", "English"],
+        "displayLanguageSelector": false
+      }
+    }
   }
 }

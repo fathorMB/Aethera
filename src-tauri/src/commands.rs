@@ -167,6 +167,118 @@ pub fn set_exit_behavior(state: State<AppState>, behavior: ExitBehavior) -> Resu
     s.save()
 }
 
+/// Un passo della prima configurazione: che cos'è, se è fatto, e dove si fa.
+#[derive(Serialize)]
+pub struct Step {
+    pub id: &'static str,
+    pub title: &'static str,
+    /// Che cosa fare, in una frase. È la stessa frase che compare negli stati vuoti della pagina.
+    pub what: &'static str,
+    pub done: bool,
+    /// Che cosa c'è già, quando c'è: il passo fatto si legge, non si ricontrolla.
+    pub detail: Option<String>,
+    pub page: &'static str,
+}
+
+#[derive(Serialize)]
+pub struct Setup {
+    pub steps: Vec<Step>,
+    pub complete: bool,
+}
+
+fn step(id: &'static str, title: &'static str, what: &'static str, page: &'static str, detail: Option<String>) -> Step {
+    Step { id, title, what, done: detail.is_some(), detail, page }
+}
+
+/// Dove sta la prima configurazione: dalla radice dati al primo avvio, nell'ordine in cui i passi
+/// dipendono l'uno dall'altro. Un passo è fatto quando c'è la cosa che deve esserci, non quando
+/// qualcuno l'ha spuntato: così la guida dice sempre la verità anche se si arriva da metà strada.
+#[tauri::command]
+pub fn setup(state: State<AppState>) -> Setup {
+    let o = build_overview(&state);
+    let root_ok = o.data_root.is_some() && o.data_root_error.is_none() && o.machine.is_some();
+    let mut steps = vec![step(
+        "radice",
+        "Radice dati",
+        "Scegli la cartella dove Aethera tiene machine.toml, i profili, le build e gli avvii.",
+        "impostazioni",
+        root_ok.then(|| o.data_root.clone().unwrap_or_default()),
+    )];
+
+    let root = data_root(&state).ok();
+    let machine = o.machine.clone();
+    steps.push(step(
+        "pesi",
+        "Cartella dei pesi",
+        "Dì dove tieni i .gguf: i profili li citano per nome file, la cartella è della macchina.",
+        "impostazioni",
+        machine
+            .as_ref()
+            .and_then(|m| m.models_dir.clone())
+            .filter(|d| d.is_dir())
+            .map(|d| d.display().to_string()),
+    ));
+    steps.push(step(
+        "build",
+        "Una build di llama.cpp",
+        "Scaricane una dal Catalogo, o dichiara una cartella che hai già.",
+        "catalogo",
+        (!o.builds.is_empty()).then(|| {
+            o.builds.iter().map(|b| b.id.clone()).collect::<Vec<_>>().join(" · ")
+        }),
+    ));
+
+    let models: Vec<String> = match (&root, &machine) {
+        (Some(r), Some(m)) => {
+            let probe = system::probe();
+            let mut cat = catalog::load(r).unwrap_or_default();
+            let empty = BTreeMap::new();
+            catalog::scan(&mut cat, &ScanInput { machine: m, profiles: &[], compute: &empty, probe: probe.as_ref() })
+                .into_iter()
+                .filter(|x| x.size_bytes.is_some())
+                .map(|x| x.id)
+                .collect()
+        }
+        _ => Vec::new(),
+    };
+    steps.push(step(
+        "modello",
+        "Un modello",
+        "Aggiungi i pesi da Hugging Face e scaricali, oppure registra un .gguf che hai già sul disco.",
+        "catalogo",
+        (!models.is_empty()).then(|| format!("{} sul disco: {}", models.len(), models.join(" · "))),
+    ));
+
+    let profiles: Vec<String> = root
+        .as_ref()
+        .and_then(|r| read_profiles(r).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|e| e.profile.is_some())
+        .map(|e| e.name)
+        .collect();
+    steps.push(step(
+        "profilo",
+        "Un profilo",
+        "Dalla pagina Avvio, «Nuovo profilo…»: nasce con valori sensati sul modello che scegli.",
+        "avvio",
+        (!profiles.is_empty()).then(|| profiles.join(" · ")),
+    ));
+
+    let runs = root.as_ref().map(|r| runs::list(&r.runs(), None).len()).unwrap_or(0);
+    steps.push(step(
+        "avvio",
+        "Il primo avvio",
+        "Scegli il profilo e premi Avvia: da qui in poi la pagina Motore misura quello che succede.",
+        "avvio",
+        (runs > 0 || state.engine.is_running())
+            .then(|| if runs > 0 { format!("{runs} avvii registrati") } else { "motore acceso".into() }),
+    ));
+
+    let complete = steps.iter().all(|s| s.done);
+    Setup { steps, complete }
+}
+
 #[derive(Serialize)]
 pub struct ProfileEntry {
     pub name: String,

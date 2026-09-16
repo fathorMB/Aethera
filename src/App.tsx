@@ -362,7 +362,7 @@ export default function App() {
             <Show when={o().data_root} fallback={<Welcome onDone={setOverview} />}>
               <Switch>
                 <Match when={page() === "motore"}>
-                  <Motore status={status()} onGo={setPage} />
+                  <Motore status={status()} onGo={setPage} overview={o()} />
                 </Match>
                 <Match when={page() === "avvio"}>
                   <Avvio

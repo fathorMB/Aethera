@@ -82,6 +82,7 @@ pub fn run() {
             commands::set_exit_behavior,
             commands::machine_text,
             commands::machine_reset,
+            commands::setup,
             commands::list_profiles,
             commands::preview,
             commands::save_profile,

@@ -141,6 +141,22 @@ export async function copy(text: string) {
   }
 }
 
+/**
+ * Stato vuoto: al posto di una tabella senza righe, che cosa manca e come si rimedia. Una tabella
+ * vuota lascia chi guarda a chiedersi se è rotto qualcosa; una frase no.
+ */
+export function Empty(props: { title: string; children: JSX.Element; action?: JSX.Element }) {
+  return (
+    <div class="empty">
+      <b>{props.title}</b>
+      {props.children}
+      <Show when={props.action}>
+        <div class="row">{props.action}</div>
+      </Show>
+    </div>
+  );
+}
+
 /** Cornice dei dialoghi: la stessa del dialogo «Esci», così non ce ne sono due specie. */
 export function Dialog(props: { title: string; children: JSX.Element; actions: JSX.Element }) {
   return (

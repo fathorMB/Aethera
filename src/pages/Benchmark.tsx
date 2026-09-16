@@ -1,7 +1,7 @@
 import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
 import * as api from "../api";
 import type { Comparison, RunDetail, RunRow } from "../api";
-import { Spark, Val } from "../components";
+import { Empty, Spark, Val } from "../components";
 import { clock, duration, fixed, num, pct } from "../format";
 
 const selectStyle = {
@@ -312,7 +312,22 @@ export default function Benchmark() {
             </tr>
           </thead>
           <tbody>
-            <For each={visible()} fallback={<tr><td colspan={13} class="cond">Nessun avvio in runs/.</td></tr>}>
+            <For
+              each={visible()}
+              fallback={
+                <tr>
+                  <td colspan={13}>
+                    <Empty title="Nessun avvio registrato.">
+                      <div>
+                        Ogni volta che accendi il motore da Aethera resta qui una riga con le sue condizioni: build e
+                        commit, contesto dichiarato e servito, memoria misurata dopo il caricamento, velocità e quota di
+                        cache. Servono a confrontare due avvii — non sono un banco: i banchi li lancia chi li possiede.
+                      </div>
+                    </Empty>
+                  </td>
+                </tr>
+              }
+            >
               {(r) => (
                 <tr classList={{ sel: checked().includes(r.id) || focus() === r.id }} class="click" onClick={() => setFocus(r.id)}>
                   <td onClick={(e) => e.stopPropagation()}>

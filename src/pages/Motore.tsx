@@ -1,7 +1,8 @@
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import * as api from "../api";
-import type { EngineStatus, MemorySection, Orphan, ReadyStatus } from "../api";
-import { copy, Spark, StateBadge, Toggle, UsageBadge, Val } from "../components";
+import type { EngineStatus, MemorySection, Orphan, Overview, ReadyStatus, Setup } from "../api";
+import type { PageId } from "../App";
+import { copy, Empty, Spark, StateBadge, Toggle, UsageBadge, Val } from "../components";
 import { clock, duration, fixed, num, pct } from "../format";
 
 function MemoryCard(props: { memory: MemorySection | null; loadMs: number | null }) {
@@ -171,7 +172,42 @@ function OrphanCard(props: { orphan: Orphan }) {
   );
 }
 
-export default function Motore(props: { status: EngineStatus | null; onGo: (page: "avvio") => void }) {
+/**
+ * La prima configurazione, in ordine. Non è una procedura guidata che prende in ostaggio la
+ * finestra: è un elenco che dice a che punto si è e dove si fa il passo che manca. Ogni passo si
+ * può fare anche per conto proprio, e questo elenco se ne accorge.
+ */
+function PrimoAvvio(props: { setup: Setup; onGo: (page: PageId) => void }) {
+  const next = () => props.setup.steps.find((s) => !s.done);
+  return (
+    <div class="card mb">
+      <h2>
+        Primo avvio <span class="r">dalla cartella dei dati al motore acceso</span>
+      </h2>
+      <div class="steps">
+        <For each={props.setup.steps}>
+          {(s, i) => (
+            <div class="step" classList={{ done: s.done, now: s.id === next()?.id }}>
+              <span class="n">{s.done ? "✓" : i() + 1}</span>
+              <span>
+                <span class="t">{s.title}</span>
+                <span class="d"> — {s.done ? s.detail : s.what}</span>
+              </span>
+              <Show when={s.id === next()?.id} fallback={<span />}>
+                <button class="btn sm primary" onClick={() => props.onGo(s.page as PageId)}>
+                  Vai
+                </button>
+              </Show>
+            </div>
+          )}
+        </For>
+      </div>
+    </div>
+  );
+}
+
+export default function Motore(props: { status: EngineStatus | null; overview: Overview; onGo: (page: PageId) => void }) {
+  const [setup, setSetup] = createSignal<Setup | null>(null);
   const [log, setLog] = createSignal("");
   /** Le righe del log che spiegano un'uscita con errore: un codice di uscita da solo non dice niente. */
   const [failure, setFailure] = createSignal<api.Reason[]>([]);
@@ -196,7 +232,15 @@ export default function Motore(props: { status: EngineStatus | null; onGo: (page
     };
     tick();
     const t = setInterval(tick, 2000);
-    onCleanup(() => clearInterval(t));
+
+    // La guida si aggiorna da sola: un passo fatto in un'altra pagina si vede tornando qui.
+    const setupTick = async () => setSetup(await api.setup().catch(() => null));
+    setupTick();
+    const t2 = setInterval(setupTick, 3000);
+    onCleanup(() => {
+      clearInterval(t);
+      clearInterval(t2);
+    });
   });
 
   const act = async (fn: () => Promise<unknown>) => {
@@ -265,6 +309,10 @@ export default function Motore(props: { status: EngineStatus | null; onGo: (page
         </div>
       </Show>
 
+      <Show when={setup() && !setup()!.complete}>
+        <PrimoAvvio setup={setup()!} onGo={props.onGo} />
+      </Show>
+
       <Show when={s()?.state === "orphan" && s()}>
         {(o) => <OrphanCard orphan={(o() as Extract<EngineStatus, { state: "orphan" }>).orphan} />}
       </Show>
@@ -273,16 +321,20 @@ export default function Motore(props: { status: EngineStatus | null; onGo: (page
         when={run()}
         fallback={
           <Show when={s()?.state !== "orphan"}>
-            <div class="card">
-              <h2>Stato</h2>
-              <div class="row">
-                <StateBadge status={s()} />
-                <span class="cond">nessun avvio in questa sessione</span>
-                <button class="btn sm right" onClick={() => props.onGo("avvio")}>
+            <Empty
+              title="Nessun motore acceso da Aethera."
+              action={
+                <button class="btn sm primary" onClick={() => props.onGo("avvio")}>
                   Vai ad Avvio
                 </button>
+              }
+            >
+              <div>
+                Questa pagina misura un <code>llama-server</code> mentre gira: memoria occupata davvero, velocità
+                recenti, quota di cache del prefisso, chi lo sta usando. Finché non ne accendi uno non c'è niente da
+                misurare — e quello che non è misurato resta «sconosciuto», non zero.
               </div>
-            </div>
+            </Empty>
           </Show>
         }
       >
