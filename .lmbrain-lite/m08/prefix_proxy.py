@@ -44,7 +44,10 @@ def prompt_text(body):
             c = m.get("content")
             if isinstance(c, list):
                 # Le parti senza testo (tool_use, tool_result dell'API Anthropic) contano anche loro.
-                c = "".join(p["text"] if isinstance(p.get("text"), str) else json.dumps(p, sort_keys=True)
+                # cache_control è un segnaposto dell'API Anthropic che Claude Code sposta da un blocco
+                # all'altro: llama-server non lo rende nel prompt, quindi non va contato.
+                c = "".join(p["text"] if isinstance(p.get("text"), str)
+                            else json.dumps({k: x for k, x in p.items() if k != "cache_control"}, sort_keys=True)
                             for p in c if isinstance(p, dict))
             if m.get("tool_calls"):
                 c = (c or "") + json.dumps(m["tool_calls"], sort_keys=True)
@@ -61,6 +64,37 @@ def prompt_text(body):
             out.insert(0, json.dumps(v["tools"], sort_keys=True))
         return "\n".join(out)
     return None
+
+
+def fold_system(body):
+    """Adattatore per Claude Code: il template di Qwen3.6 accetta un messaggio di sistema solo in
+    testa, e Claude Code ne manda uno dopo il primo messaggio utente. Lo si sposta dentro il
+    messaggio utente che lo precede, come testo fra <system-reminder>. La trasformazione è
+    deterministica, quindi non cambia la stabilità del prefisso che si sta misurando."""
+    try:
+        v = json.loads(body)
+    except Exception:
+        return body
+    msgs = v.get("messages")
+    if not isinstance(msgs, list) or not any(m.get("role") == "system" for m in msgs):
+        return body
+    out = []
+    for m in msgs:
+        if m.get("role") != "system":
+            out.append(m)
+            continue
+        c = m.get("content")
+        parts = c if isinstance(c, list) else [{"type": "text", "text": c or ""}]
+        text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
+        block = {"type": "text", "text": "<system-reminder>\n%s\n</system-reminder>" % text}
+        if out and out[-1].get("role") == "user":
+            prev = out[-1]
+            pc = prev.get("content")
+            prev["content"] = (pc if isinstance(pc, list) else [{"type": "text", "text": pc or ""}]) + [block]
+        else:
+            out.append({"role": "user", "content": [block]})
+    v["messages"] = out
+    return json.dumps(v).encode("utf-8")
 
 
 def common_prefix(a, b):
@@ -86,9 +120,17 @@ class Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(length) if length else b""
         if body:
             self._record(body)
+            if self.server.dump:
+                with STATE["lock"]:
+                    name = "%s-%03d.json" % (self.server.label, STATE["n"])
+                with open(os.path.join(self.server.dump, name), "wb") as fh:
+                    fh.write(body)
+        if body and self.server.fold:
+            body = fold_system(body)
         up = urlparse(self.server.upstream)
         conn = http.client.HTTPConnection(up.hostname, up.port or 80, timeout=3600)
-        headers = {k: v for k, v in self.headers.items() if k.lower() not in ("host", "connection")}
+        headers = {k: v for k, v in self.headers.items() if k.lower() not in ("host", "connection", "content-length")}
+        headers["Content-Length"] = str(len(body))
         conn.request(method, self.path, body=body, headers=headers)
         r = conn.getresponse()
         self.send_response(r.status)
@@ -148,10 +190,14 @@ def main():
     ap.add_argument("--upstream", default="http://127.0.0.1:8080")
     ap.add_argument("--label", default="client")
     ap.add_argument("--out", default="T-10-prefissi.jsonl")
+    ap.add_argument("--dump", default="", help="cartella dove salvare il corpo di ogni richiesta")
+    ap.add_argument("--fold-system", action="store_true", help="sposta i messaggi di sistema che non sono in testa (Claude Code)")
     a = ap.parse_args()
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     srv = ThreadingHTTPServer(("127.0.0.1", a.port), Handler)
-    srv.upstream, srv.label, srv.out = a.upstream, a.label, a.out
+    srv.upstream, srv.label, srv.out, srv.dump, srv.fold = a.upstream, a.label, a.out, a.dump, a.fold_system
+    if a.dump:
+        os.makedirs(a.dump, exist_ok=True)
     print("ponte su 127.0.0.1:%d → %s · righe in %s" % (a.port, a.upstream, a.out))
     srv.serve_forever()
 

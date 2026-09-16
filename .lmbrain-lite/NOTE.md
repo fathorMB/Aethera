@@ -12,7 +12,7 @@ by: lead
 - Sintesi per l'app: [`knowledge/considerazioni-aethera-dalle-misure.md`](knowledge/considerazioni-aethera-dalle-misure.md).
 
 ## Cosa resta
-- **M-08 T-08** (VGM 64 GB) e **T-10** (Claude Code: serve la CLI).
+- **M-08 T-08** (VGM 64 GB). T-10 chiuso: Claude Code misurato (serve l'adattatore `--fold-system` del ponte).
 - **M-06 T-09**, **M-07 T-02** (VM) e **T-07** (tag).
 - Tre milestone attivi insieme (M-06, M-07, M-08): il kit ne vuole uno.
 

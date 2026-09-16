@@ -19,9 +19,16 @@ Un client che rimanda indietro la risposta appena ricevuta paga ~6 s a turno; un
 - **Nonio** e **OpenCode** conservano il 100% del prefisso fra un turno e l'altro (T-10). OpenCode lo
   rompe solo quando **compatta** il contesto, vicino al limite servito: una richiesta di riassunto e
   poi un contesto ricostruito da rielaborare (~34 s a 32k, più ~2 min di generazione del riassunto).
-  Più contesto servito vuol dire compattazioni più rare ma più care.
-- **Claude Code si può collegare**: llama-server b10809 risponde anche su `/v1/messages` (API
-  Anthropic), quindi basta `ANTHROPIC_BASE_URL`. Non ancora misurato: la CLI non è installata.
+  Più contesto servito vuol dire compattazioni più rare ma più care. Per i client, **la compattazione è
+  il costo che resta**: Aethera dovrebbe mostrarla (richiesta con testa diversa, riassunto, contesto
+  ricostruito) e il profilo dovrebbe dare abbastanza contesto al client che la usa.
+- **Claude Code** (2.1.273) si collega con `ANTHROPIC_BASE_URL` (llama-server risponde su
+  `/v1/messages`), ma **così com'è fallisce con Qwen3.6**: manda un messaggio `system` dopo il primo
+  messaggio utente e il template risponde 500. Serve un adattatore (`m08/prefix_proxy.py
+  --fold-system`), e Aethera potrebbe offrirlo nell'endpoint. Poi si comporta bene: 100% del prefisso
+  fuori dalle compattazioni; l'intestazione `x-anthropic-billing-header` cambia solo quando si compatta.
+  Il suo prompt fisso vale 16,8k token (48 s a freddo), quindi a 64k compatta presto: due volte in un
+  compito breve, 30–85 s ciascuna.
 - **Cosa serve in Aethera:** la quota di prefisso conservata da ogni client, sulla pagina Motore. Il
   ponte `m08/prefix_proxy.py` mostra che basta confrontare il prompt di una richiesta con quello della
   precedente (anche il campo `system` dell'API Anthropic). Sarebbe la diagnosi «questo client ti sta
