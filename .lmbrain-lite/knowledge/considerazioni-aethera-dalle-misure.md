@@ -42,18 +42,21 @@ Un client che rimanda indietro la risposta appena ricevuta paga ~6 s a turno; un
 | KV `q8_0`, `--n-cpu-moe`, checkpoint, `--cache-reuse` | scartate | T-04, T-06, T-08 |
 | MTP adattivo | solo se si tiene un profilo unico per codice e contesto lungo | T-05 |
 
-## 3. Il driver conta quanto una leva, e il manifest non lo sa
+## 3. Il driver conta più di una leva, e il manifest non lo sa
 
-Adrenalin ha aggiornato il driver iGPU da una versione non registrata a **32.0.31041.1004** il 16-09.
-Sullo stesso profilo G1 e con gli stessi carichi, a NPU ferma:
+Adrenalin 26.8.1 ha portato il driver iGPU da 32.0.22042.1 a **32.0.31041.1004** il 16-09. Tutto il
+resto identico (overlay «Massime prestazioni», VGM 48, stessi profili e carichi):
 
-| | prima | dopo |
+| misura | prima | dopo |
 |---|---|---|
-| prefill 7k / 21k | 344 / 296 tok/s | 418 / 361 tok/s (+21% / +22%) |
-| decode 7k / 21k | ~26 / ~15,5 tok/s | 33,1 / 20,0 tok/s (~+30%) |
+| `llama-bench` 8B denso, decode | 13,42 tok/s (62,7 GB/s) | 16,01 tok/s (**74,8 GB/s**, +19%) |
+| `llama-bench` 35B MoE, decode | 21,83 tok/s (49,4 GB/s) | 24,30 tok/s (**55,0 GB/s**, +11%) |
+| server, scenario T-07, b10809: prefill 7k / 21k | 353 / 303 tok/s | 412 / 353 (+17%) |
+| server, scenario T-07, b10809: decode 7k / 21k | 25,3 / 16,8 tok/s | 30,7 / 19,1 (+21% / +14%) |
+| server, scenario T-07, b10991: prefill 7k / 21k | 377 / 321 tok/s | 444 / 372 (+18% / +16%) |
 
-**Provvisorio:** verifica in corso con `llama-bench` e con lo scenario di T-07; questa tabella si
-aggiorna quando finisce.
+Vale più di ogni leva di llama-server misurata. E corregge una conclusione del rapporto: i 62,7 GB/s del
+denso non erano il tetto della piattaforma, erano il driver.
 
 **Cosa serve in Aethera:** il manifest di ogni avvio deve registrare la **versione dei driver GPU e
 NPU** (e l'overlay di alimentazione, la VGM, il volume dei pesi). Senza, due avvii con numeri diversi
@@ -86,5 +89,5 @@ Dal rapporto M-08, ancora da fare:
 
 ## 6. Disco
 
-I pesi non si leggono dal disco a ogni token su questa macchina: fra 27 MB/s e 4,4 GB/s contro i 49 GB/s
-che la memoria dà al motore (T-03). Il disco conta solo per il tempo di caricamento.
+I pesi non si leggono dal disco a ogni token su questa macchina: fra 27 MB/s e 4,4 GB/s contro i 49-55 GB/s
+che la memoria dà al 35B (T-03, T-02). Il disco conta solo per il tempo di caricamento.

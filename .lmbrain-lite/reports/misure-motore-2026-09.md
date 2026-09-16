@@ -71,6 +71,20 @@ divario normale per un MoE, non un sintomo di qualcosa di rotto.
 Condizioni: b10809 Vulkan, `-ngl 999 -fa 1 -t 12`, 5 ripetizioni, `llama-bench`.
 Righe grezze: `m08/T-02-llama-bench.jsonl`.
 
+**[aggiornamento 16-09 pomeriggio] Il driver frenava, e il «tetto» non è un tetto.** Adrenalin 26.8.1 ha
+portato il driver GPU da 32.0.22042.1 a **32.0.31041.1004**; tutto il resto identico (overlay «Massime
+prestazioni», VGM 48, b10809, stessa riga di `llama-bench`). Righe in `C:\AetheraData\m08\driver31041\`.
+
+| modello | decode prima | decode dopo | **banda utile dopo** | prefill 512 prima → dopo | pp4096+tg128 prima → dopo |
+|---|---:|---:|---:|---:|---:|
+| Qwen3-8B (denso) | 13,42 | 16,01 ± 0,03 (+19%) | **74,8 GB/s** | 244 → 303 (+24%) | 142 → 174 (+22%) |
+| Qwen3.6-35B-A3B (MoE) | 21,83 | 24,30 ± 0,36 (+11%) | **55,0 GB/s** | 346 → 394 (+14%) | 228 → 264 (+16%) |
+
+Quindi il verdetto sopra va corretto: i 62,7 GB/s del denso **non** erano il tetto della piattaforma
+ma un limite del driver, e la finestra 60-67 GB/s dello studio è superata. Il MoE resta al 74% del
+denso, un divario simile a prima (79%). Sul server (scenario T-07 rifatto, cinque giri): prefill
++17%, decode +14-21%, e b10991 resta avanti a b10809 del 5-8%.
+
 ---
 
 ## T-03 — L'SSD sul file dei pesi
