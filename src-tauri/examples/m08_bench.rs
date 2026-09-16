@@ -106,6 +106,10 @@ struct SpecPatch {
 struct CachePatch {
     cache_reuse: Option<u32>,
     ctx_checkpoints: Option<u32>,
+    /// M-15 T-06: le altre leve della cache, che in `extra_args` sarebbero rifiutate.
+    checkpoint_min_step: Option<u32>,
+    cache_ram: Option<i64>,
+    kv_unified: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -438,6 +442,15 @@ fn patch(p: &mut Profile, v: &Variant) {
     }
     if v.cache.ctx_checkpoints.is_some() {
         p.cache.ctx_checkpoints = v.cache.ctx_checkpoints;
+    }
+    if v.cache.checkpoint_min_step.is_some() {
+        p.cache.checkpoint_min_step = v.cache.checkpoint_min_step;
+    }
+    if v.cache.cache_ram.is_some() {
+        p.cache.cache_ram = v.cache.cache_ram;
+    }
+    if v.cache.kv_unified.is_some() {
+        p.cache.kv_unified = v.cache.kv_unified;
     }
     if let Some(b) = &v.build {
         p.runtime.build = b.clone();

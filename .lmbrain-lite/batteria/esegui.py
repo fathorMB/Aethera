@@ -60,6 +60,8 @@ MODELLI = {
         "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
         "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
         "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
     },
     "FC": {
         "profilo": "qwen3.8-flash-coder.q4_k_m.vulkan",
@@ -70,6 +72,8 @@ MODELLI = {
         "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
         "fonte_sampling": "model card Qwen3.8-Flash-Next (unsloth), modalità thinking, letta il 17-09-2026",
         "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
     },
     "G3": {
         "profilo": "qwen3-coder-next.q4_k_m.vulkan",
@@ -80,6 +84,8 @@ MODELLI = {
         "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 40, "min_p": 0.01, "repeat_penalty": 1.0},
         "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared)",
         "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
     },
     "FN": {
         "profilo": "qwen3.8-flash-next.iq3_xxs.vulkan",
@@ -90,6 +96,10 @@ MODELLI = {
         "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
         "fonte_sampling": "model card Qwen3.8-Flash-Next (unsloth), modalità thinking, letta il 17-09-2026",
         "ram_minima_gib": RAM_MINIMA_GIB,
+        # A VGM 48 restano 2-3 GiB di RAM: niente prompt cache in RAM (un'entrata vale 0,5-0,6 GiB a 7k,
+        # M-10 T-09) e pochi checkpoint dello stato ricorrente; il sorvegliante ferma llama-server sotto 0,8 GiB.
+        "cache": {"cache_ram": 0, "ctx_checkpoints": 8},
+        "sorveglia_min_gib": 0.8,
     },
 }
 
@@ -190,6 +200,18 @@ class Motore:
         cmd = [exe, str(self.radice), self.cfg["profilo"], "--ctx", str(CTX), "--pronto", str(pronto)]
         if self.cfg["extra"]:
             cmd += ["--extra", self.cfg["extra"]]
+        for leva, valore in self.cfg["cache"].items():
+            cmd += ["--" + leva.replace("_", "-"), str(valore)]
+        self.sorvegliante = None
+        if self.cfg["sorveglia_min_gib"] is not None:
+            script = b.QUI.parent / "m10" / "sorveglia-ram.ps1"
+            (self.radice / "stop-m15-sorveglia").unlink(missing_ok=True)
+            self.sorvegliante = subprocess.Popen([
+                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script),
+                "-StopFile", str(self.radice / "stop-m15-sorveglia"), "-Seconds", "43200",
+                "-MinGiB", str(self.cfg["sorveglia_min_gib"]), "-MaxPagefileMB", "4096", "-MaxLoadSeconds", "0",
+                "-Log", str(self.cartella / f"sorveglia-{self.sigla}.log"),
+            ])
         self.log_hold = open(self.cartella / f"hold-{self.sigla}.log", "a", encoding="utf-8")
         log(f"avvio {self.cfg['profilo']} tramite m15_hold")
         self.proc = subprocess.Popen(cmd, stdout=self.log_hold, stderr=subprocess.STDOUT)
@@ -217,6 +239,12 @@ class Motore:
             subprocess.run(["taskkill", "/T", "/F", "/PID", str(self.proc.pid)], capture_output=True)
             self.proc.wait(timeout=60)
         log(f"motore spento (m15_hold uscito con {self.proc.returncode})")
+        if self.sorvegliante:
+            (self.radice / "stop-m15-sorveglia").write_text("", encoding="utf-8")
+            try:
+                self.sorvegliante.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                self.sorvegliante.kill()
         self.proc = None
         self.log_hold.close()
 
@@ -456,6 +484,7 @@ def esegui_compito(compito: dict, sigla: str, cfg: dict, pronto: dict | None, pr
         "profilo": cfg["profilo"],
         "thinking": cfg["thinking"],
         "extra_motore": cfg["extra"] or None,
+        "cache_motore": cfg["cache"] or None,
         "agente": agente,
         "tetti": {"max_turni": compito["max_turni"], "max_secondi": compito["max_secondi"]},
         "batteria_congelata": congelato_ok,

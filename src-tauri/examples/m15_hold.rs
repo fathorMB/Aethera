@@ -4,6 +4,7 @@
 //!
 //! Uso:
 //! `m15_hold <radice> <profilo> [--ctx N] [--extra "a b c"] [--template file.jinja] [--pronto file.json]`
+//! `         [--cache-ram MiB] [--ctx-checkpoints N]`
 //!
 //! Quando il motore è pronto scrive `--pronto` (JSON: run id, base_url, alias, contesto servito,
 //! endpoint, build, riga di comando). Si ferma quando compare `<radice>/stop-m15`, aspettando che
@@ -53,6 +54,14 @@ fn main() -> Result<(), String> {
         }
     }
     p.server.extra_args.extend(extra);
+    // Leve della cache che lo schema gestisce da sé (in `--extra` sarebbero rifiutate): servono a
+    // Flash-Next a VGM 48, dove un'entrata della prompt cache vale 0,5-0,6 GiB e la RAM libera 2-3.
+    if let Some(n) = arg_after(&args, "--cache-ram").and_then(|x| x.parse().ok()) {
+        p.cache.cache_ram = Some(n);
+    }
+    if let Some(n) = arg_after(&args, "--ctx-checkpoints").and_then(|x| x.parse().ok()) {
+        p.cache.ctx_checkpoints = Some(n);
+    }
     if template.is_some() {
         p.server.chat_template_file = template;
     }
