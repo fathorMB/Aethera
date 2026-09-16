@@ -2,22 +2,19 @@
 updated: 2026-09-16
 by: lead
 ---
-**Sessione chiusa il 16-09.** Hai aperto l'app e detto che va: **M-05 è chiuso**, otto task su otto. Tutto pubblicato su `main` fino a `42e9b1f`. L'app è rimasta aperta.
+**Sessione del 16-09 pomeriggio.** Commit locali fino a `aa3b9d5`, **non ancora inviati a GitHub** (12 dopo `42e9b1f`): chiedere all'operatore prima del push. `gh` installata e autenticata (account fathorMB).
 
-## M-08, dodici task su quattordici
+## Fatto oggi
+- **Tema scuro:** `--fg3` #8a919b e `--err` #f26b6b, sopra 4,5:1 anche su `--bg3`.
+- **M-08 T-10:** OpenCode conserva il prefisso al 100%, lo rompe solo compattando. Claude Code **si può** collegare (`/v1/messages`), manca solo la CLI.
+- **M-08 T-11 chiuso:** con la NPU che genera, il 35B perde ~40% (prefill e decode). Gli embedding di FastFlowLM bloccano la NPU (`ipustack.sys`, evento 141; col driver vecchio schermata blu): rapporto in [`reports/npu-blocco-2026-09-16.md`](reports/npu-blocco-2026-09-16.md).
+- **Driver iGPU 32.0.31041.1004** (Adrenalin 26.8.1): +17% prefill, +14-21% decode sul server; il denso a 74,8 GB/s. Le misure della notte sono col driver vecchio.
+- Sintesi per l'app: [`knowledge/considerazioni-aethera-dalle-misure.md`](knowledge/considerazioni-aethera-dalle-misure.md).
 
-Rapporto in [`reports/misure-motore-2026-09.md`](reports/misure-motore-2026-09.md), 524 righe: una tabella per misura con run id, il verdetto leva per leva, **undici correzioni da riportare nello studio** (con pagina e riga) e la lista di cosa serve ad Aethera a valle.
+## Cosa resta
+- **M-08 T-08** (VGM 64 GB) e **T-10** (Claude Code: serve la CLI).
+- **M-06 T-09**, **M-07 T-02** (VM) e **T-07** (tag).
+- Correzioni allo studio `design/studio-motore-2026-09/`, da aggiornare anche coi numeri del driver nuovo.
+- Tre milestone attivi insieme (M-06, M-07, M-08): il kit ne vuole uno.
 
-**Entrano:** build b10991 (prefill +6%), `-ub 2048` sul Coder-Next (+21%), `-ngl 999` per i 48-70 GB. **Confermate:** `-ub 4096` sul G1, `--load-mode auto`. **Scartate:** KV `q8_0`, `--n-cpu-moe`, i checkpoint, `--cache-reuse`, `mmap`.
-
-**La cosa che pesa più di ogni leva non è nel motore:** un client che rimanda indietro la risposta appena ricevuta paga 6 s a turno, uno che la perde ne paga 16,4. Nonio fa la cosa giusta (100% di prefisso conservato). MTP vale il 36% sul solo decode; questo vale il 170% sul turno.
-
-## Cosa resta, tutto in [`reports/da-provare-operatore.md`](reports/da-provare-operatore.md)
-
-- **M-06 T-09** — l'ho lasciato aperto di proposito: quei cinque pezzi si vedono solo **provocando** il guasto, non usando l'app. Quindici minuti, e dire che erano provati sarebbe stato falso.
-- **M-07 T-02** (una VM) e **T-07** (il tag).
-- **M-08 T-08** — VGM a 64 GB: serve Adrenalin e un riavvio. A 48 GB il Coder-Next **ci sta già**.
-- **M-08 T-10** — OpenCode non installato; Claude Code non parla con un endpoint OpenAI, quindi va tolto anche dallo studio.
-- **M-08 T-11** — NPU non misurata. FastFlowLM è pronto in versione portatile, licenza letta: libera sotto i 10 M$ di fatturato, e quello lo sai solo tu.
-
-**Una decisione visiva:** in tema scuro `--fg3` sta a 3,6:1, sotto soglia. `#838a94` lo mette a norma senza cambiare l'aria. Non l'ho toccato: è la palette che hai approvato in M-01.
+Motori spenti. WinDbg installato; dump in `C:\AetheraData\m08\dumps`.
