@@ -1,0 +1,90 @@
+  <!-- ═════════════════════════════ ANALISI ═════════════════════════════ -->
+  <section class="page on" id="p-analisi">
+    <div class="head">
+      <div>
+        <h1>Analisi della finestra di oggi, e cosa cambia</h1>
+        <p class="sub">Letti <code>src/App.tsx</code>, le cinque pagine, <code>components.tsx</code>, <code>styles.css</code> e i due mockup precedenti (v1, M-09). I dati restano tutti: cambia dove stanno, in che ordine, e quanto testo ci vuole per capirli.</p>
+      </div>
+    </div>
+
+    <h2>Sei principi della v2</h2>
+    <div class="princ mb">
+      <div class="card"><b><span class="n">1</span>Lo stato del motore si vede sempre</b>Oggi sta in tre posti (barra in alto, riquadro «Stato», piede della colonna) e le azioni «Ferma» e «Riavvia» in fondo alla pagina Motore, dentro il riquadro della riga di comando. Nella v2 una <b>striscia</b> in alto porta stato, profilo, velocità, «in uso» e le due azioni, su ogni pagina.</div>
+      <div class="card"><b><span class="n">2</span>L'azione principale sta in cima</b>In Avvio il pulsante «Avvia» viene dopo cinque riquadri e una quarantina di campi; in Catalogo il dettaglio compare sotto la tabella e va cercato scorrendo. Nella v2 ogni pagina ha le sue azioni nella testa, e Avvio ha una <b>fascia fissa</b> con Avvia, Scarta, Aggiorna, Salva come.</div>
+      <div class="card"><b><span class="n">3</span>Essenziale prima, avanzato dietro un clic</b>I 40 campi del profilo hanno tutti lo stesso peso, con nomi da riga di comando (<code>n_gpu_layers</code>, <code>cache_type_k</code>). Nella v2 dodici leve <b>essenziali</b> con etichetta in italiano e il nome della leva in piccolo; le altre in «Avanzate», chiuse, con il numero di quelle modificate.</div>
+      <div class="card"><b><span class="n">4</span>Le spiegazioni si chiedono, non si subiscono</b>Ogni riquadro chiude con tre righe grigie a 11 px che dicono come leggere il numero. Sono giuste, ma coprono un terzo della pagina. Nella v2 stanno in un <b>«?»</b> accanto al titolo (title) o in una riga «come si legge» a scomparsa. Il testo minimo sale a 12 px.</div>
+      <div class="card"><b><span class="n">5</span>Un numero, una barra, una parola</b>Velocità, riuso e memoria sono numeri sparsi in quattro riquadri uguali. Nella v2 una <b>riga di KPI</b> con il numero grande, la barra o la scintilla sotto e una parola di giudizio (nella norma, sotto la mediana, compatta presto), colorata solo quando serve.</div>
+      <div class="card"><b><span class="n">6</span>Quello che era giusto resta</b>«Sconosciuto» non è zero; il ● sulle leve modificate; la riga di comando esatta; le condizioni dell'avvio accanto ai numeri; il verdetto di M-08 sulle leve; niente <code>window.prompt</code>; i dialoghi con scritto prima che cosa comportano. La tavolozza e i token sono gli stessi di <code>styles.css</code>.</div>
+    </div>
+
+    <h2>Pagina per pagina</h2>
+    <div class="pb mb">
+      <div class="card prima"><h3>Motore · oggi</h3><ul>
+        <li>Quattro riquadri uguali in cima (Stato, Velocità, Riuso, Contesto): 22 valori con lo stesso peso, nessuna gerarchia.</li>
+        <li>«Ferma» e «Riavvia» stanno nel riquadro «Riga di comando», sotto la tabella delle richieste e sotto memoria e condizioni: per fermare il motore si scorre tutta la pagina.</li>
+        <li>Gli avvisi (degradato, divergenze, condizioni cambiate, compattazione) sono note sparse fra i riquadri.</li>
+        <li>La memoria è una tabella «prima / misurato» su cinque righe: la doppia copia e il margine RAM sono in coda, in grigio.</li>
+        <li>Il log occupa 260 px sempre, anche a motore sano.</li>
+      </ul></div>
+      <div class="card dopo"><h3>Motore · v2</h3><ul>
+        <li>Un riquadro di stato largo con chi, dove, da quando, contesto, e le azioni a destra; sotto una fascia di avvisi, una riga per avviso, con il verbo a destra.</li>
+        <li>Quattro KPI: prefill, decode con la scintilla, riuso con la scintilla, compattazioni con il costo. Un giudizio in una parola sotto ognuno.</li>
+        <li>A sinistra la tabella richiesta per richiesta (la parte che serve durante una sessione), a destra memoria come barra impilata e condizioni compatte.</li>
+        <li>Riga di comando, differenze dal profilo e log in tre sezioni a scomparsa; il log si apre da solo solo dopo un'uscita con errore.</li>
+      </ul></div>
+
+      <div class="card prima"><h3>Avvio · oggi</h3><ul>
+        <li>Cinque riquadri di campi (Modello, Motore, Server con 22 leve, Speculazione, Cache) tutti aperti, tutti con il nome tecnico.</li>
+        <li>«Avvia» e «Salva come nuovo profilo» in fondo, dopo campionamento e riga di comando; l'operatore modifica un campo in cima e scorre due schermate per avviare.</li>
+        <li>Stima di memoria e importazione da minis-config a sinistra sotto l'elenco dei profili, dove nessuno le cerca.</li>
+        <li>Le proposte di M-08 sono una nota dentro il riquadro del nome.</li>
+      </ul></div>
+      <div class="card dopo"><h3>Avvio · v2</h3><ul>
+        <li>Fascia fissa in cima alla colonna destra: nome e alias, quante modifiche, Avvia, Scarta, Aggiorna, Salva come. I blocchi dell'avvio compaiono lì.</li>
+        <li>Dodici leve essenziali in italiano (Modello, Contesto, Layer sulla GPU, Attenzione flash, Cache K/V, Caricamento, Speculazione, Template di chat, Porta…), il nome della leva in piccolo sotto l'etichetta. Il resto in «Avanzate», chiuso, con i verdetti di M-08 come pillole.</li>
+        <li>A destra la riga di comando viva e la stima di memoria come barra contro la VGM: si vedono mentre si modifica.</li>
+        <li>Le proposte di M-08 sono un avviso azzurro con «Applica»: si notano, non si leggono per caso.</li>
+      </ul></div>
+
+      <div class="card prima"><h3>Catalogo · oggi</h3><ul>
+        <li>Nove colonne, con «Publisher · file» e «Arch · MTP · ctx train» che mescolano tre dati in una cella; le azioni (Scarica, Verifica, Avvia…) in ogni riga.</li>
+        <li>Il dettaglio del modello scelto compare sotto la tabella: con otto righe di modelli va cercato scorrendo.</li>
+        <li>Il modulo «Aggiungi da Hugging Face» è sempre aperto in cima, anche quando non serve.</li>
+        <li>I lavori in corso (download, hash) sono un riquadro fra le schede e la tabella.</li>
+      </ul></div>
+      <div class="card dopo"><h3>Catalogo · v2</h3><ul>
+        <li>Tabella a sei colonne (Modello, Quant, GB, Stato, Stima, MTP) a sinistra; <b>dettaglio a destra</b>, sempre visibile, con tutte le azioni del modello scelto.</li>
+        <li>Filtri a bottoni con il conteggio (tutti, verificati, presenti, scaricabili, in download) e una casella di ricerca.</li>
+        <li>«Aggiungi da Hugging Face» è un pulsante nella testa che apre il modulo; i lavori in corso sono una fascia sottile con la barra, sopra la tabella.</li>
+        <li>La scheda «Build llama.cpp» con lo stesso schema: installate a sinistra, dispositivi e release a destra.</li>
+      </ul></div>
+
+      <div class="card prima"><h3>Benchmark · oggi</h3><ul>
+        <li>Tredici colonne; la spunta per il confronto e il clic per il dettaglio sulla stessa riga; confronto e dettaglio sotto la tabella, in tre colonne di cui una spesso vuota.</li>
+        <li>Le condizioni di ogni avvio sono una stringa monospazio con quattro pillole possibili.</li>
+      </ul></div>
+      <div class="card dopo"><h3>Benchmark · v2</h3><ul>
+        <li>Dieci colonne, con decode e riuso come numero più scintilla; le pillole di stato in una colonna sola.</li>
+        <li>Il dettaglio dell'avvio scelto a destra; la spunta di due avvii fa comparire una <b>fascia di confronto</b> in basso con i tre Δ che contano e «Apri il confronto».</li>
+        <li>Il separatore «da qui in su cambiano le condizioni» resta: è la cosa più utile della pagina.</li>
+      </ul></div>
+
+      <div class="card prima"><h3>Impostazioni · oggi</h3><ul>
+        <li>Sette riquadri in due colonne, con argomenti diversi mescolati: radice dati, build, righe per i client, budget di contesto, endpoint, macchina, comportamento.</li>
+        <li>La tabella dell'endpoint (cinque percorsi HTTP) ha lo stesso peso della cartella dei pesi.</li>
+      </ul></div>
+      <div class="card dopo"><h3>Impostazioni · v2</h3><ul>
+        <li>Tre schede: <b>Macchina</b> (radice dati, pesi, margine RAM, build, cosa Aethera legge della macchina), <b>Client</b> (righe da copiare e budget di contesto), <b>App</b> (comportamento all'uscita, soglie, endpoint in una sezione a scomparsa).</li>
+        <li>Le soglie («in uso» a 30 s, degradato a 24 h o 70 %) sono elencate in un posto solo, con la nota che sono da confermare.</li>
+      </ul></div>
+    </div>
+
+    <h2>Cosa questa v2 non tocca</h2>
+    <div class="card mb">
+      <ul style="margin:0;padding-left:18px">
+        <li>Nessun dato nuovo da misurare: tutto quello che c'è nel mockup esiste già in <code>api.ts</code> (stato, telemetria, condizioni, memoria, catalogo, avvii, righe per i client). È un riordino, non un milestone di misure.</li>
+        <li>Nessun cambio di vocabolario degli stati (PRONTO, IN USO, DEGRADATO, ORFANO, USCITO CON ERRORE) né delle regole approvate in M-09 (soglie del budget, lettura del riuso dal log, template tollerante).</li>
+        <li>Nessuna modifica al codice: è un mockup in attesa dello sguardo dell'operatore, come vuole il flusso del kit. Se approvato, diventa un milestone di sola interfaccia (stime nel README).</li>
+      </ul>
+    </div>
+  </section>

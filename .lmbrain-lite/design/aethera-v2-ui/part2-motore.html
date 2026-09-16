@@ -1,0 +1,122 @@
+  <!-- ═════════════════════════════ MOTORE ═════════════════════════════ -->
+  <section class="page" id="p-motore">
+    <div class="head">
+      <div>
+        <h1>Motore</h1>
+        <p class="sub">Il <code>llama-server</code> acceso da Aethera, misurato mentre serve. Quello che non è misurato resta «sconosciuto».</p>
+      </div>
+      <div class="acts new" data-t="azioni nella testa">
+        <button class="btn sm">Copia riga per i client</button>
+        <button class="btn sm">Copia riga di comando</button>
+        <button class="btn sm" disabled title="In uso: lock di nonio">Riavvia con la stessa riga</button>
+        <button class="btn sm danger" disabled title="In uso: lock di nonio">Ferma</button>
+      </div>
+    </div>
+
+    <div class="card mb new" data-t="un riquadro di stato, non quattro">
+      <div class="row" style="gap:14px">
+        <span class="badge ok big"><i></i>PRONTO</span>
+        <span class="badge busy big" title="lock di nonio «refactor api.ts» · scade fra 4 m 12 s · slot al lavoro"><i></i>IN USO · nonio</span>
+        <dl class="kv" style="grid-template-columns:max-content 1fr max-content 1fr max-content 1fr;gap:3px 16px;flex:1">
+          <dt>Profilo</dt><dd class="mono">G1 <span class="cond">qwen3.6-35b-a3b-q4_k_m · alias servito uguale</span></dd>
+          <dt>Acceso da</dt><dd><span class="num">42 m 18 s</span> <span class="cond">dal 16-09 17:33:42 · pronto in 12,4 s</span></dd>
+          <dt>Contesto</dt><dd><span class="num">65.536</span> <span class="badge ok tight"><i></i>servito = dichiarato</span> <span class="cond">1 slot</span></dd>
+          <dt>Indirizzo</dt><dd class="mono">127.0.0.1:8080 <span class="cond">b10991 · vulkan · PID 18432</span></dd>
+          <dt>Richieste</dt><dd><span class="num">18</span> <span class="cond">prompt 214.588 · generati 9.870 · cache inclusa</span></dd>
+          <dt>Avvio</dt><dd class="mono">r-20260916-173342 <span class="cond">1 differenza dal profilo</span></dd>
+        </dl>
+        <span class="toggle on" title="Rifiuta arresto e riavvio finché è attiva"><i></i>Proteggi il motore</span>
+      </div>
+    </div>
+
+    <div class="alerts new" data-t="gli avvisi in una fascia sola">
+      <div class="alert warn"><span class="t">Condizioni cambiate</span><span class="d">driver GPU <span class="mono">32.0.22042.1 → 32.0.31041.1004</span>. La soglia «degradato» riparte da qui: mediana di riferimento 33,0 tok/s su 3 avvii con queste condizioni.</span><button class="btn sm">Vedi in Benchmark</button></div>
+      <div class="alert busy"><span class="t">Compattazione 17:52</span><span class="d">di claude-code: 26.795 token rielaborati fra riassunto e contesto ricostruito, <b>121 s</b> che la conversazione non avrebbe pagato continuando.</span><button class="btn sm">Budget di contesto</button></div>
+    </div>
+
+    <div class="kpis mb new" data-t="quattro numeri, un giudizio ciascuno">
+      <div class="kpi"><div class="l">Prefill <span class="q" title="Mediana delle ultime 18 richieste con almeno 128 token di prompt, dal log del motore (prompt eval)">?</span></div><div class="v">418<small>tok/s</small></div><div class="d">mediana · ultime 18 · nella norma di questo avvio</div></div>
+      <div class="kpi"><div class="l">Decode <span class="q" title="Mediana delle ultime 18 richieste. Rosso nella scintilla: sotto il 70 % della mediana di riferimento (33,0)">?</span></div><div class="v">33,1<small>tok/s</small></div><div class="d">mediana · p10 29,4 · p90 34,0 · accettazione MTP 71 %</div><div class="spark" style="height:22px"><b style="height:90%"></b><b style="height:95%"></b><b style="height:92%"></b><b style="height:88%"></b><b style="height:97%"></b><b style="height:60%" class="lo"></b><b style="height:93%"></b><b style="height:96%"></b><b style="height:91%"></b><b style="height:94%"></b><b style="height:89%"></b><b style="height:98%"></b><b style="height:93%"></b><b style="height:90%"></b><b style="height:95%"></b><b style="height:92%"></b><b style="height:96%"></b><b style="height:94%"></b></div></div>
+      <div class="kpi"><div class="l">Riuso del prompt <span class="q" title="Token dalla cache / token di prompt, letto dalla riga «release» del log (contesto a fine richiesta − generati − rielaborati). Tratteggio: non attribuibile">?</span></div><div class="v ok">93<small>%</small></div><div class="d">i client rimandano indietro la conversazione: bene</div><div class="spark" style="height:22px"><b style="height:3%"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:99%"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:47%" class="lo"></b><b style="height:12%" class="lo"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:99%"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:100%"></b><b class="nil"></b><b style="height:100%"></b></div></div>
+      <div class="kpi"><div class="l">Compattazioni <span class="q" title="Richiesta con il prompt più corto del 70 % del contesto precedente, preceduta da una che riscriveva: la coppia riassunto + contesto ricostruito. Il costo è prefill e generazione del riassunto più il prefill del contesto ricostruito">?</span></div><div class="v warn">1<small>nelle ultime 18</small></div><div class="d">costata 121 s · claude-code, contesto 64k, prompt fisso 16,8k</div></div>
+    </div>
+
+    <div class="grid g21 mb" style="align-items:start">
+      <div class="card">
+        <h2>Richiesta per richiesta <span class="r">dalla più recente · quanto il motore ha riusato e rielaborato</span></h2>
+        <table class="ev">
+          <thead><tr><th>ora</th><th>client</th><th class="r">prompt</th><th class="r">riusati</th><th class="r">rielaborati</th><th style="width:96px">quota</th><th class="r">prefill</th><th class="r">decode</th><th>lettura</th></tr></thead>
+          <tbody>
+            <tr><td class="num">18:14:02</td><td class="mono">nonio</td><td class="r num">9.412</td><td class="r num">9.104</td><td class="r num">308</td><td><div class="bar ok"><span style="width:97%"></span></div></td><td class="r num">0,8 s</td><td class="r num">6,1 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">18:12:40</td><td class="mono">nonio</td><td class="r num">9.104</td><td class="r num">8.879</td><td class="r num">225</td><td><div class="bar ok"><span style="width:98%"></span></div></td><td class="r num">0,6 s</td><td class="r num">5,4 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">18:11:07</td><td class="mono">nonio</td><td class="r num">8.879</td><td class="r num">8.274</td><td class="r num">605</td><td><div class="bar ok"><span style="width:93%"></span></div></td><td class="r num">1,5 s</td><td class="r num">7,2 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">18:09:51</td><td class="mono">nonio</td><td class="r num">8.274</td><td class="r num">7.948</td><td class="r num">326</td><td><div class="bar ok"><span style="width:96%"></span></div></td><td class="r num">0,8 s</td><td class="r num">4,9 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">18:08:30</td><td class="mono">nonio</td><td class="r num">7.948</td><td class="r num">—</td><td class="r num">7.948</td><td><div class="bar err"><span style="width:1%"></span></div></td><td class="r num">19,0 s</td><td class="r num">8,8 s</td><td><span class="tag cold">a freddo</span></td></tr>
+            <tr class="cmp"><td class="num">17:52:31</td><td class="mono">claude-code</td><td class="r num">7.911</td><td class="r num">0</td><td class="r num">7.911</td><td><div class="bar err"><span style="width:1%"></span></div></td><td class="r num">29,0 s</td><td class="r num">12,1 s</td><td><span class="tag reb">compattazione · contesto ricostruito</span></td></tr>
+            <tr class="cmp"><td class="num">17:50:44</td><td class="mono">claude-code</td><td class="r num">40.118</td><td class="r num">21.234</td><td class="r num">18.884</td><td><div class="bar warn"><span style="width:53%"></span></div></td><td class="r num">79,0 s</td><td class="r num">41,3 s</td><td><span class="tag sum">compattazione · riassunto</span></td></tr>
+            <tr><td class="num">17:48:12</td><td class="mono">claude-code</td><td class="r num">39.870</td><td class="r num">39.512</td><td class="r num">358</td><td><div class="bar ok"><span style="width:99%"></span></div></td><td class="r num">1,1 s</td><td class="r num">14,0 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">17:45:03</td><td class="mono">claude-code</td><td class="r num">38.104</td><td class="r num">37.900</td><td class="r num">204</td><td><div class="bar ok"><span style="width:99%"></span></div></td><td class="r num">0,7 s</td><td class="r num">10,6 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">17:39:20</td><td class="mono">claude-code</td><td class="r num">16.822</td><td class="r num">—</td><td class="r num">16.822</td><td><div class="bar err"><span style="width:1%"></span></div></td><td class="r num">48,0 s</td><td class="r num">9,2 s</td><td><span class="tag cold">a freddo</span></td></tr>
+            <tr><td class="num">17:36:05</td><td class="unk">—</td><td class="r num">3.446</td><td class="r"><span class="unk">—</span></td><td class="r num">3.446</td><td><div class="bar"><span class="nil" style="width:100%;background:transparent;border:1px dashed var(--line)"></span></div></td><td class="r num">9,8 s</td><td class="r num">3,1 s</td><td><span class="tag cold">non attribuibile</span></td></tr>
+          </tbody>
+        </table>
+        <div class="row" style="margin-top:8px">
+          <span class="cond">Mostrate 11 di 18 · <a href="#">tutte</a></span>
+          <details class="help right new" data-t="il testo di aiuto a scomparsa" style="min-width:320px"><summary>come si legge</summary><div class="body">I <b>token riusati</b> vengono dal log del motore (contesto a fine richiesta meno generati e rielaborati, a meno di 2 token). Il <b>client</b> si conosce solo se ha preso il lock sull'endpoint di Aethera. <b>Estende</b>: tiene almeno il 90 % della conversazione di prima, o tutto tranne l'ultimo ubatch. <b>Contesto ricostruito</b>: prompt più corto del 70 % della conversazione di prima; la richiesta che riscriveva subito prima è il <b>riassunto</b>. Le righe ambra sono la coppia di una compattazione.</div></details>
+        </div>
+      </div>
+
+      <div class="grid" style="align-items:start">
+        <div class="card new" data-t="memoria come barra">
+          <h2>Memoria <span class="r">misurata 6,3 s dopo l'avvio</span></h2>
+          <div class="stack" title="dedicata 23,13 · condivisa 0,08 · Windows 24,5 · libera 47,9 GiB"><span class="ded" style="width:24%"></span><span class="sha" style="width:1%"></span><span class="win" style="width:25%"></span><span class="fre" style="width:50%"></span></div>
+          <div class="legend" style="margin-top:6px"><span><i style="background:var(--acc)"></i>dedicata 23,13 GiB</span><span><i style="background:var(--busy)"></i>condivisa 0,08</span><span><i style="background:var(--fg3)"></i>Windows 24,5</span><span><i style="border:1px dashed var(--line)"></i>libera 47,9</span></div>
+          <dl class="kv" style="margin-top:10px">
+            <dt>Prima dell'avvio</dt><dd><span class="num">47,6</span> GiB di VRAM liberi · <span class="num">71,8</span> GiB di RAM a Windows</dd>
+            <dt>Working set</dt><dd><span class="num">0,71</span> GiB <span class="badge ok tight"><i></i>nessuna doppia copia</span></dd>
+            <dt>Margine RAM</dt><dd><span class="num" style="color:var(--ok)">47,9 ✓</span> <span class="cond">soglia ≥ 8 GiB da machine.toml</span></dd>
+          </dl>
+        </div>
+        <div class="card">
+          <h2>Condizioni dell'avvio <span class="r">nel manifest</span> <span class="q" title="Lette all'avvio e registrate nel manifest. Cambiano i numeri: Benchmark non confronta due avvii con condizioni diverse senza dirlo">?</span></h2>
+          <dl class="kv">
+            <dt>Driver GPU</dt><dd><span class="mono">32.0.31041.1004</span> <span class="pill mod">cambiato</span> <span class="cond">Radeon 890M · Adrenalin 26.8.1</span></dd>
+            <dt>Driver NPU</dt><dd class="mono">32.0.20102.3930</dd>
+            <dt>Alimentazione</dt><dd>Massime prestazioni <span class="cond">overlay dal registro</span></dd>
+            <dt>VGM</dt><dd><span class="num">48</span> GiB dedicati</dd>
+            <dt>Pesi su</dt><dd><span class="mono">C:</span> · Kingston OM8TAP42048K1 <span class="cond">NVMe · 1.769 GB liberi</span></dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid mb new" data-t="i pezzi tecnici a scomparsa" style="gap:6px">
+      <details><summary>Riga di comando <span class="mono cond">llama-server.exe … 14 argomenti</span><span class="r">1 differenza dal profilo · <span class="pill mod">ubatch 512 → 2048</span></span></summary><div class="body">
+<pre class="cmd" style="margin-top:8px">C:\AetheraData\builds\llama-b10991-win-vulkan-x64\llama-server.exe
+  --model C:\AetheraData\models\Qwen3.6-35B-A3B-Q4_K_M.gguf
+  --host 127.0.0.1 --port 8080 --alias G1
+  --ctx-size 65536 --parallel 1 --n-gpu-layers 999
+  --flash-attn on --cache-type-k f16 --cache-type-v f16
+  --ubatch-size <s>512</s> <b>2048</b> --batch-size 2048
+  --spec-type draft-mtp --spec-draft-adaptive --draft-n-min 2 --draft-n-max 4 --draft-p-min 0.75
+  --jinja --chat-template-file C:\AetheraData\templates\qwen3.6-tollerante.jinja
+  --metrics --slot-save-path C:\AetheraData\runs\r-20260916-173342\slots</pre>
+        <div class="row" style="margin-top:8px"><button class="btn sm">Copia riga</button><button class="btn sm">Copia percorso manifest</button><span class="cond right">runs\r-20260916-173342\manifest.toml</span></div>
+      </div></details>
+      <details><summary>Log del motore <span class="mono cond">runs\r-20260916-173342\llama-server.log</span><span class="r">ultima riga 18:14:08 · si apre da solo dopo un'uscita con errore</span></summary><div class="body">
+<pre class="log" style="margin-top:8px">srv  update_slots: slot 0 | task 3479 | prompt done, n_past = 9412, n_tokens = 308
+srv  update_slots: slot 0 | task 3479 | decoded 74 tokens in 6.08 s (12.2 t/s) — draft acc 0.71
+srv  release: slot 0 | task 3479 | stop processing: n_past = 9486, truncated = 0
+srv  log_server_r: request: POST /v1/chat/completions 127.0.0.1 200</pre>
+      </div></details>
+    </div>
+
+    <details class="help new" data-t="stato «orfano» e primo avvio: come si presentano"><summary>Gli altri stati della pagina (orfano, uscito con errore, primo avvio)</summary><div class="body">
+      <p style="margin:6px 0">Lo stesso riquadro di stato cambia colore e contenuto; le azioni nella testa cambiano di conseguenza. Niente riquadri nuovi: chi conosce la pagina la riconosce anche quando qualcosa è andato storto.</p>
+      <div class="grid g3">
+        <div class="card"><div class="row"><span class="badge err big"><i></i>ORFANO</span><span class="cond">sola lettura</span></div><dl class="kv" style="margin-top:8px"><dt>Indirizzo</dt><dd class="mono">127.0.0.1:8080</dd><dt>Processo</dt><dd class="mono">llama-server.exe · PID 9120</dd><dt>Alias servito</dt><dd class="mono">G1</dd><dt>Slot</dt><dd>libero</dd><dt>Origine</dt><dd class="cond">lasciato acceso all'uscita dall'avvio r-20260916-091204</dd></dl><div class="row" style="margin-top:8px"><span class="cond">Aethera non ha il suo log né la sua telemetria.</span><button class="btn sm danger right">Termina…</button></div></div>
+        <div class="card"><div class="row"><span class="badge err big"><i></i>USCITO CON ERRORE</span><span class="cond">codice 1 · 16-09 18:41:10</span></div><h3 style="margin-top:8px">Perché è uscito <span class="cond">dalle righe del log, non dal codice</span></h3><pre class="cmd" style="margin:0 0 6px">error: unknown argument: --ctx-checkpoint</pre><div class="note warn">La leva non esiste in questa build: è arrivata con b10982. Cambia build nel profilo, oppure togli la leva.</div><div class="row" style="margin-top:8px"><button class="btn sm primary">Riavvia con la stessa riga</button><button class="btn sm">Apri il profilo</button></div></div>
+        <div class="card"><h3>Primo avvio <span class="cond">dalla cartella dei dati al motore acceso</span></h3><div class="steps"><div class="step done"><span class="n">✓</span><span>Radice dati <span class="cond">— C:\AetheraData</span></span><span></span></div><div class="step done"><span class="n">✓</span><span>Una build di llama.cpp <span class="cond">— b10991-vulkan</span></span><span></span></div><div class="step now"><span class="n">3</span><span>Dei pesi verificati <span class="cond">— nessun modello verificato nel catalogo</span></span><button class="btn sm primary">Vai</button></div><div class="step"><span class="n">4</span><span>Un profilo <span class="cond">— che cita pesi e build</span></span><span></span></div><div class="step"><span class="n">5</span><span>Avvia <span class="cond">— e questa pagina si riempie</span></span><span></span></div></div></div>
+      </div>
+    </div></details>
+  </section>

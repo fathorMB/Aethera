@@ -1,0 +1,42 @@
+  </main>
+</div>
+<script>
+(function(){
+  var buttons=document.querySelectorAll('.nav button[data-p]');
+  var pages=document.querySelectorAll('.page');
+  var keys=['analisi','motore','avvio','catalogo','benchmark','impostazioni'];
+  function show(id){
+    pages.forEach(function(p){p.classList.toggle('on',p.id==='p-'+id)});
+    buttons.forEach(function(b){b.classList.toggle('on',b.dataset.p===id)});
+    document.querySelector('.main').scrollTop=0;
+    try{history.replaceState(null,'','#'+id)}catch(e){}
+  }
+  buttons.forEach(function(b){b.addEventListener('click',function(){show(b.dataset.p)})});
+  document.addEventListener('keydown',function(e){
+    if(e.target.closest('input, select, textarea'))return;
+    var n=parseInt(e.key,10);
+    if(n>=0&&n<keys.length)show(keys[n]);
+  });
+  var h=location.hash.replace('#','');
+  if(keys.indexOf(h)>=0)show(h);
+  // Schede delle Impostazioni.
+  document.querySelectorAll('.tabs button[data-tab]').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('.tabs button[data-tab]').forEach(function(x){x.classList.toggle('on',x===b)});
+      document.querySelectorAll('.tabp').forEach(function(p){p.classList.toggle('on',p.id==='tab-'+b.dataset.tab)});
+    });
+  });
+  var root=document.documentElement;
+  document.getElementById('btheme').addEventListener('click',function(){
+    root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';
+  });
+  var bnew=document.getElementById('bnew');
+  bnew.addEventListener('click',function(){
+    document.body.classList.toggle('clean');
+    bnew.textContent=document.body.classList.contains('clean')?'mostra «cosa cambia»':'nascondi «cosa cambia»';
+  });
+})();
+</script>
+<style>.tabp{display:none}.tabp.on{display:block}</style>
+</body>
+</html>

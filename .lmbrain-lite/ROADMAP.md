@@ -20,7 +20,7 @@ generated: true
 | 9 | M-09 | Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove | active | 10/11 (1 blocked) | 91% |
 | 10 | M-10 | Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD | active | 4/13 | 31% |
 | 11 | M-11 | Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48 | active | 3/6 | 50% |
-| 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | proposed | 0/11 | 0% |
+| 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | approved | 0/11 | 0% |
 
 ## M-01 — Mockup di design della v1
 
@@ -101,7 +101,7 @@ generated: true
 
 ## M-12 — Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare
 
-- `status`: proposed
+- `status`: approved
 - `priority`: 12
 - `file`: milestones/M-12.md
 - `outcome`: La finestra di Aethera segue il mockup approvato in design/aethera-v2-ui: lo stato del motore e le due azioni (Riavvia, Ferma) sono sempre visibili nella striscia in alto; ogni pagina ha le sue azioni nella testa; in Avvio le dodici leve essenziali hanno l'etichetta in italiano e le altre stanno in «Avanzate» con i verdetti di M-08, e la fascia con Avvia/Scarta/Aggiorna/Salva come resta fissa in cima; Motore mostra quattro KPI con giudizio, memoria come barra impilata, avvisi in una fascia sola e riga di comando/log a scomparsa; Catalogo e Benchmark hanno lista a sinistra e dettaglio a destra, con la fascia di confronto a due spunte; Impostazioni è in tre schede (Macchina, Client, App). Tutti i dati di oggi restano; nessun comando Tauri nuovo; l'operatore la vede e la approva dalla finestra.

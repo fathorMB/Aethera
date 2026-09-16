@@ -1,0 +1,106 @@
+  <!-- ═════════════════════════════ AVVIO ═════════════════════════════ -->
+  <section class="page" id="p-avvio">
+    <div class="head">
+      <div>
+        <h1>Avvio</h1>
+        <p class="sub">Un profilo dice come si accende il motore. Ogni leva che cambi resta in sovrapposizione (●) e aggiorna la riga di comando: puoi avviare così, o salvare come profilo nuovo.</p>
+      </div>
+      <div class="acts">
+        <button class="btn sm primary">Nuovo profilo…</button>
+        <button class="btn sm">Importa JSON da minis-config…</button>
+      </div>
+    </div>
+
+    <div class="split">
+      <div>
+        <div class="row mb"><input class="txt mono" placeholder="cerca fra i profili" style="width:100%"></div>
+        <div class="list">
+          <div class="it on"><div class="n">G1</div><div class="m"><span class="pill g">G1</span><span>22,3 GB</span><span>draft-mtp</span><span class="pill mod">1 modifica</span><span class="badge ok tight"><i></i>acceso</span></div></div>
+          <div class="it"><div class="n">G1-64k-claude</div><div class="m"><span class="pill g">G1</span><span>22,3 GB</span><span>draft-mtp · 65.536</span></div></div>
+          <div class="it"><div class="n">G3</div><div class="m"><span class="pill g">G3</span><span>48,53 GB</span><span>none</span><span class="pill acc" style="color:var(--acc);border-color:var(--acc)">1 proposta</span></div></div>
+          <div class="it"><div class="n">flash-next-iq3</div><div class="m"><span>82,0 GB</span><span>lazy auto · -ot</span><span class="badge err tight"><i></i>1 errore</span></div></div>
+          <div class="it"><div class="n">qwen3-8b-banco</div><div class="m"><span>4,9 GB</span><span>none</span></div></div>
+        </div>
+        <div class="row" style="margin-top:8px"><button class="btn sm">Duplica…</button><button class="btn sm">Rinomina…</button><button class="btn sm danger">Elimina…</button></div>
+        <div class="cond mono" style="margin-top:8px;word-break:break-all">C:\AetheraData\profiles</div>
+      </div>
+
+      <div>
+        <div class="actbar new" data-t="fascia fissa: l'azione principale non si cerca">
+          <span class="name">G1 <small>alias servito · profiles\G1.toml</small></span>
+          <span class="pill mod">1 modifica</span>
+          <span class="pill cache" title="Hai cambiato una leva marcata cache: il manifest dichiarerà l'avvio come «invalida la cache»">invalida la cache</span>
+          <span class="right"></span>
+          <button class="btn primary" disabled title="Un motore è già acceso ed è in uso: l'avvio parte solo quando torna libero e viene fermato">Avvia con le modifiche</button>
+          <button class="btn">Scarta</button>
+          <button class="btn">Aggiorna il profilo</button>
+          <button class="btn">Salva come…</button>
+          <div class="cond" style="width:100%">Il motore acceso è <b>IN USO</b> (lock di nonio): l'avvio parte solo quando torna libero e viene fermato. Nella v1 se ne avvia uno alla volta.</div>
+        </div>
+
+        <div class="alert acc mb new" data-t="le proposte di M-08 come avviso"><span class="t">Le misure di M-08 suggeriscono una modifica</span><span class="d"><span class="mono">runtime.build</span> <s>b10809</s> → <b>b10991</b> · prefill +6 % sul 35B (T-07). Si applica sopra il profilo, il file non si tocca.</span><button class="btn sm">Applica</button></div>
+
+        <div class="grid g2 mb" style="align-items:start">
+          <div>
+            <div class="card new" data-t="dodici leve essenziali, etichette in italiano">
+              <h2>Essenziali</h2>
+              <div class="f"><label>Modello<small>model.file</small></label><input value="Qwen3.6-35B-A3B-Q4_K_M.gguf"><span class="h">Q4_K_M · 22,3 GB · verificato</span></div>
+              <div class="f"><label>Build del motore<small>runtime.build · backend</small></label><select><option>b10809 · vulkan</option><option>b10991 · vulkan</option></select><span class="h">fissata nel profilo</span></div>
+              <div class="f"><label>Contesto<small>server.ctx</small></label><input value="65536"><span class="h"><span class="pill cache">cache</span> verificato su /props</span></div>
+              <div class="f"><label>Slot in parallelo<small>server.n_parallel</small></label><input value="1"><span class="h">MTP richiede 1</span></div>
+              <div class="f"><label>Layer sulla GPU<small>n_gpu_layers · fit</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><span class="seg"><span class="on">tutti (999)</span><span>numero</span><span>decide fit</span></span></div><span class="h">M-08: tutti, fino a 70 GB</span></div>
+              <div class="f"><label>Attenzione flash<small>server.flash_attn</small></label><select><option>on</option><option>off</option><option>auto</option></select><span class="h"></span></div>
+              <div class="f"><label>Tipo della cache K / V<small>cache_type_k · cache_type_v</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><select><option>f16</option><option>q8_0</option></select><select><option>f16</option><option>q8_0</option></select></div><span class="h"><span class="pill x" title="M-08 T-06: decode sempre peggiore a 64k e 128k">q8_0: scartata</span></span></div>
+              <div class="f mod"><label>Micro-batch / batch<small>ubatch · batch</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><input value="2048"><input value="2048"></div><span class="h"><span class="base">512</span> · +21 % di prefill sul Coder-Next</span></div>
+              <div class="f"><label>Caricamento dei pesi<small>server.load_mode</small></label><select><option>auto</option><option>none</option><option>mmap</option></select><span class="h"><span class="pill x" title="M-08 T-09: mmap fa la doppia copia su un modello che riempie la VGM">mmap: doppia copia</span></span></div>
+              <div class="f"><label>Speculazione<small>speculative.type · n-min · n-max · p-min</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><select><option>draft-mtp</option><option>none</option><option>ngram-mod</option></select><input value="2" style="width:48px"><input value="4" style="width:48px"><input value="0.75" style="width:56px"></div><span class="h">adattivo (M-08 T-05)</span></div>
+              <div class="f"><label>Template di chat<small>server.chat_template_file</small></label><select><option>qwen3.6-tollerante.jinja</option><option>del modello</option></select><span class="h">tollerante: serve a Claude Code</span></div>
+              <div class="f"><label>Porta<small>server.host · port</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><input value="127.0.0.1"><input value="8080" style="width:70px"></div><span class="h">sempre esplicita</span></div>
+            </div>
+
+            <details class="new" data-t="il resto dietro un clic, con i verdetti" style="margin-top:12px"><summary>Avanzate <span class="r">17 leve · 0 modificate · 6 con un verdetto di M-08</span></summary><div class="body">
+              <div class="f"><label>Thread<small>threads · threads_batch</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><input placeholder="default motore"><input placeholder="default motore"></div><span class="h"></span></div>
+              <div class="f"><label>Esperti sulla CPU<small>server.n_cpu_moe</small></label><input placeholder="non impostato"><span class="h"><span class="pill x" title="M-08 T-08: ogni layer di esperti sulla CPU toglie velocità, in modo monotono">M-08: peggiora</span></span></div>
+              <div class="f"><label>Tensori su buffer<small>server.tensor_overrides · -ot</small></label><input placeholder="regex=buffer, separati da spazi"><span class="h">per_layer_token_embd=CPU su Flash-Next</span></div>
+              <div class="f"><label>Lettura pigra<small>server.lazy_mode</small></label><select><option>non impostato</option><option>auto</option><option>on</option><option>off</option></select><span class="h">richiede load_mode mmap (b10991)</span></div>
+              <div class="f"><label>Metriche · jinja · slot su disco<small>metrics · jinja · slot_save</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><select><option>on</option></select><select><option>on</option></select><select><option>on</option></select></div><span class="h">runs\&lt;id&gt;\slots</span></div>
+              <div class="f"><label>Argomenti extra<small>server.extra_args</small></label><input placeholder="via di fuga"><span class="h"></span></div>
+              <div class="f"><label>Modello draft esterno<small>speculative.draft_model</small></label><input placeholder="non impostato"><span class="h"><span class="pill x" title="Studio: su MoE A3B il draft esterno è negativo (−3/−12 %)">negativo su A3B</span></span></div>
+              <div class="f"><label>Riuso della cache<small>cache.cache_reuse</small></label><input placeholder="non impostato"><span class="h"><span class="pill cache">cache</span> <span class="pill x" title="M-08 T-13: con --cache-reuse 256 i turni costano come senza">M-08: scartata</span></span></div>
+              <div class="f"><label>Checkpoint dello stato<small>ctx_checkpoints · checkpoint_min_step · cache_ram · kv_unified</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><input placeholder="—" style="width:56px"><input placeholder="—" style="width:56px"><input placeholder="—" style="width:64px"><select><option>—</option></select></div><span class="h"><span class="pill x" title="M-08 T-04: stessi token riusati, turno per turno">M-08: scartata</span></span></div>
+              <div class="f"><label>Metadati del modello<small>model.repo · quant · size_gb · sha256</small></label><input value="Qwen/Qwen3.6-35B-A3B-GGUF · Q4_K_M · 22,3 · b46fedd3…9064772" readonly><span class="h">dal catalogo</span></div>
+              <div class="f"><label>Note del profilo<small>notes</small></label><input value="Profilo standard G1 importato da minis-config il 15-09"><span class="h"></span></div>
+            </div></details>
+          </div>
+
+          <div class="grid" style="align-items:start">
+            <div class="card new" data-t="la riga si vede mentre si modifica">
+              <h2>Riga di comando <span class="r">in tempo reale · 1 differenza dal profilo</span></h2>
+<pre class="cmd">llama-server.exe
+  --model Qwen3.6-35B-A3B-Q4_K_M.gguf
+  --host 127.0.0.1 --port 8080 --alias G1
+  --ctx-size 65536 --parallel 1 --n-gpu-layers 999
+  --flash-attn on --cache-type-k f16 --cache-type-v f16
+  --ubatch-size <s>512</s> <b>2048</b> --batch-size 2048
+  --spec-type draft-mtp --spec-draft-adaptive
+  --draft-n-min 2 --draft-n-max 4 --draft-p-min 0.75
+  --jinja --chat-template-file qwen3.6-tollerante.jinja
+  --metrics --slot-save-path runs\&lt;id&gt;\slots</pre>
+              <div class="row" style="margin-top:8px"><button class="btn sm">Copia riga</button><span class="cond">percorsi abbreviati qui; completi nella copia</span></div>
+            </div>
+            <div class="card">
+              <h2>Stima di memoria <span class="r">prima dell'avvio · sostituita dalla misura</span></h2>
+              <div class="stack" title="pesi 22,3 · KV 4,1 · stato 0,6 · buffer 1,2 su 48 GiB"><span class="ded" style="width:44%"></span><span class="sha" style="width:8%"></span><span class="win" style="width:4%"></span></div>
+              <div class="legend" style="margin-top:6px"><span><i style="background:var(--acc)"></i>pesi 22,3 GB</span><span><i style="background:var(--busy)"></i>cache KV @65.536 4,1</span><span><i style="background:var(--fg3)"></i>stato + buffer 1,8</span><span>totale <b>~ 28,2 GB</b> su 48 GiB dedicati</span></div>
+              <div class="cond" style="margin-top:6px">Buffer di calcolo misurato su r-20260916-091204. Stato ricorrente: non cresce col contesto.</div>
+            </div>
+            <div class="card">
+              <h2>Campionamento consigliato <span class="r">dato del modello · lo manda il client</span><button class="btn sm right">Prendi dal catalogo</button></h2>
+              <table style="font-size:12px"><thead><tr><th>modalità</th><th class="r">temp</th><th class="r">top_p</th><th class="r">top_k</th><th class="r">min_p</th><th class="r">presence</th><th>fonte</th></tr></thead>
+              <tbody><tr><td>thinking</td><td class="r num">0,6</td><td class="r num">0,95</td><td class="r num">20</td><td class="r num">0</td><td class="r num">0</td><td class="mini">model card · 15-09</td></tr><tr><td>coding</td><td class="r num">0,7</td><td class="r num">0,8</td><td class="r num">20</td><td class="r num">0</td><td class="r num">1,5</td><td class="mini">model card · 15-09</td></tr></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>

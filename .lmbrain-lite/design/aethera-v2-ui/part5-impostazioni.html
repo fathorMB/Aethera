@@ -1,0 +1,113 @@
+  <!-- ═════════════════════════════ IMPOSTAZIONI ═════════════════════════════ -->
+  <section class="page" id="p-impostazioni">
+    <div class="head">
+      <div>
+        <h1>Impostazioni</h1>
+        <p class="sub">Della macchina e dell'app. I profili non contengono niente di quello che vedi qui: percorsi e build sono della macchina.</p>
+      </div>
+      <div class="acts"><button class="btn sm primary">Salva machine.toml</button></div>
+    </div>
+
+    <div class="tabs new" data-t="tre schede per argomento"><button class="on" data-tab="macchina">Macchina</button><button data-tab="client">Client</button><button data-tab="app">App</button></div>
+
+    <!-- scheda Macchina -->
+    <div class="tabp on" id="tab-macchina">
+    <div class="grid g2" style="align-items:start">
+      <div class="grid" style="align-items:start">
+        <div class="card">
+          <h2>Radice dati <span class="r">machine.toml · profiles · builds · runs</span></h2>
+          <div class="f"><label>Radice</label><div class="mono">C:\AetheraData</div><button class="btn sm">Cambia…</button></div>
+          <div class="f"><label>Nome macchina</label><input value="MORO-AI"><span></span></div>
+          <div class="f"><label>Cartella pesi</label><input value="C:\AetheraData\models"><button class="btn sm">Cambia…</button></div>
+          <div class="f"><label>Margine RAM<small>ram_margin_gib</small></label><input value="8"><span class="h">GiB disponibili al picco</span></div>
+        </div>
+        <div class="card">
+          <h2>Build llama.cpp <span class="r">dichiarate in machine.toml o trovate in builds/</span></h2>
+          <table><thead><tr><th>id</th><th>cartella</th><th>origine</th><th></th></tr></thead><tbody>
+            <tr><td class="mono">b10991-vulkan</td><td class="mono mini">C:\AetheraData\builds\llama-b10991-win-vulkan-x64</td><td class="cond">machine.toml</td><td class="r"><button class="btn sm">Togli</button></td></tr>
+            <tr><td class="mono">b10809-vulkan</td><td class="mono mini">C:\AetheraData\builds\llama-b10809-win-vulkan-x64</td><td class="cond">builds/</td><td class="r"></td></tr>
+          </tbody></table>
+          <div class="row" style="margin-top:8px"><button class="btn sm">Aggiungi build…</button><span class="cond">L'id porta build e backend separati da trattini: un profilo con build <code>b10991</code> e backend <code>vulkan</code> la trova così.</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Cosa Aethera legge della macchina <span class="r">letto, non impostato</span> <span class="q" title="Driver, alimentazione e volume finiscono nel manifest di ogni avvio: Benchmark non confronta due avvii con condizioni diverse senza dirlo. Un valore che Windows non dà resta «sconosciuto»">?</span></h2>
+        <dl class="kv">
+          <dt>Host</dt><dd class="mono">MORO-AI</dd>
+          <dt>OS</dt><dd>Windows 11 Pro 26200 (25H2)</dd>
+          <dt>CPU</dt><dd>AMD Ryzen AI 9 HX 470 · 12 core / 24 thread</dd>
+          <dt>RAM vista</dt><dd><span class="num">47,65</span> GiB <span class="cond">96 fisici, 48 alla VGM</span> · disponibile ora <span class="num">24,1</span></dd>
+          <dt>GPU</dt><dd>AMD Radeon 890M · <span class="num">48</span> GiB dedicati <span class="cond">registro del driver: UMA + VGM</span></dd>
+          <dt>Driver GPU</dt><dd><span class="mono">32.0.31041.1004</span> <span class="cond">17-08-2026 · AMD Software 26.8.1</span></dd>
+          <dt>NPU</dt><dd>AMD NPU Compute Accelerator · <span class="mono">32.0.20102.3930</span></dd>
+          <dt>Alimentazione</dt><dd>Massime prestazioni <span class="cond">overlay dal registro · powercfg mostra solo lo schema sotto</span></dd>
+          <dt>Volume dei pesi</dt><dd><span class="mono">C:</span> · Kingston OM8TAP42048K1 <span class="cond">NVMe</span> · <span class="num">1.769</span> GB liberi</dd>
+        </dl>
+        <div class="note" style="margin-top:10px">Questi valori non si impostano da qui: la VGM si cambia da Adrenalin e chiede un riavvio; l'alimentazione da Windows. Aethera li legge a ogni avvio e li scrive nel manifest.</div>
+      </div>
+    </div>
+    </div>
+
+    <!-- scheda Client -->
+    <div class="tabp" id="tab-client">
+    <div class="grid g2" style="align-items:start">
+      <div class="card">
+        <h2>Riga per i client <span class="r">derivata dall'avvio acceso · G1 · :8080 · 65.536</span></h2>
+        <div class="tabs" style="margin-bottom:8px"><button>Nonio</button><button>OpenCode</button><button class="on">Claude Code</button><button>env per banchi</button></div>
+        <div class="row mb"><span class="badge ok"><i></i>template tollerante attivo</span><span class="cond">l'avvio passa <code>--chat-template-file qwen3.6-tollerante.jinja</code>: Claude Code punta dritto al motore</span></div>
+        <div class="mini" style="margin-bottom:4px">PowerShell · da incollare prima di <code>claude</code></div>
+<pre class="cmd">$env:ANTHROPIC_BASE_URL = "http://127.0.0.1:8080"
+$env:ANTHROPIC_AUTH_TOKEN = "aethera"
+$env:ANTHROPIC_MODEL = "G1"
+$env:CLAUDE_CODE_MAX_OUTPUT_TOKENS = "4096"
+$env:CLAUDE_CONFIG_DIR = "C:\AetheraData\claude"   # facoltativa
+claude</pre>
+        <div class="row" style="margin-top:8px"><button class="btn sm">Copia come PowerShell</button><button class="btn sm">Copia come bash</button><span class="cond right">alias, porta e output sono quelli dell'avvio acceso</span></div>
+      </div>
+      <div class="card">
+        <h2>Budget di contesto <span class="r">per client, sull'avvio acceso · 65.536 serviti</span> <span class="q" title="Prompt fisso (istruzioni e strumenti del client) misurato, mai stimato: passa il mouse sul numero per la fonte. Spazio di lavoro = contesto servito − prompt fisso − output riservato; rosso sotto il 30 % del contesto. Più spazio vuol dire compattazioni più rare, e ognuna costa decine di secondi">?</span></h2>
+        <table style="font-size:12px"><thead><tr><th>client</th><th class="r">prompt fisso</th><th class="r">output</th><th class="r">spazio di lavoro</th><th style="width:90px"></th><th>lettura</th></tr></thead>
+        <tbody>
+          <tr><td>Claude Code</td><td class="r num" title="M-08 T-10: prima richiesta a freddo, 16-09">16.822</td><td class="r num">4.096</td><td class="r num">44.618</td><td><div class="bar ok"><span style="width:68%"></span></div></td><td><span class="tag ext">largo</span> <span class="cond">68 %</span></td></tr>
+          <tr><td>OpenCode</td><td class="r num" title="richiesta a freddo più grande dell'avvio corrente">6.104</td><td class="r num">4.096</td><td class="r num">55.336</td><td><div class="bar ok"><span style="width:84%"></span></div></td><td><span class="tag ext">largo</span> <span class="cond">84 %</span></td></tr>
+          <tr><td>Nonio</td><td class="r num" title="prima richiesta a freddo con il lock, 18:08">7.948</td><td class="r num">4.096</td><td class="r num">53.492</td><td><div class="bar ok"><span style="width:82%"></span></div></td><td><span class="tag ext">largo</span> <span class="cond">82 %</span></td></tr>
+          <tr><td>Claude Code <span class="cond">se il contesto fosse 32k</span></td><td class="r num">16.822</td><td class="r num">4.096</td><td class="r num">11.850</td><td><div class="bar err"><span style="width:36%"></span></div></td><td><span class="tag reb">compatta presto</span> <div class="cond">con 69.727 serviti lo spazio arriva al 30 %</div></td></tr>
+        </tbody></table>
+        <div class="note warn" style="margin-top:8px">La compattazione delle 17:52 è costata 121 s. La soglia del 30 % dice se il client parte largo, non quante compattazioni farà un compito lungo.</div>
+      </div>
+    </div>
+    </div>
+
+    <!-- scheda App -->
+    <div class="tabp" id="tab-app">
+    <div class="grid g2" style="align-items:start">
+      <div class="card">
+        <h2>Comportamento</h2>
+        <div class="f"><label>Chiudere la finestra</label><div><span class="pill">con il motore acceso riduce nella tray</span></div><span></span></div>
+        <div class="f"><label>All'uscita</label><select><option>chiedi ogni volta</option><option>ferma il motore</option><option>lascia il motore acceso</option></select><span></span></div>
+        <div class="f"><label>Tema</label><span class="seg"><span class="on">scuro</span><span>chiaro</span></span><span></span></div>
+      </div>
+      <div class="card new" data-t="le soglie in un posto solo">
+        <h2>Soglie <span class="r">da confermare · approvate con M-09 dove indicato</span></h2>
+        <dl class="kv">
+          <dt>Stato «in uso»</dt><dd>slot attivo su <code>/slots</code>, richieste negli ultimi <span class="num">30</span> s, lock dichiarato o protezione manuale</dd>
+          <dt>Segnala degradato</dt><dd>acceso da più di <span class="num">24</span> h, o decode delle ultime 5 richieste sotto il <span class="num">70</span> % della mediana di riferimento (stesse condizioni), altrimenti dell'avvio</dd>
+          <dt>Richiesta «estende»</dt><dd>tiene almeno il <span class="num">90</span> % del contesto precedente dello slot, o tutto tranne l'ultimo ubatch <span class="cond">M-09</span></dd>
+          <dt>Contesto ricostruito</dt><dd>prompt più corto del <span class="num">70</span> % del contesto precedente <span class="cond">M-09</span></dd>
+          <dt>Budget rosso</dt><dd>spazio di lavoro sotto il <span class="num">30</span> % del contesto servito <span class="cond">M-09</span></dd>
+          <dt>Avviso mmap</dt><dd>load_mode con mmap e pesi oltre il <span class="num">90</span> % della memoria dedicata <span class="cond">M-09</span></dd>
+        </dl>
+      </div>
+    </div>
+    <details style="margin-top:12px" class="new" data-t="endpoint a scomparsa"><summary>Endpoint Aethera <span class="mono cond">http://127.0.0.1:8090</span><span class="r">per i client che vogliono dichiarare «sto lavorando»</span></summary><div class="body">
+      <table style="font-size:12px;margin-top:8px"><thead><tr><th>Metodo</th><th>Percorso</th><th>Cosa fa</th></tr></thead><tbody>
+        <tr><td class="mono">GET</td><td class="mono">/status</td><td>stato, alias, porta, id avvio, acceso da, in uso e perché</td></tr>
+        <tr><td class="mono">GET</td><td class="mono">/run</td><td>manifest dell'avvio corrente</td></tr>
+        <tr><td class="mono">POST</td><td class="mono">/lock</td><td>dichiara «sto lavorando»: <code>{"client", "label", "ttl_s"}</code>; stesso client ed etichetta rinnovano</td></tr>
+        <tr><td class="mono">DELETE</td><td class="mono">/lock</td><td>rilascia per <code>?id=</code> o <code>?client=</code></td></tr>
+        <tr><td class="mono">GET</td><td class="mono">/telemetry/recent</td><td>prefill, decode, accettazione, quota cache, richieste e compattazioni delle ultime <code>?n=</code></td></tr>
+      </tbody></table>
+      <div class="cond" style="margin-top:8px">Chi non lo usa è coperto dall'osservazione di <code>/slots</code> e dall'interruttore manuale. Il lock non cambia il motore: rende solo rifiutati arresto e riavvio. Le richieste da un browser (con <code>Origin</code>) sono rifiutate.</div>
+    </div></details>
+    </div>
+  </section>

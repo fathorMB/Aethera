@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aethera v2 — interfaccia più leggibile</title>
+<style>
+/* Token della finestra vera (src/styles.css), invariati: la v2 cambia la disposizione, non la tavolozza. */
+:root {
+  --bg: #f4f5f7; --bg2: #ffffff; --bg3: #e9ebef; --line: #d5d8de; --fg: #1a1c20; --fg2: #515866; --fg3: #616878;
+  --acc: #2f6fed; --ok: #187038; --warn: #8f5605; --err: #c62f2f; --busy: #6f39b8; --mod: #8f5605; --new: #0f7f8c;
+  --acc-bg: rgba(47,111,237,.10); --ok-bg: rgba(24,112,56,.10); --warn-bg: rgba(143,86,5,.10); --err-bg: rgba(198,47,47,.10); --busy-bg: rgba(111,57,184,.10);
+  --mono: "Cascadia Mono", "JetBrains Mono", Consolas, ui-monospace, monospace;
+  --sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --bg: #141619; --bg2: #1c1f24; --bg3: #24282f; --line: #30353d; --fg: #e6e8eb; --fg2: #a3a9b3; --fg3: #8a919b;
+  --acc: #5b8dff; --ok: #3ec46f; --warn: #e5a23a; --err: #f26b6b; --busy: #b287f0; --mod: #e5a23a; --new: #3cc8d6;
+  --acc-bg: rgba(91,141,255,.12); --ok-bg: rgba(62,196,111,.12); --warn-bg: rgba(229,162,58,.12); --err-bg: rgba(242,107,107,.12); --busy-bg: rgba(178,135,240,.12);
+  color-scheme: dark;
+}
+* { box-sizing: border-box }
+html, body { margin: 0; height: 100% }
+body { background: var(--bg); color: var(--fg); font: 13px/1.5 var(--sans) }
+code, .mono { font-family: var(--mono); font-size: 12px }
+a { color: var(--acc) }
+button { font: inherit; color: inherit }
+b { font-weight: 600 }
+
+/* ── shell ─────────────────────────────────────────────────────────────── */
+.app { display: grid; grid-template-rows: 46px 1fr; grid-template-columns: 196px 1fr; height: 100vh }
+.top { grid-column: 1/3; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--bg2); border-bottom: 1px solid var(--line) }
+.brand { font-weight: 600; letter-spacing: .3px; width: 182px }
+.brand small { color: var(--fg3); font-weight: 400; margin-left: 6px }
+/* La striscia del motore: stato, chi, quanto va, e le due azioni. Sta su ogni pagina. */
+.strip { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0 }
+.strip .who { font-family: var(--mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.strip .who small { color: var(--fg3); font-family: var(--sans); margin-left: 4px }
+.strip .sep { width: 1px; height: 20px; background: var(--line) }
+.strip .speed { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap }
+.strip .speed small { color: var(--fg3); font-family: var(--sans); font-size: 11px }
+.strip .acts { margin-left: auto; display: flex; gap: 6px; align-items: center }
+.nav { background: var(--bg2); border-right: 1px solid var(--line); padding: 8px 0; display: flex; flex-direction: column }
+.nav button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 14px; background: none; border: 0; border-left: 3px solid transparent; color: var(--fg2); cursor: pointer }
+.nav button:hover { background: var(--bg3) }
+.nav button.on { color: var(--fg); border-left-color: var(--acc); background: var(--bg3) }
+.nav button .k { font-family: var(--mono); color: var(--fg3); font-size: 11px; margin-left: auto }
+.nav button .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); display: none }
+.nav button.attn .dot { display: inline-block }
+.nav .sec { padding: 12px 14px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--fg3) }
+.nav .foot { margin-top: auto; padding: 10px 14px; color: var(--fg3); font-size: 11px; border-top: 1px solid var(--line); word-break: break-all; line-height: 1.5 }
+.nav .foot b { color: var(--fg2); font-weight: 600; display: block }
+.main { overflow: auto; padding: 16px 20px 40px }
+.page { display: none } .page.on { display: block }
+
+/* Testa di pagina: titolo, una riga, e le azioni della pagina a destra. */
+.head { display: flex; align-items: flex-start; gap: 14px; margin: 0 0 14px }
+.head h1 { font-size: 17px; font-weight: 600; margin: 0 0 2px }
+.head .sub { color: var(--fg2); margin: 0; font-size: 12.5px }
+.head .acts { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end }
+h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--fg2); margin: 0 0 8px }
+h3 { font-size: 13px; font-weight: 600; margin: 0 0 6px }
+
+/* ── atomi (invariati o quasi) ─────────────────────────────────────────── */
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; border: 1px solid var(--line); background: var(--bg3); white-space: nowrap }
+.badge i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg3); display: inline-block }
+.badge.ok i { background: var(--ok) } .badge.warn i { background: var(--warn) } .badge.err i { background: var(--err) } .badge.busy i { background: var(--busy) } .badge.acc i { background: var(--acc) }
+.badge.ok { color: var(--ok) } .badge.warn { color: var(--warn) } .badge.err { color: var(--err) } .badge.busy { color: var(--busy) } .badge.acc { color: var(--acc) }
+.badge.tight { padding: 0 6px }
+.badge.big { font-size: 12px; padding: 4px 10px }
+.pill { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; background: var(--bg3); color: var(--fg2); border: 1px solid var(--line); white-space: nowrap }
+.pill.mod { color: var(--mod); border-color: var(--mod) }
+.pill.cache { color: var(--busy); border-color: var(--busy) }
+.pill.g { color: var(--ok); border-color: var(--ok) }
+.pill.x { color: var(--err); border-color: var(--err) }
+.btn { padding: 5px 11px; border: 1px solid var(--line); background: var(--bg3); border-radius: 3px; cursor: pointer; white-space: nowrap }
+.btn:hover { border-color: var(--fg3) }
+.btn.primary { background: var(--acc); border-color: var(--acc); color: #fff }
+.btn.danger { color: var(--err); border-color: var(--err) }
+.btn:disabled { opacity: .45; cursor: not-allowed }
+.btn.sm { padding: 2px 8px; font-size: 12px }
+.btn.ghost { background: none }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: 0 0 12px }
+.tabs button { padding: 6px 14px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--fg2); cursor: pointer }
+.tabs button.on { color: var(--fg); border-bottom-color: var(--acc) }
+.tabs button .n { font-family: var(--mono); font-size: 11px; color: var(--fg3); margin-left: 5px }
+.grid { display: grid; gap: 12px }
+.g2 { grid-template-columns: minmax(0,1fr) minmax(0,1fr) } .g3 { grid-template-columns: repeat(3, minmax(0,1fr)) } .g4 { grid-template-columns: repeat(4, minmax(0,1fr)) }
+.g21 { grid-template-columns: minmax(0,2fr) minmax(0,1fr) } .g12 { grid-template-columns: minmax(0,1fr) minmax(0,2fr) }
+.card { background: var(--bg2); border: 1px solid var(--line); border-radius: 4px; padding: 12px }
+.card h2 { display: flex; align-items: center; gap: 8px }
+.card h2 .r { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--fg3); font-size: 11px }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 5px 14px; align-items: baseline; margin: 0 }
+.kv dt { color: var(--fg2) } .kv dd { margin: 0 }
+.unk { color: var(--fg3); font-style: italic }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums }
+.cond { color: var(--fg3); font-size: 12px }
+.mini { font-size: 11px; color: var(--fg3) }
+.cmd { background: #0e1013; color: #d8dee6; border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-all; line-height: 1.6; margin: 0 }
+[data-theme="light"] .cmd { background: #1c1f24 }
+.cmd b { color: #e5a23a; font-weight: 600; background: rgba(229,162,58,.12) }
+.cmd s { color: #ef5a5a; text-decoration: line-through; opacity: .7 }
+.log { background: #0e1013; color: #aeb6c2; border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; font-family: var(--mono); font-size: 11.5px; white-space: pre; overflow: auto; max-height: 260px; line-height: 1.5; margin: 0 }
+[data-theme="light"] .log { background: #1c1f24 }
+table { border-collapse: collapse; width: 100% }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--fg2); font-weight: 600; text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap }
+td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle }
+td.r, th.r { text-align: right }
+tr.sel td { background: var(--acc-bg) }
+tr.click { cursor: pointer } tr.click:hover td { background: var(--bg3) }
+tr.sep td { color: var(--warn); font-size: 11px; border-bottom: 1px dashed var(--warn); padding-top: 10px; background: none }
+.spark { display: flex; align-items: flex-end; gap: 2px; height: 34px; margin-top: 6px }
+.spark b { flex: 1; background: var(--acc); opacity: .75; border-radius: 1px 1px 0 0; min-width: 2px }
+.spark b.lo { background: var(--err); opacity: 1 }
+.spark b.nil { height: 100%; background: transparent; border: 1px dashed var(--line); opacity: 1 }
+.bar { height: 6px; background: var(--bg3); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; min-width: 60px }
+.bar span { display: block; height: 100%; background: var(--acc) }
+.bar.ok span { background: var(--ok) } .bar.warn span { background: var(--warn) } .bar.err span { background: var(--err) }
+.legend { display: inline-flex; gap: 12px; flex-wrap: wrap; color: var(--fg3); font-size: 11px }
+.legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: middle }
+.toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; white-space: nowrap }
+.toggle i { width: 30px; height: 16px; border-radius: 8px; background: var(--fg3); position: relative; display: inline-block }
+.toggle i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff }
+.toggle.on i { background: var(--busy) } .toggle.on i::after { left: 16px }
+.note { border-left: 3px solid var(--acc); background: var(--bg3); padding: 8px 10px; border-radius: 0 3px 3px 0; color: var(--fg2) }
+.note.warn { border-left-color: var(--warn) } .note.busy { border-left-color: var(--busy) } .note.err { border-left-color: var(--err) } .note.ok { border-left-color: var(--ok) }
+.note b { color: var(--fg) }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.right { margin-left: auto }
+.mb { margin-bottom: 12px }
+hr { border: 0; border-top: 1px solid var(--line); margin: 10px 0 }
+input.txt, select.txt { font: inherit; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px }
+input.txt.mono { font-family: var(--mono); font-size: 12px }
+:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px }
+.empty { border: 1px dashed var(--line); border-radius: 4px; padding: 18px 20px; color: var(--fg2); background: var(--bg2) }
+.empty b { display: block; color: var(--fg); margin-bottom: 4px }
+
+/* ── pezzi nuovi della v2 ──────────────────────────────────────────────── */
+/* Avvisi: una fascia sola, una riga per avviso, con il verbo a destra. */
+.alerts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px }
+.alert { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 3px; border: 1px solid var(--line); background: var(--bg2); border-left-width: 3px }
+.alert.warn { border-left-color: var(--warn) } .alert.err { border-left-color: var(--err) } .alert.busy { border-left-color: var(--busy) } .alert.acc { border-left-color: var(--acc) }
+.alert .t { font-weight: 600; white-space: nowrap }
+.alert .d { color: var(--fg2); flex: 1; min-width: 0 }
+.alert .btn { margin-left: auto }
+/* Numeri grandi con la loro barra sotto: la riga dei KPI. */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px }
+.kpi { background: var(--bg2); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; position: relative }
+.kpi .l { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--fg2); font-weight: 600; display: flex; gap: 6px; align-items: center }
+.kpi .v { font-family: var(--mono); font-size: 26px; line-height: 1.15; margin-top: 4px; font-variant-numeric: tabular-nums }
+.kpi .v small { font-size: 12px; color: var(--fg3); font-family: var(--sans); margin-left: 5px }
+.kpi .d { color: var(--fg3); font-size: 11.5px; margin-top: 2px }
+.kpi .v.ok { color: var(--ok) } .kpi .v.warn { color: var(--warn) } .kpi .v.err { color: var(--err) }
+/* Il «?»: la spiegazione lunga sta nel title, non in mezzo alla pagina. */
+.q { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--line); color: var(--fg3); font-size: 10px; font-weight: 600; cursor: help; font-family: var(--sans); text-transform: none; letter-spacing: 0 }
+.q:hover { color: var(--acc); border-color: var(--acc) }
+/* Sezioni a scomparsa: il testo di aiuto e i pezzi tecnici stanno dietro un clic. */
+details { border: 1px solid var(--line); border-radius: 4px; background: var(--bg2) }
+details > summary { cursor: pointer; padding: 8px 12px; list-style: none; display: flex; align-items: center; gap: 8px; color: var(--fg2); user-select: none }
+details > summary::before { content: "▸"; color: var(--fg3); font-size: 11px; width: 10px }
+details[open] > summary::before { content: "▾" }
+details > summary .r { margin-left: auto; color: var(--fg3); font-size: 11px }
+details > .body { padding: 4px 12px 12px; border-top: 1px solid var(--line) }
+details.help { border-style: dashed; background: none }
+details.help > summary { font-size: 12px; padding: 5px 10px }
+details.help > .body { color: var(--fg2); font-size: 12px; border-top: 0; padding-top: 0 }
+details.help > .body b { color: var(--fg) }
+/* Barra impilata della memoria: dedicata, condivisa, RAM di Windows, libera. */
+.stack { display: flex; height: 14px; border-radius: 3px; overflow: hidden; border: 1px solid var(--line); background: var(--bg3) }
+.stack span { display: block; height: 100% }
+.stack .ded { background: var(--acc) } .stack .sha { background: var(--busy) } .stack .win { background: var(--fg3) } .stack .fre { background: transparent }
+/* Fascia delle azioni in cima alla pagina Avvio: non si scorre per trovare «Avvia». */
+.actbar { position: sticky; top: -16px; z-index: 3; background: var(--bg2); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08) }
+.actbar .name { font-family: var(--mono); font-size: 13px }
+.actbar .name small { color: var(--fg3); font-family: var(--sans); margin-left: 6px }
+/* Campo con etichetta umana e il nome della leva in piccolo. */
+.f { display: grid; grid-template-columns: 168px minmax(0,1fr) minmax(0,max-content); gap: 6px 10px; align-items: center; padding: 5px 8px; border-radius: 3px }
+.f + .f { border-top: 1px solid var(--line) }
+.f label { color: var(--fg); display: flex; flex-direction: column; line-height: 1.25 }
+.f label small { color: var(--fg3); font-family: var(--mono); font-size: 10.5px; font-weight: 400 }
+.f input, .f select { font: inherit; font-family: var(--mono); font-size: 12px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 4px 7px; width: 100%; min-width: 0 }
+.f .h { color: var(--fg3); font-size: 11.5px; max-width: 200px; line-height: 1.3 }
+.f.mod { background: var(--warn-bg); outline: 1px solid var(--mod) }
+.f.mod label::before { content: "● "; color: var(--mod); font-size: 9px; vertical-align: middle }
+.f .base { font-family: var(--mono); font-size: 11px; color: var(--mod); text-decoration: line-through }
+.f .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden }
+.f .seg span { padding: 3px 10px; font-size: 12px; background: var(--bg); cursor: pointer } .f .seg span.on { background: var(--acc); color: #fff }
+/* Filtri a bottoni. */
+.chips { display: flex; gap: 4px; flex-wrap: wrap }
+.chip { padding: 2px 9px; border: 1px solid var(--line); border-radius: 12px; font-size: 12px; background: var(--bg2); color: var(--fg2); cursor: pointer; white-space: nowrap }
+.chip.on { background: var(--acc-bg); border-color: var(--acc); color: var(--fg) }
+.chip .n { font-family: var(--mono); font-size: 11px; color: var(--fg3); margin-left: 4px }
+/* Lista + dettaglio. */
+.md { display: grid; grid-template-columns: minmax(0,1.6fr) minmax(0,1fr); gap: 12px; align-items: start }
+#p-benchmark .md { grid-template-columns: minmax(0,2.6fr) minmax(0,1fr) }
+td .mono, td.mono, td.num { white-space: nowrap }
+td .mini { white-space: normal }
+#p-catalogo td:nth-child(2) { white-space: nowrap }
+#p-avvio .g2 { grid-template-columns: minmax(0,1.25fr) minmax(0,1fr) }
+.split { display: grid; grid-template-columns: 250px minmax(0,1fr); gap: 14px; align-items: start }
+.list { display: flex; flex-direction: column; gap: 3px }
+.list .it { padding: 8px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg2); cursor: pointer }
+.list .it.on { border-color: var(--acc); background: var(--acc-bg) }
+.list .it .n { font-family: var(--mono); font-size: 12px; word-break: break-all }
+.list .it .m { color: var(--fg3); font-size: 11px; margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+.steps { display: flex; flex-direction: column; gap: 2px }
+.step { display: grid; grid-template-columns: 22px 1fr max-content; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 3px; border: 1px solid transparent }
+.step .n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-family: var(--mono); background: var(--bg3); color: var(--fg3); border: 1px solid var(--line) }
+.step.done .n { background: var(--ok); border-color: var(--ok); color: #fff }
+.step.now { border-color: var(--acc); background: var(--acc-bg) }
+.tag { font-size: 11px; font-weight: 600; white-space: nowrap }
+.tag.ext { color: var(--ok) } .tag.cold { color: var(--fg2) } .tag.sum { color: var(--warn) } .tag.reb { color: var(--err) }
+.ev td { font-size: 12px; padding: 5px 8px }
+.ev tr.cmp td { background: var(--warn-bg) }
+/* Confronto: la fascia che compare quando due avvii sono spuntati. */
+.cmpbar { position: sticky; bottom: 0; background: var(--bg2); border: 1px solid var(--acc); border-radius: 4px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; margin-top: 12px; box-shadow: 0 -2px 10px rgba(0,0,0,.12) }
+.delta { font-family: var(--mono); font-variant-numeric: tabular-nums } .delta.up { color: var(--ok) } .delta.dn { color: var(--err) }
+
+/* Solo mockup: che cosa cambia rispetto alla finestra di oggi. Si spegne dal pulsante in alto. */
+.new { position: relative; outline: 1px dashed var(--new); outline-offset: 3px }
+.new::before { content: attr(data-t); position: absolute; top: -9px; right: 8px; background: var(--new); color: #06181a; font: 600 10px/1 var(--sans); padding: 2px 5px; border-radius: 2px; z-index: 2; white-space: nowrap }
+body.clean .new { outline: none } body.clean .new::before { display: none }
+.legend-mock { background: var(--bg3); border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; margin-bottom: 14px; color: var(--fg2); font-size: 12.5px }
+.legend-mock b { color: var(--new) }
+/* Pagina «Analisi»: prima/dopo. */
+.pb { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+.pb .card h3 { display: flex; gap: 8px; align-items: center }
+.pb li b { font-weight: 600 }
+.pb ul { margin: 0; padding-left: 18px } .pb li { margin: 3px 0 }
+.pb .prima h3 { color: var(--err) } .pb .dopo h3 { color: var(--ok) }
+.princ { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px }
+.princ .card > b { display: block; margin-bottom: 4px; color: var(--fg) }
+.princ .card { font-size: 12.5px; color: var(--fg2) }
+.princ .card .n { font-family: var(--mono); color: var(--acc); margin-right: 6px }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <span class="brand">Aethera <small>MORO-AI · v2 mockup</small></span>
+    <div class="strip new" data-t="striscia del motore, su ogni pagina">
+      <span class="badge ok"><i></i>PRONTO</span>
+      <span class="who">G1<small>qwen3.6-35b-a3b · q4_k_m · b10991 · :8080</small></span>
+      <span class="sep"></span>
+      <span class="speed">418 <small>prefill</small> · 33,1 <small>decode</small> · 93 <small>% riuso</small></span>
+      <span class="sep"></span>
+      <span class="badge busy" title="lock di nonio «refactor api.ts» · scade fra 4 m 12 s"><i></i>IN USO · nonio</span>
+      <span class="acts">
+        <span class="toggle on" title="Rifiuta arresto e riavvio finché è attiva"><i></i><span class="mini">protetto</span></span>
+        <button class="btn sm" disabled title="In uso: lock di nonio">Riavvia</button>
+        <button class="btn sm danger" disabled title="In uso: lock di nonio">Ferma</button>
+      </span>
+    </div>
+    <button class="btn sm" id="bnew">nascondi «cosa cambia»</button>
+    <button class="btn sm" id="btheme">☼ tema</button>
+  </div>
+
+  <nav class="nav">
+    <button data-p="analisi" class="on">Analisi <span class="k">0</span></button>
+    <div class="sec">Finestra</div>
+    <button data-p="motore">Motore <span class="k">1</span></button>
+    <button data-p="avvio">Avvio <span class="k">2</span></button>
+    <button data-p="catalogo" class="attn"><span class="dot"></span>Catalogo <span class="k">3</span></button>
+    <button data-p="benchmark">Benchmark <span class="k">4</span></button>
+    <button data-p="impostazioni">Impostazioni <span class="k">5</span></button>
+    <div class="foot new" data-t="il piede dice dove sei">
+      <b>Radice dati</b><span class="mono">C:\AetheraData</span>
+      <br><br><b>Avvio acceso</b><span class="mono">r-20260916-173342</span><br>da 42 m 18 s · 18 richieste
+      <br><br><b>Lavori</b>1 download · 41 % · Q3_K_XL
+    </div>
+  </nav>
+
+  <main class="main">
+  <div class="legend-mock">Mockup statico della finestra riordinata. I riquadri con il bordo tratteggiato <b>«cosa cambia»</b> sono le differenze dalla finestra di oggi (v0.2, M-09); il pulsante in alto li spegne per vedere la pagina come la vedrebbe l'operatore. Numeri veri di M-08 e M-09 (16-09), orari e conteggi intermedi illustrativi.</div>
+  <!-- ═════════════════════════════ ANALISI ═════════════════════════════ -->
+  <section class="page on" id="p-analisi">
+    <div class="head">
+      <div>
+        <h1>Analisi della finestra di oggi, e cosa cambia</h1>
+        <p class="sub">Letti <code>src/App.tsx</code>, le cinque pagine, <code>components.tsx</code>, <code>styles.css</code> e i due mockup precedenti (v1, M-09). I dati restano tutti: cambia dove stanno, in che ordine, e quanto testo ci vuole per capirli.</p>
+      </div>
+    </div>
+
+    <h2>Sei principi della v2</h2>
+    <div class="princ mb">
+      <div class="card"><b><span class="n">1</span>Lo stato del motore si vede sempre</b>Oggi sta in tre posti (barra in alto, riquadro «Stato», piede della colonna) e le azioni «Ferma» e «Riavvia» in fondo alla pagina Motore, dentro il riquadro della riga di comando. Nella v2 una <b>striscia</b> in alto porta stato, profilo, velocità, «in uso» e le due azioni, su ogni pagina.</div>
+      <div class="card"><b><span class="n">2</span>L'azione principale sta in cima</b>In Avvio il pulsante «Avvia» viene dopo cinque riquadri e una quarantina di campi; in Catalogo il dettaglio compare sotto la tabella e va cercato scorrendo. Nella v2 ogni pagina ha le sue azioni nella testa, e Avvio ha una <b>fascia fissa</b> con Avvia, Scarta, Aggiorna, Salva come.</div>
+      <div class="card"><b><span class="n">3</span>Essenziale prima, avanzato dietro un clic</b>I 40 campi del profilo hanno tutti lo stesso peso, con nomi da riga di comando (<code>n_gpu_layers</code>, <code>cache_type_k</code>). Nella v2 dodici leve <b>essenziali</b> con etichetta in italiano e il nome della leva in piccolo; le altre in «Avanzate», chiuse, con il numero di quelle modificate.</div>
+      <div class="card"><b><span class="n">4</span>Le spiegazioni si chiedono, non si subiscono</b>Ogni riquadro chiude con tre righe grigie a 11 px che dicono come leggere il numero. Sono giuste, ma coprono un terzo della pagina. Nella v2 stanno in un <b>«?»</b> accanto al titolo (title) o in una riga «come si legge» a scomparsa. Il testo minimo sale a 12 px.</div>
+      <div class="card"><b><span class="n">5</span>Un numero, una barra, una parola</b>Velocità, riuso e memoria sono numeri sparsi in quattro riquadri uguali. Nella v2 una <b>riga di KPI</b> con il numero grande, la barra o la scintilla sotto e una parola di giudizio (nella norma, sotto la mediana, compatta presto), colorata solo quando serve.</div>
+      <div class="card"><b><span class="n">6</span>Quello che era giusto resta</b>«Sconosciuto» non è zero; il ● sulle leve modificate; la riga di comando esatta; le condizioni dell'avvio accanto ai numeri; il verdetto di M-08 sulle leve; niente <code>window.prompt</code>; i dialoghi con scritto prima che cosa comportano. La tavolozza e i token sono gli stessi di <code>styles.css</code>.</div>
+    </div>
+
+    <h2>Pagina per pagina</h2>
+    <div class="pb mb">
+      <div class="card prima"><h3>Motore · oggi</h3><ul>
+        <li>Quattro riquadri uguali in cima (Stato, Velocità, Riuso, Contesto): 22 valori con lo stesso peso, nessuna gerarchia.</li>
+        <li>«Ferma» e «Riavvia» stanno nel riquadro «Riga di comando», sotto la tabella delle richieste e sotto memoria e condizioni: per fermare il motore si scorre tutta la pagina.</li>
+        <li>Gli avvisi (degradato, divergenze, condizioni cambiate, compattazione) sono note sparse fra i riquadri.</li>
+        <li>La memoria è una tabella «prima / misurato» su cinque righe: la doppia copia e il margine RAM sono in coda, in grigio.</li>
+        <li>Il log occupa 260 px sempre, anche a motore sano.</li>
+      </ul></div>
+      <div class="card dopo"><h3>Motore · v2</h3><ul>
+        <li>Un riquadro di stato largo con chi, dove, da quando, contesto, e le azioni a destra; sotto una fascia di avvisi, una riga per avviso, con il verbo a destra.</li>
+        <li>Quattro KPI: prefill, decode con la scintilla, riuso con la scintilla, compattazioni con il costo. Un giudizio in una parola sotto ognuno.</li>
+        <li>A sinistra la tabella richiesta per richiesta (la parte che serve durante una sessione), a destra memoria come barra impilata e condizioni compatte.</li>
+        <li>Riga di comando, differenze dal profilo e log in tre sezioni a scomparsa; il log si apre da solo solo dopo un'uscita con errore.</li>
+      </ul></div>
+
+      <div class="card prima"><h3>Avvio · oggi</h3><ul>
+        <li>Cinque riquadri di campi (Modello, Motore, Server con 22 leve, Speculazione, Cache) tutti aperti, tutti con il nome tecnico.</li>
+        <li>«Avvia» e «Salva come nuovo profilo» in fondo, dopo campionamento e riga di comando; l'operatore modifica un campo in cima e scorre due schermate per avviare.</li>
+        <li>Stima di memoria e importazione da minis-config a sinistra sotto l'elenco dei profili, dove nessuno le cerca.</li>
+        <li>Le proposte di M-08 sono una nota dentro il riquadro del nome.</li>
+      </ul></div>
+      <div class="card dopo"><h3>Avvio · v2</h3><ul>
+        <li>Fascia fissa in cima alla colonna destra: nome e alias, quante modifiche, Avvia, Scarta, Aggiorna, Salva come. I blocchi dell'avvio compaiono lì.</li>
+        <li>Dodici leve essenziali in italiano (Modello, Contesto, Layer sulla GPU, Attenzione flash, Cache K/V, Caricamento, Speculazione, Template di chat, Porta…), il nome della leva in piccolo sotto l'etichetta. Il resto in «Avanzate», chiuso, con i verdetti di M-08 come pillole.</li>
+        <li>A destra la riga di comando viva e la stima di memoria come barra contro la VGM: si vedono mentre si modifica.</li>
+        <li>Le proposte di M-08 sono un avviso azzurro con «Applica»: si notano, non si leggono per caso.</li>
+      </ul></div>
+
+      <div class="card prima"><h3>Catalogo · oggi</h3><ul>
+        <li>Nove colonne, con «Publisher · file» e «Arch · MTP · ctx train» che mescolano tre dati in una cella; le azioni (Scarica, Verifica, Avvia…) in ogni riga.</li>
+        <li>Il dettaglio del modello scelto compare sotto la tabella: con otto righe di modelli va cercato scorrendo.</li>
+        <li>Il modulo «Aggiungi da Hugging Face» è sempre aperto in cima, anche quando non serve.</li>
+        <li>I lavori in corso (download, hash) sono un riquadro fra le schede e la tabella.</li>
+      </ul></div>
+      <div class="card dopo"><h3>Catalogo · v2</h3><ul>
+        <li>Tabella a sei colonne (Modello, Quant, GB, Stato, Stima, MTP) a sinistra; <b>dettaglio a destra</b>, sempre visibile, con tutte le azioni del modello scelto.</li>
+        <li>Filtri a bottoni con il conteggio (tutti, verificati, presenti, scaricabili, in download) e una casella di ricerca.</li>
+        <li>«Aggiungi da Hugging Face» è un pulsante nella testa che apre il modulo; i lavori in corso sono una fascia sottile con la barra, sopra la tabella.</li>
+        <li>La scheda «Build llama.cpp» con lo stesso schema: installate a sinistra, dispositivi e release a destra.</li>
+      </ul></div>
+
+      <div class="card prima"><h3>Benchmark · oggi</h3><ul>
+        <li>Tredici colonne; la spunta per il confronto e il clic per il dettaglio sulla stessa riga; confronto e dettaglio sotto la tabella, in tre colonne di cui una spesso vuota.</li>
+        <li>Le condizioni di ogni avvio sono una stringa monospazio con quattro pillole possibili.</li>
+      </ul></div>
+      <div class="card dopo"><h3>Benchmark · v2</h3><ul>
+        <li>Dieci colonne, con decode e riuso come numero più scintilla; le pillole di stato in una colonna sola.</li>
+        <li>Il dettaglio dell'avvio scelto a destra; la spunta di due avvii fa comparire una <b>fascia di confronto</b> in basso con i tre Δ che contano e «Apri il confronto».</li>
+        <li>Il separatore «da qui in su cambiano le condizioni» resta: è la cosa più utile della pagina.</li>
+      </ul></div>
+
+      <div class="card prima"><h3>Impostazioni · oggi</h3><ul>
+        <li>Sette riquadri in due colonne, con argomenti diversi mescolati: radice dati, build, righe per i client, budget di contesto, endpoint, macchina, comportamento.</li>
+        <li>La tabella dell'endpoint (cinque percorsi HTTP) ha lo stesso peso della cartella dei pesi.</li>
+      </ul></div>
+      <div class="card dopo"><h3>Impostazioni · v2</h3><ul>
+        <li>Tre schede: <b>Macchina</b> (radice dati, pesi, margine RAM, build, cosa Aethera legge della macchina), <b>Client</b> (righe da copiare e budget di contesto), <b>App</b> (comportamento all'uscita, soglie, endpoint in una sezione a scomparsa).</li>
+        <li>Le soglie («in uso» a 30 s, degradato a 24 h o 70 %) sono elencate in un posto solo, con la nota che sono da confermare.</li>
+      </ul></div>
+    </div>
+
+    <h2>Cosa questa v2 non tocca</h2>
+    <div class="card mb">
+      <ul style="margin:0;padding-left:18px">
+        <li>Nessun dato nuovo da misurare: tutto quello che c'è nel mockup esiste già in <code>api.ts</code> (stato, telemetria, condizioni, memoria, catalogo, avvii, righe per i client). È un riordino, non un milestone di misure.</li>
+        <li>Nessun cambio di vocabolario degli stati (PRONTO, IN USO, DEGRADATO, ORFANO, USCITO CON ERRORE) né delle regole approvate in M-09 (soglie del budget, lettura del riuso dal log, template tollerante).</li>
+        <li>Nessuna modifica al codice: è un mockup in attesa dello sguardo dell'operatore, come vuole il flusso del kit. Se approvato, diventa un milestone di sola interfaccia (stime nel README).</li>
+      </ul>
+    </div>
+  </section>
+  <!-- ═════════════════════════════ MOTORE ═════════════════════════════ -->
+  <section class="page" id="p-motore">
+    <div class="head">
+      <div>
+        <h1>Motore</h1>
+        <p class="sub">Il <code>llama-server</code> acceso da Aethera, misurato mentre serve. Quello che non è misurato resta «sconosciuto».</p>
+      </div>
+      <div class="acts new" data-t="azioni nella testa">
+        <button class="btn sm">Copia riga per i client</button>
+        <button class="btn sm">Copia riga di comando</button>
+        <button class="btn sm" disabled title="In uso: lock di nonio">Riavvia con la stessa riga</button>
+        <button class="btn sm danger" disabled title="In uso: lock di nonio">Ferma</button>
+      </div>
+    </div>
+
+    <div class="card mb new" data-t="un riquadro di stato, non quattro">
+      <div class="row" style="gap:14px">
+        <span class="badge ok big"><i></i>PRONTO</span>
+        <span class="badge busy big" title="lock di nonio «refactor api.ts» · scade fra 4 m 12 s · slot al lavoro"><i></i>IN USO · nonio</span>
+        <dl class="kv" style="grid-template-columns:max-content 1fr max-content 1fr max-content 1fr;gap:3px 16px;flex:1">
+          <dt>Profilo</dt><dd class="mono">G1 <span class="cond">qwen3.6-35b-a3b-q4_k_m · alias servito uguale</span></dd>
+          <dt>Acceso da</dt><dd><span class="num">42 m 18 s</span> <span class="cond">dal 16-09 17:33:42 · pronto in 12,4 s</span></dd>
+          <dt>Contesto</dt><dd><span class="num">65.536</span> <span class="badge ok tight"><i></i>servito = dichiarato</span> <span class="cond">1 slot</span></dd>
+          <dt>Indirizzo</dt><dd class="mono">127.0.0.1:8080 <span class="cond">b10991 · vulkan · PID 18432</span></dd>
+          <dt>Richieste</dt><dd><span class="num">18</span> <span class="cond">prompt 214.588 · generati 9.870 · cache inclusa</span></dd>
+          <dt>Avvio</dt><dd class="mono">r-20260916-173342 <span class="cond">1 differenza dal profilo</span></dd>
+        </dl>
+        <span class="toggle on" title="Rifiuta arresto e riavvio finché è attiva"><i></i>Proteggi il motore</span>
+      </div>
+    </div>
+
+    <div class="alerts new" data-t="gli avvisi in una fascia sola">
+      <div class="alert warn"><span class="t">Condizioni cambiate</span><span class="d">driver GPU <span class="mono">32.0.22042.1 → 32.0.31041.1004</span>. La soglia «degradato» riparte da qui: mediana di riferimento 33,0 tok/s su 3 avvii con queste condizioni.</span><button class="btn sm">Vedi in Benchmark</button></div>
+      <div class="alert busy"><span class="t">Compattazione 17:52</span><span class="d">di claude-code: 26.795 token rielaborati fra riassunto e contesto ricostruito, <b>121 s</b> che la conversazione non avrebbe pagato continuando.</span><button class="btn sm">Budget di contesto</button></div>
+    </div>
+
+    <div class="kpis mb new" data-t="quattro numeri, un giudizio ciascuno">
+      <div class="kpi"><div class="l">Prefill <span class="q" title="Mediana delle ultime 18 richieste con almeno 128 token di prompt, dal log del motore (prompt eval)">?</span></div><div class="v">418<small>tok/s</small></div><div class="d">mediana · ultime 18 · nella norma di questo avvio</div></div>
+      <div class="kpi"><div class="l">Decode <span class="q" title="Mediana delle ultime 18 richieste. Rosso nella scintilla: sotto il 70 % della mediana di riferimento (33,0)">?</span></div><div class="v">33,1<small>tok/s</small></div><div class="d">mediana · p10 29,4 · p90 34,0 · accettazione MTP 71 %</div><div class="spark" style="height:22px"><b style="height:90%"></b><b style="height:95%"></b><b style="height:92%"></b><b style="height:88%"></b><b style="height:97%"></b><b style="height:60%" class="lo"></b><b style="height:93%"></b><b style="height:96%"></b><b style="height:91%"></b><b style="height:94%"></b><b style="height:89%"></b><b style="height:98%"></b><b style="height:93%"></b><b style="height:90%"></b><b style="height:95%"></b><b style="height:92%"></b><b style="height:96%"></b><b style="height:94%"></b></div></div>
+      <div class="kpi"><div class="l">Riuso del prompt <span class="q" title="Token dalla cache / token di prompt, letto dalla riga «release» del log (contesto a fine richiesta − generati − rielaborati). Tratteggio: non attribuibile">?</span></div><div class="v ok">93<small>%</small></div><div class="d">i client rimandano indietro la conversazione: bene</div><div class="spark" style="height:22px"><b style="height:3%"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:99%"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:47%" class="lo"></b><b style="height:12%" class="lo"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:99%"></b><b style="height:100%"></b><b style="height:100%"></b><b style="height:100%"></b><b class="nil"></b><b style="height:100%"></b></div></div>
+      <div class="kpi"><div class="l">Compattazioni <span class="q" title="Richiesta con il prompt più corto del 70 % del contesto precedente, preceduta da una che riscriveva: la coppia riassunto + contesto ricostruito. Il costo è prefill e generazione del riassunto più il prefill del contesto ricostruito">?</span></div><div class="v warn">1<small>nelle ultime 18</small></div><div class="d">costata 121 s · claude-code, contesto 64k, prompt fisso 16,8k</div></div>
+    </div>
+
+    <div class="grid g21 mb" style="align-items:start">
+      <div class="card">
+        <h2>Richiesta per richiesta <span class="r">dalla più recente · quanto il motore ha riusato e rielaborato</span></h2>
+        <table class="ev">
+          <thead><tr><th>ora</th><th>client</th><th class="r">prompt</th><th class="r">riusati</th><th class="r">rielaborati</th><th style="width:96px">quota</th><th class="r">prefill</th><th class="r">decode</th><th>lettura</th></tr></thead>
+          <tbody>
+            <tr><td class="num">18:14:02</td><td class="mono">nonio</td><td class="r num">9.412</td><td class="r num">9.104</td><td class="r num">308</td><td><div class="bar ok"><span style="width:97%"></span></div></td><td class="r num">0,8 s</td><td class="r num">6,1 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">18:12:40</td><td class="mono">nonio</td><td class="r num">9.104</td><td class="r num">8.879</td><td class="r num">225</td><td><div class="bar ok"><span style="width:98%"></span></div></td><td class="r num">0,6 s</td><td class="r num">5,4 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">18:11:07</td><td class="mono">nonio</td><td class="r num">8.879</td><td class="r num">8.274</td><td class="r num">605</td><td><div class="bar ok"><span style="width:93%"></span></div></td><td class="r num">1,5 s</td><td class="r num">7,2 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">18:09:51</td><td class="mono">nonio</td><td class="r num">8.274</td><td class="r num">7.948</td><td class="r num">326</td><td><div class="bar ok"><span style="width:96%"></span></div></td><td class="r num">0,8 s</td><td class="r num">4,9 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">18:08:30</td><td class="mono">nonio</td><td class="r num">7.948</td><td class="r num">—</td><td class="r num">7.948</td><td><div class="bar err"><span style="width:1%"></span></div></td><td class="r num">19,0 s</td><td class="r num">8,8 s</td><td><span class="tag cold">a freddo</span></td></tr>
+            <tr class="cmp"><td class="num">17:52:31</td><td class="mono">claude-code</td><td class="r num">7.911</td><td class="r num">0</td><td class="r num">7.911</td><td><div class="bar err"><span style="width:1%"></span></div></td><td class="r num">29,0 s</td><td class="r num">12,1 s</td><td><span class="tag reb">compattazione · contesto ricostruito</span></td></tr>
+            <tr class="cmp"><td class="num">17:50:44</td><td class="mono">claude-code</td><td class="r num">40.118</td><td class="r num">21.234</td><td class="r num">18.884</td><td><div class="bar warn"><span style="width:53%"></span></div></td><td class="r num">79,0 s</td><td class="r num">41,3 s</td><td><span class="tag sum">compattazione · riassunto</span></td></tr>
+            <tr><td class="num">17:48:12</td><td class="mono">claude-code</td><td class="r num">39.870</td><td class="r num">39.512</td><td class="r num">358</td><td><div class="bar ok"><span style="width:99%"></span></div></td><td class="r num">1,1 s</td><td class="r num">14,0 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">17:45:03</td><td class="mono">claude-code</td><td class="r num">38.104</td><td class="r num">37.900</td><td class="r num">204</td><td><div class="bar ok"><span style="width:99%"></span></div></td><td class="r num">0,7 s</td><td class="r num">10,6 s</td><td><span class="tag ext">estende</span></td></tr>
+            <tr><td class="num">17:39:20</td><td class="mono">claude-code</td><td class="r num">16.822</td><td class="r num">—</td><td class="r num">16.822</td><td><div class="bar err"><span style="width:1%"></span></div></td><td class="r num">48,0 s</td><td class="r num">9,2 s</td><td><span class="tag cold">a freddo</span></td></tr>
+            <tr><td class="num">17:36:05</td><td class="unk">—</td><td class="r num">3.446</td><td class="r"><span class="unk">—</span></td><td class="r num">3.446</td><td><div class="bar"><span class="nil" style="width:100%;background:transparent;border:1px dashed var(--line)"></span></div></td><td class="r num">9,8 s</td><td class="r num">3,1 s</td><td><span class="tag cold">non attribuibile</span></td></tr>
+          </tbody>
+        </table>
+        <div class="row" style="margin-top:8px">
+          <span class="cond">Mostrate 11 di 18 · <a href="#">tutte</a></span>
+          <details class="help right new" data-t="il testo di aiuto a scomparsa" style="min-width:320px"><summary>come si legge</summary><div class="body">I <b>token riusati</b> vengono dal log del motore (contesto a fine richiesta meno generati e rielaborati, a meno di 2 token). Il <b>client</b> si conosce solo se ha preso il lock sull'endpoint di Aethera. <b>Estende</b>: tiene almeno il 90 % della conversazione di prima, o tutto tranne l'ultimo ubatch. <b>Contesto ricostruito</b>: prompt più corto del 70 % della conversazione di prima; la richiesta che riscriveva subito prima è il <b>riassunto</b>. Le righe ambra sono la coppia di una compattazione.</div></details>
+        </div>
+      </div>
+
+      <div class="grid" style="align-items:start">
+        <div class="card new" data-t="memoria come barra">
+          <h2>Memoria <span class="r">misurata 6,3 s dopo l'avvio</span></h2>
+          <div class="stack" title="dedicata 23,13 · condivisa 0,08 · Windows 24,5 · libera 47,9 GiB"><span class="ded" style="width:24%"></span><span class="sha" style="width:1%"></span><span class="win" style="width:25%"></span><span class="fre" style="width:50%"></span></div>
+          <div class="legend" style="margin-top:6px"><span><i style="background:var(--acc)"></i>dedicata 23,13 GiB</span><span><i style="background:var(--busy)"></i>condivisa 0,08</span><span><i style="background:var(--fg3)"></i>Windows 24,5</span><span><i style="border:1px dashed var(--line)"></i>libera 47,9</span></div>
+          <dl class="kv" style="margin-top:10px">
+            <dt>Prima dell'avvio</dt><dd><span class="num">47,6</span> GiB di VRAM liberi · <span class="num">71,8</span> GiB di RAM a Windows</dd>
+            <dt>Working set</dt><dd><span class="num">0,71</span> GiB <span class="badge ok tight"><i></i>nessuna doppia copia</span></dd>
+            <dt>Margine RAM</dt><dd><span class="num" style="color:var(--ok)">47,9 ✓</span> <span class="cond">soglia ≥ 8 GiB da machine.toml</span></dd>
+          </dl>
+        </div>
+        <div class="card">
+          <h2>Condizioni dell'avvio <span class="r">nel manifest</span> <span class="q" title="Lette all'avvio e registrate nel manifest. Cambiano i numeri: Benchmark non confronta due avvii con condizioni diverse senza dirlo">?</span></h2>
+          <dl class="kv">
+            <dt>Driver GPU</dt><dd><span class="mono">32.0.31041.1004</span> <span class="pill mod">cambiato</span> <span class="cond">Radeon 890M · Adrenalin 26.8.1</span></dd>
+            <dt>Driver NPU</dt><dd class="mono">32.0.20102.3930</dd>
+            <dt>Alimentazione</dt><dd>Massime prestazioni <span class="cond">overlay dal registro</span></dd>
+            <dt>VGM</dt><dd><span class="num">48</span> GiB dedicati</dd>
+            <dt>Pesi su</dt><dd><span class="mono">C:</span> · Kingston OM8TAP42048K1 <span class="cond">NVMe · 1.769 GB liberi</span></dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid mb new" data-t="i pezzi tecnici a scomparsa" style="gap:6px">
+      <details><summary>Riga di comando <span class="mono cond">llama-server.exe … 14 argomenti</span><span class="r">1 differenza dal profilo · <span class="pill mod">ubatch 512 → 2048</span></span></summary><div class="body">
+<pre class="cmd" style="margin-top:8px">C:\AetheraData\builds\llama-b10991-win-vulkan-x64\llama-server.exe
+  --model C:\AetheraData\models\Qwen3.6-35B-A3B-Q4_K_M.gguf
+  --host 127.0.0.1 --port 8080 --alias G1
+  --ctx-size 65536 --parallel 1 --n-gpu-layers 999
+  --flash-attn on --cache-type-k f16 --cache-type-v f16
+  --ubatch-size <s>512</s> <b>2048</b> --batch-size 2048
+  --spec-type draft-mtp --spec-draft-adaptive --draft-n-min 2 --draft-n-max 4 --draft-p-min 0.75
+  --jinja --chat-template-file C:\AetheraData\templates\qwen3.6-tollerante.jinja
+  --metrics --slot-save-path C:\AetheraData\runs\r-20260916-173342\slots</pre>
+        <div class="row" style="margin-top:8px"><button class="btn sm">Copia riga</button><button class="btn sm">Copia percorso manifest</button><span class="cond right">runs\r-20260916-173342\manifest.toml</span></div>
+      </div></details>
+      <details><summary>Log del motore <span class="mono cond">runs\r-20260916-173342\llama-server.log</span><span class="r">ultima riga 18:14:08 · si apre da solo dopo un'uscita con errore</span></summary><div class="body">
+<pre class="log" style="margin-top:8px">srv  update_slots: slot 0 | task 3479 | prompt done, n_past = 9412, n_tokens = 308
+srv  update_slots: slot 0 | task 3479 | decoded 74 tokens in 6.08 s (12.2 t/s) — draft acc 0.71
+srv  release: slot 0 | task 3479 | stop processing: n_past = 9486, truncated = 0
+srv  log_server_r: request: POST /v1/chat/completions 127.0.0.1 200</pre>
+      </div></details>
+    </div>
+
+    <details class="help new" data-t="stato «orfano» e primo avvio: come si presentano"><summary>Gli altri stati della pagina (orfano, uscito con errore, primo avvio)</summary><div class="body">
+      <p style="margin:6px 0">Lo stesso riquadro di stato cambia colore e contenuto; le azioni nella testa cambiano di conseguenza. Niente riquadri nuovi: chi conosce la pagina la riconosce anche quando qualcosa è andato storto.</p>
+      <div class="grid g3">
+        <div class="card"><div class="row"><span class="badge err big"><i></i>ORFANO</span><span class="cond">sola lettura</span></div><dl class="kv" style="margin-top:8px"><dt>Indirizzo</dt><dd class="mono">127.0.0.1:8080</dd><dt>Processo</dt><dd class="mono">llama-server.exe · PID 9120</dd><dt>Alias servito</dt><dd class="mono">G1</dd><dt>Slot</dt><dd>libero</dd><dt>Origine</dt><dd class="cond">lasciato acceso all'uscita dall'avvio r-20260916-091204</dd></dl><div class="row" style="margin-top:8px"><span class="cond">Aethera non ha il suo log né la sua telemetria.</span><button class="btn sm danger right">Termina…</button></div></div>
+        <div class="card"><div class="row"><span class="badge err big"><i></i>USCITO CON ERRORE</span><span class="cond">codice 1 · 16-09 18:41:10</span></div><h3 style="margin-top:8px">Perché è uscito <span class="cond">dalle righe del log, non dal codice</span></h3><pre class="cmd" style="margin:0 0 6px">error: unknown argument: --ctx-checkpoint</pre><div class="note warn">La leva non esiste in questa build: è arrivata con b10982. Cambia build nel profilo, oppure togli la leva.</div><div class="row" style="margin-top:8px"><button class="btn sm primary">Riavvia con la stessa riga</button><button class="btn sm">Apri il profilo</button></div></div>
+        <div class="card"><h3>Primo avvio <span class="cond">dalla cartella dei dati al motore acceso</span></h3><div class="steps"><div class="step done"><span class="n">✓</span><span>Radice dati <span class="cond">— C:\AetheraData</span></span><span></span></div><div class="step done"><span class="n">✓</span><span>Una build di llama.cpp <span class="cond">— b10991-vulkan</span></span><span></span></div><div class="step now"><span class="n">3</span><span>Dei pesi verificati <span class="cond">— nessun modello verificato nel catalogo</span></span><button class="btn sm primary">Vai</button></div><div class="step"><span class="n">4</span><span>Un profilo <span class="cond">— che cita pesi e build</span></span><span></span></div><div class="step"><span class="n">5</span><span>Avvia <span class="cond">— e questa pagina si riempie</span></span><span></span></div></div></div>
+      </div>
+    </div></details>
+  </section>
+  <!-- ═════════════════════════════ AVVIO ═════════════════════════════ -->
+  <section class="page" id="p-avvio">
+    <div class="head">
+      <div>
+        <h1>Avvio</h1>
+        <p class="sub">Un profilo dice come si accende il motore. Ogni leva che cambi resta in sovrapposizione (●) e aggiorna la riga di comando: puoi avviare così, o salvare come profilo nuovo.</p>
+      </div>
+      <div class="acts">
+        <button class="btn sm primary">Nuovo profilo…</button>
+        <button class="btn sm">Importa JSON da minis-config…</button>
+      </div>
+    </div>
+
+    <div class="split">
+      <div>
+        <div class="row mb"><input class="txt mono" placeholder="cerca fra i profili" style="width:100%"></div>
+        <div class="list">
+          <div class="it on"><div class="n">G1</div><div class="m"><span class="pill g">G1</span><span>22,3 GB</span><span>draft-mtp</span><span class="pill mod">1 modifica</span><span class="badge ok tight"><i></i>acceso</span></div></div>
+          <div class="it"><div class="n">G1-64k-claude</div><div class="m"><span class="pill g">G1</span><span>22,3 GB</span><span>draft-mtp · 65.536</span></div></div>
+          <div class="it"><div class="n">G3</div><div class="m"><span class="pill g">G3</span><span>48,53 GB</span><span>none</span><span class="pill acc" style="color:var(--acc);border-color:var(--acc)">1 proposta</span></div></div>
+          <div class="it"><div class="n">flash-next-iq3</div><div class="m"><span>82,0 GB</span><span>lazy auto · -ot</span><span class="badge err tight"><i></i>1 errore</span></div></div>
+          <div class="it"><div class="n">qwen3-8b-banco</div><div class="m"><span>4,9 GB</span><span>none</span></div></div>
+        </div>
+        <div class="row" style="margin-top:8px"><button class="btn sm">Duplica…</button><button class="btn sm">Rinomina…</button><button class="btn sm danger">Elimina…</button></div>
+        <div class="cond mono" style="margin-top:8px;word-break:break-all">C:\AetheraData\profiles</div>
+      </div>
+
+      <div>
+        <div class="actbar new" data-t="fascia fissa: l'azione principale non si cerca">
+          <span class="name">G1 <small>alias servito · profiles\G1.toml</small></span>
+          <span class="pill mod">1 modifica</span>
+          <span class="pill cache" title="Hai cambiato una leva marcata cache: il manifest dichiarerà l'avvio come «invalida la cache»">invalida la cache</span>
+          <span class="right"></span>
+          <button class="btn primary" disabled title="Un motore è già acceso ed è in uso: l'avvio parte solo quando torna libero e viene fermato">Avvia con le modifiche</button>
+          <button class="btn">Scarta</button>
+          <button class="btn">Aggiorna il profilo</button>
+          <button class="btn">Salva come…</button>
+          <div class="cond" style="width:100%">Il motore acceso è <b>IN USO</b> (lock di nonio): l'avvio parte solo quando torna libero e viene fermato. Nella v1 se ne avvia uno alla volta.</div>
+        </div>
+
+        <div class="alert acc mb new" data-t="le proposte di M-08 come avviso"><span class="t">Le misure di M-08 suggeriscono una modifica</span><span class="d"><span class="mono">runtime.build</span> <s>b10809</s> → <b>b10991</b> · prefill +6 % sul 35B (T-07). Si applica sopra il profilo, il file non si tocca.</span><button class="btn sm">Applica</button></div>
+
+        <div class="grid g2 mb" style="align-items:start">
+          <div>
+            <div class="card new" data-t="dodici leve essenziali, etichette in italiano">
+              <h2>Essenziali</h2>
+              <div class="f"><label>Modello<small>model.file</small></label><input value="Qwen3.6-35B-A3B-Q4_K_M.gguf"><span class="h">Q4_K_M · 22,3 GB · verificato</span></div>
+              <div class="f"><label>Build del motore<small>runtime.build · backend</small></label><select><option>b10809 · vulkan</option><option>b10991 · vulkan</option></select><span class="h">fissata nel profilo</span></div>
+              <div class="f"><label>Contesto<small>server.ctx</small></label><input value="65536"><span class="h"><span class="pill cache">cache</span> verificato su /props</span></div>
+              <div class="f"><label>Slot in parallelo<small>server.n_parallel</small></label><input value="1"><span class="h">MTP richiede 1</span></div>
+              <div class="f"><label>Layer sulla GPU<small>n_gpu_layers · fit</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><span class="seg"><span class="on">tutti (999)</span><span>numero</span><span>decide fit</span></span></div><span class="h">M-08: tutti, fino a 70 GB</span></div>
+              <div class="f"><label>Attenzione flash<small>server.flash_attn</small></label><select><option>on</option><option>off</option><option>auto</option></select><span class="h"></span></div>
+              <div class="f"><label>Tipo della cache K / V<small>cache_type_k · cache_type_v</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><select><option>f16</option><option>q8_0</option></select><select><option>f16</option><option>q8_0</option></select></div><span class="h"><span class="pill x" title="M-08 T-06: decode sempre peggiore a 64k e 128k">q8_0: scartata</span></span></div>
+              <div class="f mod"><label>Micro-batch / batch<small>ubatch · batch</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><input value="2048"><input value="2048"></div><span class="h"><span class="base">512</span> · +21 % di prefill sul Coder-Next</span></div>
+              <div class="f"><label>Caricamento dei pesi<small>server.load_mode</small></label><select><option>auto</option><option>none</option><option>mmap</option></select><span class="h"><span class="pill x" title="M-08 T-09: mmap fa la doppia copia su un modello che riempie la VGM">mmap: doppia copia</span></span></div>
+              <div class="f"><label>Speculazione<small>speculative.type · n-min · n-max · p-min</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><select><option>draft-mtp</option><option>none</option><option>ngram-mod</option></select><input value="2" style="width:48px"><input value="4" style="width:48px"><input value="0.75" style="width:56px"></div><span class="h">adattivo (M-08 T-05)</span></div>
+              <div class="f"><label>Template di chat<small>server.chat_template_file</small></label><select><option>qwen3.6-tollerante.jinja</option><option>del modello</option></select><span class="h">tollerante: serve a Claude Code</span></div>
+              <div class="f"><label>Porta<small>server.host · port</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><input value="127.0.0.1"><input value="8080" style="width:70px"></div><span class="h">sempre esplicita</span></div>
+            </div>
+
+            <details class="new" data-t="il resto dietro un clic, con i verdetti" style="margin-top:12px"><summary>Avanzate <span class="r">17 leve · 0 modificate · 6 con un verdetto di M-08</span></summary><div class="body">
+              <div class="f"><label>Thread<small>threads · threads_batch</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><input placeholder="default motore"><input placeholder="default motore"></div><span class="h"></span></div>
+              <div class="f"><label>Esperti sulla CPU<small>server.n_cpu_moe</small></label><input placeholder="non impostato"><span class="h"><span class="pill x" title="M-08 T-08: ogni layer di esperti sulla CPU toglie velocità, in modo monotono">M-08: peggiora</span></span></div>
+              <div class="f"><label>Tensori su buffer<small>server.tensor_overrides · -ot</small></label><input placeholder="regex=buffer, separati da spazi"><span class="h">per_layer_token_embd=CPU su Flash-Next</span></div>
+              <div class="f"><label>Lettura pigra<small>server.lazy_mode</small></label><select><option>non impostato</option><option>auto</option><option>on</option><option>off</option></select><span class="h">richiede load_mode mmap (b10991)</span></div>
+              <div class="f"><label>Metriche · jinja · slot su disco<small>metrics · jinja · slot_save</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><select><option>on</option></select><select><option>on</option></select><select><option>on</option></select></div><span class="h">runs\&lt;id&gt;\slots</span></div>
+              <div class="f"><label>Argomenti extra<small>server.extra_args</small></label><input placeholder="via di fuga"><span class="h"></span></div>
+              <div class="f"><label>Modello draft esterno<small>speculative.draft_model</small></label><input placeholder="non impostato"><span class="h"><span class="pill x" title="Studio: su MoE A3B il draft esterno è negativo (−3/−12 %)">negativo su A3B</span></span></div>
+              <div class="f"><label>Riuso della cache<small>cache.cache_reuse</small></label><input placeholder="non impostato"><span class="h"><span class="pill cache">cache</span> <span class="pill x" title="M-08 T-13: con --cache-reuse 256 i turni costano come senza">M-08: scartata</span></span></div>
+              <div class="f"><label>Checkpoint dello stato<small>ctx_checkpoints · checkpoint_min_step · cache_ram · kv_unified</small></label><div class="row" style="gap:6px;flex-wrap:nowrap"><input placeholder="—" style="width:56px"><input placeholder="—" style="width:56px"><input placeholder="—" style="width:64px"><select><option>—</option></select></div><span class="h"><span class="pill x" title="M-08 T-04: stessi token riusati, turno per turno">M-08: scartata</span></span></div>
+              <div class="f"><label>Metadati del modello<small>model.repo · quant · size_gb · sha256</small></label><input value="Qwen/Qwen3.6-35B-A3B-GGUF · Q4_K_M · 22,3 · b46fedd3…9064772" readonly><span class="h">dal catalogo</span></div>
+              <div class="f"><label>Note del profilo<small>notes</small></label><input value="Profilo standard G1 importato da minis-config il 15-09"><span class="h"></span></div>
+            </div></details>
+          </div>
+
+          <div class="grid" style="align-items:start">
+            <div class="card new" data-t="la riga si vede mentre si modifica">
+              <h2>Riga di comando <span class="r">in tempo reale · 1 differenza dal profilo</span></h2>
+<pre class="cmd">llama-server.exe
+  --model Qwen3.6-35B-A3B-Q4_K_M.gguf
+  --host 127.0.0.1 --port 8080 --alias G1
+  --ctx-size 65536 --parallel 1 --n-gpu-layers 999
+  --flash-attn on --cache-type-k f16 --cache-type-v f16
+  --ubatch-size <s>512</s> <b>2048</b> --batch-size 2048
+  --spec-type draft-mtp --spec-draft-adaptive
+  --draft-n-min 2 --draft-n-max 4 --draft-p-min 0.75
+  --jinja --chat-template-file qwen3.6-tollerante.jinja
+  --metrics --slot-save-path runs\&lt;id&gt;\slots</pre>
+              <div class="row" style="margin-top:8px"><button class="btn sm">Copia riga</button><span class="cond">percorsi abbreviati qui; completi nella copia</span></div>
+            </div>
+            <div class="card">
+              <h2>Stima di memoria <span class="r">prima dell'avvio · sostituita dalla misura</span></h2>
+              <div class="stack" title="pesi 22,3 · KV 4,1 · stato 0,6 · buffer 1,2 su 48 GiB"><span class="ded" style="width:44%"></span><span class="sha" style="width:8%"></span><span class="win" style="width:4%"></span></div>
+              <div class="legend" style="margin-top:6px"><span><i style="background:var(--acc)"></i>pesi 22,3 GB</span><span><i style="background:var(--busy)"></i>cache KV @65.536 4,1</span><span><i style="background:var(--fg3)"></i>stato + buffer 1,8</span><span>totale <b>~ 28,2 GB</b> su 48 GiB dedicati</span></div>
+              <div class="cond" style="margin-top:6px">Buffer di calcolo misurato su r-20260916-091204. Stato ricorrente: non cresce col contesto.</div>
+            </div>
+            <div class="card">
+              <h2>Campionamento consigliato <span class="r">dato del modello · lo manda il client</span><button class="btn sm right">Prendi dal catalogo</button></h2>
+              <table style="font-size:12px"><thead><tr><th>modalità</th><th class="r">temp</th><th class="r">top_p</th><th class="r">top_k</th><th class="r">min_p</th><th class="r">presence</th><th>fonte</th></tr></thead>
+              <tbody><tr><td>thinking</td><td class="r num">0,6</td><td class="r num">0,95</td><td class="r num">20</td><td class="r num">0</td><td class="r num">0</td><td class="mini">model card · 15-09</td></tr><tr><td>coding</td><td class="r num">0,7</td><td class="r num">0,8</td><td class="r num">20</td><td class="r num">0</td><td class="r num">1,5</td><td class="mini">model card · 15-09</td></tr></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- ═════════════════════════════ CATALOGO ═════════════════════════════ -->
+  <section class="page" id="p-catalogo">
+    <div class="head">
+      <div>
+        <h1>Catalogo</h1>
+        <p class="sub">Pesi e build su questa macchina, verificati per hash. Un file già presente viene riconosciuto per nome e hash, anche se è un hard link fatto da un altro strumento.</p>
+      </div>
+      <div class="acts new" data-t="il modulo si apre solo quando serve">
+        <button class="btn sm primary">Aggiungi da Hugging Face…</button>
+        <button class="btn sm">Importa da disco…</button>
+        <button class="btn sm">Riscansiona</button>
+      </div>
+    </div>
+
+    <div class="tabs"><button class="on">Modelli <span class="n">8</span></button><button>Build llama.cpp <span class="n">2</span></button></div>
+
+    <div class="alerts new" data-t="lavori in corso come fascia">
+      <div class="alert acc"><span class="t">Download</span><span class="d row" style="gap:10px"><span class="mono">Qwen3.8-Flash-Next-UD-Q3_K_XL.gguf</span><span class="bar" style="flex:1;max-width:260px"><span style="width:41%"></span></span><span class="num cond">36,9 / 90,0 GB · 41 % · 118 MB/s · ~7 min</span></span><button class="btn sm">Ferma</button></div>
+      <div class="alert ok"><span class="t">Verifica SHA-256</span><span class="d"><span class="mono">Qwen3.8-Flash-Next-UD-IQ3_XXS.gguf</span> · fatto alle 18:02 · coincide con l'oid LFS</span><button class="btn sm ghost">Togli</button></div>
+    </div>
+
+    <div class="row mb new" data-t="filtri con il conteggio">
+      <div class="chips"><span class="chip on">tutti <span class="n">8</span></span><span class="chip">verificati <span class="n">4</span></span><span class="chip">presenti, da verificare <span class="n">1</span></span><span class="chip">in download <span class="n">1</span></span><span class="chip">scaricabili <span class="n">2</span></span></div>
+      <input class="txt mono right" placeholder="cerca per nome, quant o publisher" style="width:260px">
+    </div>
+
+    <div class="md">
+      <div class="card new" data-t="sei colonne, dettaglio a destra" style="padding:0">
+        <table>
+          <thead><tr><th>Modello</th><th>Quant</th><th class="r">GB</th><th>Stato</th><th class="r">Stima <span class="q" title="Pesi + cache KV + stato ricorrente + buffer di calcolo, al contesto del profilo che usa questi pesi. «≥» quando manca un pezzo">?</span></th><th>MTP</th></tr></thead>
+          <tbody>
+            <tr class="click sel"><td><div class="mono">qwen3.6-35b-a3b-q4_k_m</div><div class="mini">Qwen/Qwen3.6-35B-A3B-GGUF</div></td><td>Q4_K_M</td><td class="r num">22,28</td><td><span class="badge ok tight"><i></i>verificato</span></td><td class="r num">~ 28,2 <span class="cond">@65k</span></td><td class="mono mini">1 layer</td></tr>
+            <tr class="click"><td><div class="mono">qwen3-coder-next-q4_k_m</div><div class="mini">unsloth/Qwen3-Coder-Next-GGUF</div></td><td>Q4_K_M</td><td class="r num">48,53</td><td><span class="badge ok tight"><i></i>verificato</span></td><td class="r num">~ 52,9 <span class="cond">@32k</span></td><td class="mono mini">—</td></tr>
+            <tr class="click"><td><div class="mono">qwen3.8-flash-next-iq3_xxs</div><div class="mini">unsloth/Qwen3.8-Flash-Next-GGUF</div></td><td>UD-IQ3_XXS</td><td class="r num">82,0</td><td><span class="badge ok tight"><i></i>verificato</span> <span class="pill" title="Lo stesso file è collegato da un altro strumento">hard link ×2</span></td><td class="r num">≥ 86,1 <span class="cond">@32k</span></td><td class="mono mini">1 layer</td></tr>
+            <tr class="click"><td><div class="mono">qwen3.8-flash-next-q3_k_xl</div><div class="mini">unsloth/Qwen3.8-Flash-Next-GGUF</div></td><td>UD-Q3_K_XL</td><td class="r num">90,0</td><td><span class="badge acc tight"><i></i>in download</span><div class="cond">36,9 GB già scaricati</div></td><td class="r"><span class="cond">—</span></td><td class="mono mini">1 layer</td></tr>
+            <tr class="click"><td><div class="mono">qwen3-8b-q4_k_m</div><div class="mini">Qwen/Qwen3-8B-GGUF</div></td><td>Q4_K_M</td><td class="r num">4,92</td><td><span class="badge ok tight"><i></i>verificato</span></td><td class="r num">~ 7,1 <span class="cond">@32k</span></td><td class="mono mini">—</td></tr>
+            <tr class="click"><td><div class="mono">kat-coder-v2.5-dev-q4_k_m</div><div class="mini">Kwaipilot/KAT-Coder-V2.5-Dev-GGUF</div></td><td>Q4_K_M</td><td class="r num">22,3</td><td><span class="badge tight"><i></i>scaricabile</span></td><td class="r"><span class="cond">—</span></td><td class="mono mini">—</td></tr>
+            <tr class="click"><td><div class="mono">gpt-oss-120b-mxfp4</div><div class="mini">ggml-org/gpt-oss-120b-GGUF</div></td><td>MXFP4</td><td class="r num">61,0</td><td><span class="badge tight"><i></i>scaricabile</span></td><td class="r"><span class="cond">—</span></td><td class="mono mini">—</td></tr>
+            <tr class="click"><td><div class="mono">qwen3.5-4b-q8_0</div><div class="mini">file nella cartella pesi, senza repository</div></td><td>Q8_0</td><td class="r num">4,3</td><td><span class="badge warn tight"><i></i>presente</span><div class="cond">forse rinominato da Qwen3.5-4B-Q8_0.gguf</div></td><td class="r"><span class="cond">—</span></td><td class="mono mini">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid" style="align-items:start">
+        <div class="card">
+          <h2>qwen3.6-35b-a3b-q4_k_m <span class="r">dettaglio</span></h2>
+          <div class="row mb"><button class="btn sm primary" title="Apre la pagina Avvio con questi pesi: il profilo che li usa, o uno nuovo">Avvia…</button><button class="btn sm">Ricalcola SHA-256</button><button class="btn sm">Rileggi metadati GGUF</button><button class="btn sm">Leggi la model card</button><button class="btn sm danger right">Rimuovi…</button></div>
+          <dl class="kv">
+            <dt>File</dt><dd class="mono">Qwen3.6-35B-A3B-Q4_K_M.gguf <span class="cond">C:\AetheraData\models</span></dd>
+            <dt>Sorgente</dt><dd class="mono">huggingface.co/Qwen/Qwen3.6-35B-A3B-GGUF · resolve/main</dd>
+            <dt>SHA-256</dt><dd><span class="mono">b46fedd3…9064772</span> <span class="badge ok tight"><i></i>verificato 15-09 22:41</span></dd>
+            <dt>Dimensione</dt><dd><span class="num">22,28</span> GB <span class="cond">decimali, come il publisher</span></dd>
+            <dt>Architettura</dt><dd class="mono">qwen3moe · 48 blocchi · 128 esperti / 8 attivi <span class="cond">attenzione piena ogni 4</span></dd>
+            <dt>Tensori MTP</dt><dd class="mono">nextn.embed · nextn.eh_proj · nextn.shared_head <span class="cond">in 1 layer</span></dd>
+            <dt>Contesto di training</dt><dd class="num">262.144</dd>
+            <dt>Collegamenti</dt><dd>1 <span class="cond">nessun altro hard link</span></dd>
+            <dt>Profili che lo usano</dt><dd class="mono">G1 · G1-64k-claude</dd>
+          </dl>
+        </div>
+        <div class="card">
+          <h2>Stima di memoria <span class="r">profilo G1 · 65.536 token</span></h2>
+          <div class="stack" title="pesi 22,3 · KV 4,1 · stato 0,6 · buffer 1,2 su 48 GiB"><span class="ded" style="width:44%"></span><span class="sha" style="width:8%"></span><span class="win" style="width:4%"></span></div>
+          <div class="legend" style="margin-top:6px"><span><i style="background:var(--acc)"></i>pesi 22,28</span><span><i style="background:var(--busy)"></i>KV 4,1 · 12 blocchi ad attenzione piena</span><span><i style="background:var(--fg3)"></i>stato 0,6 + buffer 1,2</span><span>totale <b>~ 28,2 GB</b></span></div>
+          <hr>
+          <h2>Campionamento consigliato <span class="r">dalla model card · 15-09</span></h2>
+          <table style="font-size:12px"><thead><tr><th>modalità</th><th class="r">temp</th><th class="r">top_p</th><th class="r">top_k</th><th class="r">min_p</th><th class="r">presence</th></tr></thead>
+          <tbody><tr><td>thinking</td><td class="r num">0,6</td><td class="r num">0,95</td><td class="r num">20</td><td class="r num">0</td><td class="r num">0</td></tr><tr><td>coding</td><td class="r num">0,7</td><td class="r num">0,8</td><td class="r num">20</td><td class="r num">0</td><td class="r num">1,5</td></tr></tbody></table>
+          <div class="cond" style="margin-top:6px">Dato del modello, non un default del server: lo manda il client a ogni richiesta.</div>
+        </div>
+      </div>
+    </div>
+
+    <details class="help new" data-t="scheda Build con lo stesso schema" style="margin-top:12px"><summary>Scheda «Build llama.cpp» (stessa disposizione: elenco a sinistra, dettaglio a destra)</summary><div class="body">
+      <div class="md" style="margin-top:8px">
+        <div class="card" style="padding:0"><table><thead><tr><th>Id</th><th>Origine</th><th>Cartella</th><th></th></tr></thead><tbody>
+          <tr class="click sel"><td class="mono">b10991-vulkan</td><td class="cond">machine.toml</td><td class="mono mini">C:\AetheraData\builds\llama-b10991-win-vulkan-x64</td><td class="r"><span class="badge ok tight"><i></i>in uso ora</span></td></tr>
+          <tr class="click"><td class="mono">b10809-vulkan</td><td class="cond">builds/</td><td class="mono mini">C:\AetheraData\builds\llama-b10809-win-vulkan-x64</td><td></td></tr>
+        </table></div>
+        <div class="card"><h2>b10991-vulkan <span class="r">commit 930e2fa59 · pubblicata 15-09</span></h2>
+          <div class="row mb"><button class="btn sm">--list-devices</button><button class="btn sm">Cerca le release di ggml-org</button><button class="btn sm">Importa cartella…</button></div>
+          <pre class="log" style="max-height:80px">Vulkan0: AMD Radeon 890M Graphics (RADV GFX1150) (73548 MiB, 47615 MiB free)</pre>
+          <div class="cond" style="margin-top:8px">Cambiare build è una variabile di prova, non un aggiornamento automatico: resta fissata nel profilo. Le release escono come prerelease con tag <span class="mono">b&lt;numero&gt;</span>; ogni pacchetto porta il proprio digest, verificato prima di estrarlo.</div>
+        </div>
+      </div>
+    </div></details>
+  </section>
+
+  <!-- ═════════════════════════════ BENCHMARK ═════════════════════════════ -->
+  <section class="page" id="p-benchmark">
+    <div class="head">
+      <div>
+        <h1>Benchmark</h1>
+        <p class="sub">Storico degli avvii e delle loro prestazioni, misurate mentre il motore serviva. Aethera non lancia banchi: ogni riga è un avvio, con le sue condizioni accanto.</p>
+      </div>
+      <div class="acts"><button class="btn sm">Rileggi runs/</button></div>
+    </div>
+
+    <div class="row mb new" data-t="filtri come bottoni, non tendine">
+      <span class="mini">Profilo</span><div class="chips"><span class="chip on">tutti</span><span class="chip">G1 <span class="n">9</span></span><span class="chip">G3 <span class="n">5</span></span><span class="chip">flash-next-iq3 <span class="n">2</span></span><span class="chip">qwen3-8b-banco <span class="n">3</span></span></div>
+      <span class="mini" style="margin-left:10px">Macchina</span><div class="chips"><span class="chip on">MORO-AI</span></div>
+      <span class="cond right">spunta due avvii per confrontarli · clic su una riga per il dettaglio</span>
+    </div>
+
+    <div class="md">
+      <div class="card new" data-t="dieci colonne, scintille in riga" style="padding:0">
+        <table>
+          <thead><tr><th></th><th>Avvio</th><th>Profilo · differenze</th><th>Build</th><th class="r">Acceso</th><th class="r">Rich.</th><th class="r">Prefill</th><th class="r">Decode</th><th class="r">Riuso</th><th class="r">VRAM</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr class="click sel"><td><input type="checkbox" checked></td><td><div class="mono">r-20260916-173342</div><div class="mini num">16-09 17:33</div></td><td class="mono mini">G1 <span class="pill mod">ubatch 2048</span> <span class="pill mod">ctx 65536</span></td><td class="mono">b10991</td><td class="r num">42 m</td><td class="r num">18</td><td class="r num">418</td><td class="r"><span class="num">33,1</span><div class="spark" style="height:12px;margin-top:2px;width:60px;margin-left:auto"><b style="height:90%"></b><b style="height:95%"></b><b style="height:60%" class="lo"></b><b style="height:93%"></b><b style="height:96%"></b><b style="height:91%"></b><b style="height:94%"></b><b style="height:98%"></b></div></td><td class="r num">93 %</td><td class="r num">23,13</td><td><span class="badge ok tight"><i></i>acceso</span></td></tr>
+            <tr class="sep"><td colspan="11">▲ da qui in su: driver GPU 32.0.22042.1 → 32.0.31041.1004 (Adrenalin 26.8.1). La mediana di riferimento per «degradato» riparte, e le righe sotto non si confrontano con quelle sopra senza dirlo.</td></tr>
+            <tr class="click"><td><input type="checkbox" checked></td><td><div class="mono">r-20260916-091204</div><div class="mini num">16-09 09:12</div></td><td class="mono mini">G1</td><td class="mono">b10809</td><td class="r num">3 h 41 m</td><td class="r num">64</td><td class="r num">344</td><td class="r"><span class="num">26,4</span><div class="spark" style="height:12px;margin-top:2px;width:60px;margin-left:auto"><b style="height:88%"></b><b style="height:92%"></b><b style="height:90%"></b><b style="height:95%"></b><b style="height:85%"></b><b style="height:93%"></b><b style="height:91%"></b><b style="height:89%"></b></div></td><td class="r num">88 %</td><td class="r num">22,68</td><td></td></tr>
+            <tr class="click"><td><input type="checkbox"></td><td><div class="mono">r-20260916-034510</div><div class="mini num">16-09 03:45</div></td><td class="mono mini">G3 <span class="pill mod">ubatch 2048</span></td><td class="mono">b10809</td><td class="r num">28 m</td><td class="r num">20</td><td class="r num">170</td><td class="r num">17,8</td><td class="r num">100 %</td><td class="r num">46,55</td><td></td></tr>
+            <tr class="click"><td><input type="checkbox"></td><td><div class="mono">r-20260916-031102</div><div class="mini num">16-09 03:11</div></td><td class="mono mini">G3 <span class="pill mod">load_mode mmap</span></td><td class="mono">b10809</td><td class="r num">14 m</td><td class="r num">8</td><td class="r num">141</td><td class="r num">17,6</td><td class="r num">100 %</td><td class="r num">46,10</td><td><span class="badge err tight"><i></i>doppia copia</span> <span class="badge warn tight"><i></i>sotto il margine RAM</span></td></tr>
+            <tr class="click"><td><input type="checkbox"></td><td><div class="mono">r-20260916-024001</div><div class="mini num">16-09 02:40</div></td><td class="mono mini">G3 <span class="pill mod">n_cpu_moe 16</span></td><td class="mono">b10809</td><td class="r num">16 m</td><td class="r num">12</td><td class="r num">135</td><td class="r num">13,8</td><td class="r num">100 %</td><td class="r num">32,30</td><td></td></tr>
+            <tr class="click"><td><input type="checkbox"></td><td><div class="mono">r-20260916-001233</div><div class="mini num">16-09 00:12</div></td><td class="mono mini">G1 <span class="pill mod">cache_type q8_0</span> <span class="pill cache">invalida la cache</span></td><td class="mono">b10809</td><td class="r num">22 m</td><td class="r num">15</td><td class="r num">341</td><td class="r num">18,9</td><td class="r num">91 %</td><td class="r num">21,95</td><td><span class="badge warn tight"><i></i>degradato</span></td></tr>
+            <tr class="click"><td><input type="checkbox"></td><td><div class="mono">r-20260915-231940</div><div class="mini num">15-09 23:19</div></td><td class="mono mini">G1 <span class="pill mod">extra_args --ctx-checkpoint</span></td><td class="mono">b10809</td><td class="r num">0 s</td><td class="r num">0</td><td class="r"><span class="unk">—</span></td><td class="r"><span class="unk">—</span></td><td class="r"><span class="unk">—</span></td><td class="r"><span class="unk">—</span></td><td><span class="badge err tight"><i></i>uscito 1</span></td></tr>
+            <tr class="click"><td><input type="checkbox"></td><td><div class="mono">r-20260915-214402</div><div class="mini num">15-09 21:44</div></td><td class="mono mini">G1</td><td class="mono">b10809</td><td class="r num">1 h 05 m</td><td class="r num">31</td><td class="r num">339</td><td class="r num">24,1</td><td class="r num">85 %</td><td class="r num">22,68</td><td><span class="pill">lasciato acceso</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>r-20260916-173342 <span class="r">dettaglio · profilo G1 · b10991</span></h2>
+        <div class="spark" style="height:64px"><b style="height:90%"></b><b style="height:95%"></b><b style="height:92%"></b><b style="height:88%"></b><b style="height:97%"></b><b style="height:60%" class="lo"></b><b style="height:93%"></b><b style="height:96%"></b><b style="height:91%"></b><b style="height:94%"></b><b style="height:89%"></b><b style="height:98%"></b><b style="height:93%"></b><b style="height:90%"></b><b style="height:95%"></b><b style="height:92%"></b><b style="height:96%"></b><b style="height:94%"></b></div>
+        <div class="cond" style="margin:4px 0 8px">Decode per richiesta, ultime 18; rosso = sotto il 70 % della mediana di riferimento (33,0 tok/s su 3 avvii con queste condizioni).</div>
+        <dl class="kv">
+          <dt>Token proposti / accettati</dt><dd class="num">11.240 / 7.980 <span class="cond">71 %</span></dd>
+          <dt>Prompt elaborati / dalla cache</dt><dd class="num">61.420 / 153.168</dd>
+          <dt>Generati</dt><dd class="num">9.870</dd>
+          <dt>Pronto in</dt><dd class="num">12,4 s</dd>
+          <dt>Caricamento · speculazione</dt><dd class="mono">auto · draft-mtp</dd>
+          <dt>Condizioni</dt><dd class="mono mini">GPU 32.0.31041.1004 · NPU 32.0.20102.3930 · massime prestazioni · VGM 48 · C:</dd>
+        </dl>
+        <details style="margin-top:10px"><summary>Manifest <span class="mono cond">runs\r-20260916-173342\manifest.toml</span></summary><div class="body"><pre class="log" style="max-height:200px;margin-top:8px">[run]
+id = "r-20260916-173342"
+profile = "G1"
+build = "b10991-vulkan"
+commit = "930e2fa59"
+
+[conditions]
+gpu_driver = "32.0.31041.1004"
+adrenalin = "26.8.1"
+npu_driver = "32.0.20102.3930"
+power_overlay = "ded574b5-45a0-4f42-8737-46345c09c238"
+vgm_gib = 48
+weights_volume = "C:"</pre></div></details>
+      </div>
+    </div>
+
+    <div class="cmpbar new" data-t="la fascia del confronto compare con due spunte">
+      <span class="mono">r-20260916-173342</span><span class="cond">contro</span><span class="mono">r-20260916-091204</span>
+      <span class="sep" style="width:1px;height:20px;background:var(--line)"></span>
+      <span>prefill <span class="delta up">+21 %</span></span><span>decode <span class="delta up">+25 %</span></span><span>VRAM <span class="delta dn">+2,0 %</span></span>
+      <span class="badge warn tight" title="driver GPU diverso · build diversa · ctx diverso"><i></i>non differiscono solo per il profilo</span>
+      <button class="btn sm primary right">Apri il confronto</button><button class="btn sm">Togli le spunte</button>
+    </div>
+
+    <details class="help new" data-t="il confronto per intero" style="margin-top:12px"><summary>Il confronto aperto (come oggi, con l'avviso in cima)</summary><div class="body">
+      <div class="note warn" style="margin:8px 0"><b>A e B non differiscono solo per il profilo:</b> driver GPU · build · ctx. Su questa macchina il solo driver ha spostato il prefill del 17 % (M-08): il Δ non è attribuibile al profilo.</div>
+      <table style="font-size:12px"><thead><tr><th></th><th class="r mono">A · 173342</th><th class="r mono">B · 091204</th><th class="r">Δ A su B</th></tr></thead>
+      <tbody>
+        <tr><td>Prefill mediana (tok/s)</td><td class="r num">418</td><td class="r num">344</td><td class="r delta up">+21 %</td></tr>
+        <tr><td>Decode mediana (tok/s)</td><td class="r num">33,1</td><td class="r num">26,4</td><td class="r delta up">+25 %</td></tr>
+        <tr><td>Decode p10 / p90</td><td class="r num">29,4 / 34,0</td><td class="r num">22,8 / 27,9</td><td class="r"></td></tr>
+        <tr><td>Accettazione (%)</td><td class="r num">71</td><td class="r num">69</td><td class="r delta">+3 %</td></tr>
+        <tr><td>Quota cache (%)</td><td class="r num">93</td><td class="r num">88</td><td class="r delta up">+6 %</td></tr>
+        <tr><td>VRAM misurata (GiB)</td><td class="r num">23,13</td><td class="r num">22,68</td><td class="r delta dn">+2,0 %</td></tr>
+        <tr><td>Pronto in (s)</td><td class="r num">12,4</td><td class="r num">11,9</td><td class="r delta">+4 %</td></tr>
+      </tbody></table>
+      <div class="grid g2" style="margin-top:10px">
+        <div><h3>Differenze di profilo</h3><table style="font-size:12px"><tbody><tr><td class="mono">runtime.build</td><td class="mono r">b10809</td><td class="mono r">b10991</td></tr><tr><td class="mono">server.ctx</td><td class="mono r">32768</td><td class="mono r">65536</td></tr><tr><td class="mono">server.ubatch</td><td class="mono r">512</td><td class="mono r">2048</td></tr></tbody></table></div>
+        <div><h3>Condizioni</h3><table style="font-size:12px"><tbody><tr><td style="color:var(--warn)">driver GPU</td><td class="mono r">32.0.22042.1</td><td class="mono r">32.0.31041.1004</td></tr><tr><td>driver NPU</td><td class="mono r">32.0.20102.3930</td><td class="mono r">32.0.20102.3930</td></tr><tr><td>alimentazione</td><td class="mono r">massime prestazioni</td><td class="mono r">massime prestazioni</td></tr><tr><td>VGM</td><td class="mono r">48</td><td class="mono r">48</td></tr></tbody></table></div>
+      </div>
+      <div class="cond" style="margin-top:8px">Il confronto mostra, non giudica: carico, tempo di accensione e numero di richieste cambiano la misura quanto il profilo.</div>
+    </div></details>
+  </section>
+  <!-- ═════════════════════════════ IMPOSTAZIONI ═════════════════════════════ -->
+  <section class="page" id="p-impostazioni">
+    <div class="head">
+      <div>
+        <h1>Impostazioni</h1>
+        <p class="sub">Della macchina e dell'app. I profili non contengono niente di quello che vedi qui: percorsi e build sono della macchina.</p>
+      </div>
+      <div class="acts"><button class="btn sm primary">Salva machine.toml</button></div>
+    </div>
+
+    <div class="tabs new" data-t="tre schede per argomento"><button class="on" data-tab="macchina">Macchina</button><button data-tab="client">Client</button><button data-tab="app">App</button></div>
+
+    <!-- scheda Macchina -->
+    <div class="tabp on" id="tab-macchina">
+    <div class="grid g2" style="align-items:start">
+      <div class="grid" style="align-items:start">
+        <div class="card">
+          <h2>Radice dati <span class="r">machine.toml · profiles · builds · runs</span></h2>
+          <div class="f"><label>Radice</label><div class="mono">C:\AetheraData</div><button class="btn sm">Cambia…</button></div>
+          <div class="f"><label>Nome macchina</label><input value="MORO-AI"><span></span></div>
+          <div class="f"><label>Cartella pesi</label><input value="C:\AetheraData\models"><button class="btn sm">Cambia…</button></div>
+          <div class="f"><label>Margine RAM<small>ram_margin_gib</small></label><input value="8"><span class="h">GiB disponibili al picco</span></div>
+        </div>
+        <div class="card">
+          <h2>Build llama.cpp <span class="r">dichiarate in machine.toml o trovate in builds/</span></h2>
+          <table><thead><tr><th>id</th><th>cartella</th><th>origine</th><th></th></tr></thead><tbody>
+            <tr><td class="mono">b10991-vulkan</td><td class="mono mini">C:\AetheraData\builds\llama-b10991-win-vulkan-x64</td><td class="cond">machine.toml</td><td class="r"><button class="btn sm">Togli</button></td></tr>
+            <tr><td class="mono">b10809-vulkan</td><td class="mono mini">C:\AetheraData\builds\llama-b10809-win-vulkan-x64</td><td class="cond">builds/</td><td class="r"></td></tr>
+          </tbody></table>
+          <div class="row" style="margin-top:8px"><button class="btn sm">Aggiungi build…</button><span class="cond">L'id porta build e backend separati da trattini: un profilo con build <code>b10991</code> e backend <code>vulkan</code> la trova così.</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Cosa Aethera legge della macchina <span class="r">letto, non impostato</span> <span class="q" title="Driver, alimentazione e volume finiscono nel manifest di ogni avvio: Benchmark non confronta due avvii con condizioni diverse senza dirlo. Un valore che Windows non dà resta «sconosciuto»">?</span></h2>
+        <dl class="kv">
+          <dt>Host</dt><dd class="mono">MORO-AI</dd>
+          <dt>OS</dt><dd>Windows 11 Pro 26200 (25H2)</dd>
+          <dt>CPU</dt><dd>AMD Ryzen AI 9 HX 470 · 12 core / 24 thread</dd>
+          <dt>RAM vista</dt><dd><span class="num">47,65</span> GiB <span class="cond">96 fisici, 48 alla VGM</span> · disponibile ora <span class="num">24,1</span></dd>
+          <dt>GPU</dt><dd>AMD Radeon 890M · <span class="num">48</span> GiB dedicati <span class="cond">registro del driver: UMA + VGM</span></dd>
+          <dt>Driver GPU</dt><dd><span class="mono">32.0.31041.1004</span> <span class="cond">17-08-2026 · AMD Software 26.8.1</span></dd>
+          <dt>NPU</dt><dd>AMD NPU Compute Accelerator · <span class="mono">32.0.20102.3930</span></dd>
+          <dt>Alimentazione</dt><dd>Massime prestazioni <span class="cond">overlay dal registro · powercfg mostra solo lo schema sotto</span></dd>
+          <dt>Volume dei pesi</dt><dd><span class="mono">C:</span> · Kingston OM8TAP42048K1 <span class="cond">NVMe</span> · <span class="num">1.769</span> GB liberi</dd>
+        </dl>
+        <div class="note" style="margin-top:10px">Questi valori non si impostano da qui: la VGM si cambia da Adrenalin e chiede un riavvio; l'alimentazione da Windows. Aethera li legge a ogni avvio e li scrive nel manifest.</div>
+      </div>
+    </div>
+    </div>
+
+    <!-- scheda Client -->
+    <div class="tabp" id="tab-client">
+    <div class="grid g2" style="align-items:start">
+      <div class="card">
+        <h2>Riga per i client <span class="r">derivata dall'avvio acceso · G1 · :8080 · 65.536</span></h2>
+        <div class="tabs" style="margin-bottom:8px"><button>Nonio</button><button>OpenCode</button><button class="on">Claude Code</button><button>env per banchi</button></div>
+        <div class="row mb"><span class="badge ok"><i></i>template tollerante attivo</span><span class="cond">l'avvio passa <code>--chat-template-file qwen3.6-tollerante.jinja</code>: Claude Code punta dritto al motore</span></div>
+        <div class="mini" style="margin-bottom:4px">PowerShell · da incollare prima di <code>claude</code></div>
+<pre class="cmd">$env:ANTHROPIC_BASE_URL = "http://127.0.0.1:8080"
+$env:ANTHROPIC_AUTH_TOKEN = "aethera"
+$env:ANTHROPIC_MODEL = "G1"
+$env:CLAUDE_CODE_MAX_OUTPUT_TOKENS = "4096"
+$env:CLAUDE_CONFIG_DIR = "C:\AetheraData\claude"   # facoltativa
+claude</pre>
+        <div class="row" style="margin-top:8px"><button class="btn sm">Copia come PowerShell</button><button class="btn sm">Copia come bash</button><span class="cond right">alias, porta e output sono quelli dell'avvio acceso</span></div>
+      </div>
+      <div class="card">
+        <h2>Budget di contesto <span class="r">per client, sull'avvio acceso · 65.536 serviti</span> <span class="q" title="Prompt fisso (istruzioni e strumenti del client) misurato, mai stimato: passa il mouse sul numero per la fonte. Spazio di lavoro = contesto servito − prompt fisso − output riservato; rosso sotto il 30 % del contesto. Più spazio vuol dire compattazioni più rare, e ognuna costa decine di secondi">?</span></h2>
+        <table style="font-size:12px"><thead><tr><th>client</th><th class="r">prompt fisso</th><th class="r">output</th><th class="r">spazio di lavoro</th><th style="width:90px"></th><th>lettura</th></tr></thead>
+        <tbody>
+          <tr><td>Claude Code</td><td class="r num" title="M-08 T-10: prima richiesta a freddo, 16-09">16.822</td><td class="r num">4.096</td><td class="r num">44.618</td><td><div class="bar ok"><span style="width:68%"></span></div></td><td><span class="tag ext">largo</span> <span class="cond">68 %</span></td></tr>
+          <tr><td>OpenCode</td><td class="r num" title="richiesta a freddo più grande dell'avvio corrente">6.104</td><td class="r num">4.096</td><td class="r num">55.336</td><td><div class="bar ok"><span style="width:84%"></span></div></td><td><span class="tag ext">largo</span> <span class="cond">84 %</span></td></tr>
+          <tr><td>Nonio</td><td class="r num" title="prima richiesta a freddo con il lock, 18:08">7.948</td><td class="r num">4.096</td><td class="r num">53.492</td><td><div class="bar ok"><span style="width:82%"></span></div></td><td><span class="tag ext">largo</span> <span class="cond">82 %</span></td></tr>
+          <tr><td>Claude Code <span class="cond">se il contesto fosse 32k</span></td><td class="r num">16.822</td><td class="r num">4.096</td><td class="r num">11.850</td><td><div class="bar err"><span style="width:36%"></span></div></td><td><span class="tag reb">compatta presto</span> <div class="cond">con 69.727 serviti lo spazio arriva al 30 %</div></td></tr>
+        </tbody></table>
+        <div class="note warn" style="margin-top:8px">La compattazione delle 17:52 è costata 121 s. La soglia del 30 % dice se il client parte largo, non quante compattazioni farà un compito lungo.</div>
+      </div>
+    </div>
+    </div>
+
+    <!-- scheda App -->
+    <div class="tabp" id="tab-app">
+    <div class="grid g2" style="align-items:start">
+      <div class="card">
+        <h2>Comportamento</h2>
+        <div class="f"><label>Chiudere la finestra</label><div><span class="pill">con il motore acceso riduce nella tray</span></div><span></span></div>
+        <div class="f"><label>All'uscita</label><select><option>chiedi ogni volta</option><option>ferma il motore</option><option>lascia il motore acceso</option></select><span></span></div>
+        <div class="f"><label>Tema</label><span class="seg"><span class="on">scuro</span><span>chiaro</span></span><span></span></div>
+      </div>
+      <div class="card new" data-t="le soglie in un posto solo">
+        <h2>Soglie <span class="r">da confermare · approvate con M-09 dove indicato</span></h2>
+        <dl class="kv">
+          <dt>Stato «in uso»</dt><dd>slot attivo su <code>/slots</code>, richieste negli ultimi <span class="num">30</span> s, lock dichiarato o protezione manuale</dd>
+          <dt>Segnala degradato</dt><dd>acceso da più di <span class="num">24</span> h, o decode delle ultime 5 richieste sotto il <span class="num">70</span> % della mediana di riferimento (stesse condizioni), altrimenti dell'avvio</dd>
+          <dt>Richiesta «estende»</dt><dd>tiene almeno il <span class="num">90</span> % del contesto precedente dello slot, o tutto tranne l'ultimo ubatch <span class="cond">M-09</span></dd>
+          <dt>Contesto ricostruito</dt><dd>prompt più corto del <span class="num">70</span> % del contesto precedente <span class="cond">M-09</span></dd>
+          <dt>Budget rosso</dt><dd>spazio di lavoro sotto il <span class="num">30</span> % del contesto servito <span class="cond">M-09</span></dd>
+          <dt>Avviso mmap</dt><dd>load_mode con mmap e pesi oltre il <span class="num">90</span> % della memoria dedicata <span class="cond">M-09</span></dd>
+        </dl>
+      </div>
+    </div>
+    <details style="margin-top:12px" class="new" data-t="endpoint a scomparsa"><summary>Endpoint Aethera <span class="mono cond">http://127.0.0.1:8090</span><span class="r">per i client che vogliono dichiarare «sto lavorando»</span></summary><div class="body">
+      <table style="font-size:12px;margin-top:8px"><thead><tr><th>Metodo</th><th>Percorso</th><th>Cosa fa</th></tr></thead><tbody>
+        <tr><td class="mono">GET</td><td class="mono">/status</td><td>stato, alias, porta, id avvio, acceso da, in uso e perché</td></tr>
+        <tr><td class="mono">GET</td><td class="mono">/run</td><td>manifest dell'avvio corrente</td></tr>
+        <tr><td class="mono">POST</td><td class="mono">/lock</td><td>dichiara «sto lavorando»: <code>{"client", "label", "ttl_s"}</code>; stesso client ed etichetta rinnovano</td></tr>
+        <tr><td class="mono">DELETE</td><td class="mono">/lock</td><td>rilascia per <code>?id=</code> o <code>?client=</code></td></tr>
+        <tr><td class="mono">GET</td><td class="mono">/telemetry/recent</td><td>prefill, decode, accettazione, quota cache, richieste e compattazioni delle ultime <code>?n=</code></td></tr>
+      </tbody></table>
+      <div class="cond" style="margin-top:8px">Chi non lo usa è coperto dall'osservazione di <code>/slots</code> e dall'interruttore manuale. Il lock non cambia il motore: rende solo rifiutati arresto e riavvio. Le richieste da un browser (con <code>Origin</code>) sono rifiutate.</div>
+    </div></details>
+    </div>
+  </section>
+  </main>
+</div>
+<script>
+(function(){
+  var buttons=document.querySelectorAll('.nav button[data-p]');
+  var pages=document.querySelectorAll('.page');
+  var keys=['analisi','motore','avvio','catalogo','benchmark','impostazioni'];
+  function show(id){
+    pages.forEach(function(p){p.classList.toggle('on',p.id==='p-'+id)});
+    buttons.forEach(function(b){b.classList.toggle('on',b.dataset.p===id)});
+    document.querySelector('.main').scrollTop=0;
+    try{history.replaceState(null,'','#'+id)}catch(e){}
+  }
+  buttons.forEach(function(b){b.addEventListener('click',function(){show(b.dataset.p)})});
+  document.addEventListener('keydown',function(e){
+    if(e.target.closest('input, select, textarea'))return;
+    var n=parseInt(e.key,10);
+    if(n>=0&&n<keys.length)show(keys[n]);
+  });
+  var h=location.hash.replace('#','');
+  if(keys.indexOf(h)>=0)show(h);
+  // Schede delle Impostazioni.
+  document.querySelectorAll('.tabs button[data-tab]').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('.tabs button[data-tab]').forEach(function(x){x.classList.toggle('on',x===b)});
+      document.querySelectorAll('.tabp').forEach(function(p){p.classList.toggle('on',p.id==='tab-'+b.dataset.tab)});
+    });
+  });
+  var root=document.documentElement;
+  document.getElementById('btheme').addEventListener('click',function(){
+    root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';
+  });
+  var bnew=document.getElementById('bnew');
+  bnew.addEventListener('click',function(){
+    document.body.classList.toggle('clean');
+    bnew.textContent=document.body.classList.contains('clean')?'mostra «cosa cambia»':'nascondi «cosa cambia»';
+  });
+})();
+</script>
+<style>.tabp{display:none}.tabp.on{display:block}</style>
+</body>
+</html>
