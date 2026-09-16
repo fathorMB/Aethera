@@ -43,8 +43,19 @@ def prompt_text(body):
         for m in msgs:
             c = m.get("content")
             if isinstance(c, list):
-                c = "".join(p.get("text", "") for p in c if isinstance(p, dict))
+                # Le parti senza testo (tool_use, tool_result dell'API Anthropic) contano anche loro.
+                c = "".join(p["text"] if isinstance(p.get("text"), str) else json.dumps(p, sort_keys=True)
+                            for p in c if isinstance(p, dict))
+            if m.get("tool_calls"):
+                c = (c or "") + json.dumps(m["tool_calls"], sort_keys=True)
             out.append("%s\n%s" % (m.get("role", ""), c or ""))
+        # L'API Anthropic tiene il prompt di sistema fuori dai messaggi: è lì che Claude Code mette
+        # l'intestazione di attribuzione, quindi va in testa come la rende il template.
+        system = v.get("system")
+        if isinstance(system, list):
+            system = "".join(p.get("text", "") for p in system if isinstance(p, dict))
+        if isinstance(system, str) and system:
+            out.insert(0, "system\n" + system)
         # Gli strumenti dichiarati stanno in testa al prompt reso dal template: contano.
         if v.get("tools"):
             out.insert(0, json.dumps(v["tools"], sort_keys=True))
