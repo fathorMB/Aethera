@@ -191,7 +191,7 @@ function LeverRow(props: {
 type Ask =
   | { kind: "duplica"; name: string }
   | { kind: "rinomina"; name: string }
-  | { kind: "salva"; name: string; creating: boolean }
+  | { kind: "salva"; name: string }
   | { kind: "importa" }
   | { kind: "elimina"; name: string; lines: string[] };
 
@@ -690,7 +690,7 @@ export default function Avvio(props: {
                       class="btn"
                       disabled={busy() || !!preview()?.issues.filter((i) => i.field !== "name").length}
                       onClick={() =>
-                        setAsk({ kind: "salva", name: creating() ? p().name : `${p().name}.variante`, creating: creating() })
+                        setAsk({ kind: "salva", name: creating() ? p().name : `${p().name}.variante` })
                       }
                     >
                       Salva come…
@@ -755,7 +755,7 @@ export default function Avvio(props: {
                         <summary>
                           Avanzate
                           <span class="r">
-                            {adv().fields} leve · {adv().modified} {adv().modified === 1 ? "modificata" : "modificate"} ·{" "}
+                            {adv().levers} leve ({adv().fields} campi) · {adv().modified} {adv().modified === 1 ? "modificata" : "modificate"} ·{" "}
                             {adv().verdicts} con un verdetto di M-08
                           </span>
                         </summary>
@@ -902,7 +902,7 @@ export default function Avvio(props: {
                           }
                         >
                           <div style={{ "overflow-x": "auto" }}>
-                            <table style={{ "font-size": "12px" }}>
+                            <table class="compact">
                               <thead>
                                 <tr>
                                   <th>modalità</th>
@@ -911,23 +911,24 @@ export default function Avvio(props: {
                                   <th class="r">top_k</th>
                                   <th class="r">min_p</th>
                                   <th class="r">presence</th>
-                                  <th>fonte</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 <For each={Object.entries(p().sampling_by_mode!)}>
                                   {([mode, sm]) => (
                                     <tr>
-                                      <td>{mode}</td>
+                                      <td>
+                                        {mode}
+                                        <div class="mini">
+                                          {show(sm.source)}
+                                          {sm.verified ? ` · ${sm.verified}` : ""}
+                                        </div>
+                                      </td>
                                       <td class="r num">{show(sm.temperature)}</td>
                                       <td class="r num">{show(sm.top_p)}</td>
                                       <td class="r num">{show(sm.top_k)}</td>
                                       <td class="r num">{show(sm.min_p)}</td>
                                       <td class="r num">{show(sm.presence_penalty)}</td>
-                                      <td class="mini">
-                                        {show(sm.source)}
-                                        {sm.verified ? ` · ${sm.verified}` : ""}
-                                      </td>
                                     </tr>
                                   )}
                                 </For>
@@ -979,7 +980,7 @@ export default function Avvio(props: {
                 title="Salva come profilo nuovo"
                 label="nome"
                 value={(a() as { name: string }).name}
-                allowSame={(a() as { creating: boolean }).creating}
+                allowSame
                 confirmLabel="Salva"
                 note="Il nome del profilo è anche l'alias servito. Il profilo di partenza non si tocca."
                 onCancel={() => setAsk(null)}

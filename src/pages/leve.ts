@@ -225,9 +225,9 @@ export const ADVANCED: Lever[] = [
     label: "Checkpoint dello stato",
     lever: "ctx_checkpoints · checkpoint_min_step · cache_ram · kv_unified",
     inputs: [
-      { path: "cache.ctx_checkpoints", kind: "optint", width: "56px" },
-      { path: "cache.checkpoint_min_step", kind: "optint", width: "56px" },
-      { path: "cache.cache_ram", kind: "optint", width: "64px" },
+      { path: "cache.ctx_checkpoints", kind: "optint", width: "56px", placeholder: "—" },
+      { path: "cache.checkpoint_min_step", kind: "optint", width: "56px", placeholder: "—" },
+      { path: "cache.cache_ram", kind: "optint", width: "64px", placeholder: "—" },
       { path: "cache.kv_unified", kind: "optbool" },
     ],
     cache: true,

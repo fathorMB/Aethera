@@ -303,7 +303,7 @@ export default function App() {
     const t2 = setInterval(pollTasks, 2000);
 
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest("input, select, textarea")) return;
+      if (e.target instanceof Element && e.target.closest("input, select, textarea")) return;
       if (e.ctrlKey || e.altKey || e.metaKey) return;
       const hit = PAGES.find((p) => p.key === e.key);
       if (hit) setPage(hit.id);
@@ -439,7 +439,7 @@ export default function App() {
                 />
               )}
             </Show>
-            <Show when={run()}>
+            <Show when={run() && !orphan()}>
               <button
                 class="btn sm"
                 disabled={!engine.canRestart}

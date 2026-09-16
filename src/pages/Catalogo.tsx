@@ -936,7 +936,7 @@ export default function Catalogo(props: { onLaunch?: (file: string) => void; vgm
                       Campionamento consigliato <span class="r">dalla model card</span>
                     </h2>
                     <div style={{ "overflow-x": "auto" }}>
-                      <table style={{ "font-size": "12px" }}>
+                      <table class="compact">
                         <thead>
                           <tr>
                             <th>modalità</th>

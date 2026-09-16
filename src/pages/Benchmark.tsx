@@ -2,6 +2,18 @@ import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Sh
 import * as api from "../api";
 import type { Comparison, RunDetail, RunRow } from "../api";
 import { Empty, Spark, Val } from "../components";
+
+/** Nelle celle strette lo sconosciuto è un trattino con il suo nome nel title: mai uno zero. */
+function Cell(props: { v: string | null | undefined; unit?: string }) {
+  return (
+    <Show when={props.v != null} fallback={<span class="unk" title="sconosciuto">—</span>}>
+      <span class="num">
+        {props.v}
+        {props.unit ? ` ${props.unit}` : ""}
+      </span>
+    </Show>
+  );
+}
 import { clock, duration, fixed, num, pct } from "../format";
 import { Chips, Head } from "../ui";
 import { countBy, delta, flip } from "../ui-logic";
@@ -180,6 +192,8 @@ function DetailCard(props: { detail: RunDetail }) {
         </div>
       </Show>
       <dl class="kv">
+        <dt>Richieste</dt>
+        <dd class="num">{num(s().requests)}</dd>
         <dt>Token proposti / accettati</dt>
         <dd class="num">
           {num(s().draft_n)} / {num(s().draft_accepted)}{" "}
@@ -213,6 +227,10 @@ function DetailCard(props: { detail: RunDetail }) {
         <dt>Build · commit</dt>
         <dd class="mono">
           {row().build} · <Val v={row().commit} />
+        </dd>
+        <dt>VRAM misurata</dt>
+        <dd>
+          <Val v={fixed(row().vram_dedicated_gib, 2)} unit="GiB dedicati" />
         </dd>
         <dt>RAM dopo il caricamento</dt>
         <dd>
@@ -366,13 +384,13 @@ export default function Benchmark() {
                 <th aria-label="confronta" />
                 <th>Avvio</th>
                 <th>Profilo · differenze</th>
-                <th>Build</th>
+                <th class="narrow-hide">Build</th>
                 <th class="r">Acceso</th>
-                <th class="r">Rich.</th>
+                <th class="r narrow-hide">Rich.</th>
                 <th class="r">Prefill</th>
                 <th class="r">Decode</th>
                 <th class="r">Riuso</th>
-                <th class="r">VRAM</th>
+                <th class="r narrow-hide2">VRAM</th>
                 <th>Note</th>
               </tr>
             </thead>
@@ -408,8 +426,8 @@ export default function Benchmark() {
                         <div class="mono">{r.id}</div>
                         <div class="mini num">{clock(r.started)}</div>
                       </td>
-                      <td class="mono mini">
-                        {r.profile}{" "}
+                      <td class="mini">
+                        <span class="mono">{r.profile}</span>{" "}
                         <For each={r.overrides}>
                           {(o) => (
                             <span class="pill mod" title={`${o.base ?? "—"} → ${o.value ?? "—"}`}>
@@ -418,16 +436,16 @@ export default function Benchmark() {
                           )}
                         </For>
                       </td>
-                      <td class="mono">{r.build}</td>
+                      <td class="mono narrow-hide">{r.build}</td>
                       <td class="r num">
-                        <Val v={r.uptime_s == null ? null : duration(r.uptime_s)} />
+                        <Cell v={r.uptime_s == null ? null : duration(r.uptime_s)} />
                       </td>
-                      <td class="r num">{num(r.summary.requests)}</td>
+                      <td class="r num narrow-hide">{num(r.summary.requests)}</td>
                       <td class="r">
-                        <Val v={fixed(r.summary.prefill_median, 0)} />
+                        <Cell v={fixed(r.summary.prefill_median, 0)} />
                       </td>
                       <td class="r">
-                        <Val v={fixed(r.summary.decode_median, 1)} />
+                        <Cell v={fixed(r.summary.decode_median, 1)} />
                         <Show when={r.summary.decode_series.length}>
                           <Spark
                             class="inline"
@@ -438,13 +456,13 @@ export default function Benchmark() {
                         </Show>
                       </td>
                       <td class="r">
-                        <Val v={pct(r.summary.cache_share)} unit="%" />
+                        <Cell v={pct(r.summary.cache_share)} unit="%" />
                         <Show when={r.summary.cache_series.length}>
                           <Spark class="inline" values={r.summary.cache_series.slice(-12)} max={1} low={0.5} height={12} />
                         </Show>
                       </td>
-                      <td class="r">
-                        <Val v={fixed(r.vram_dedicated_gib, 2)} />
+                      <td class="r narrow-hide2">
+                        <Cell v={fixed(r.vram_dedicated_gib, 2)} />
                       </td>
                       <td>
                         <Notes row={r} />

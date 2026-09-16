@@ -22,8 +22,9 @@
      più chiara: il mockup aveva #6f7680 (3,2:1) e #ef5a5a (4,4:1, il «Ferma» rosso). */
   --fg3: #8a919b;
   --acc: #5b8dff; --ok: #3ec46f; --warn: #e5a23a; --err: #f26b6b; --busy: #b287f0; --mod: #e5a23a;
-  --acc-bg: rgba(91, 141, 255, .12); --ok-bg: rgba(62, 196, 111, .12); --warn-bg: rgba(229, 162, 58, .12);
-  --err-bg: rgba(242, 107, 107, .12); --busy-bg: rgba(178, 135, 240, .12);
+  /* Più tenui del mockup (.12): a .12 il grigio e il rosso sulle righe tinte scendevano a 4,4:1. */
+  --acc-bg: rgba(91, 141, 255, .08); --ok-bg: rgba(62, 196, 111, .08); --warn-bg: rgba(229, 162, 58, .08);
+  --err-bg: rgba(242, 107, 107, .08); --busy-bg: rgba(178, 135, 240, .08);
   color-scheme: dark;
 }
 * { box-sizing: border-box }
@@ -58,7 +59,7 @@ b { font-weight: 600 }
 .nav .foot { margin-top: auto; padding: 10px 14px; color: var(--fg3); font-size: 11px; border-top: 1px solid var(--line); word-break: break-all; line-height: 1.5 }
 .nav .foot b { color: var(--fg2); font-weight: 600; display: block }
 .nav .foot .blk + .blk { margin-top: 10px }
-.main { overflow: auto; padding: 16px 20px 40px; min-width: 0 }
+.main { overflow: auto; padding: 16px 20px 40px; min-width: 0; container: main / inline-size }
 
 /* Testa di pagina: titolo, una riga, e le azioni della pagina a destra. */
 .head { display: flex; align-items: flex-start; gap: 14px; margin: 0 0 14px }
@@ -82,7 +83,8 @@ h3 { font-size: 13px; font-weight: 600; margin: 0 0 6px }
 .pill.cache { color: var(--busy); border-color: var(--busy) }
 .pill.g { color: var(--ok); border-color: var(--ok) }
 .pill.x { color: var(--err); border-color: var(--err) }
-.pill.acc { color: var(--acc); border-color: var(--acc) }
+/* Il blu su --bg3 in chiaro sta a 3,8:1: il testo resta --fg, il colore lo porta il bordo. */
+.pill.acc { color: var(--fg); border-color: var(--acc) }
 .btn { padding: 5px 11px; border: 1px solid var(--line); background: var(--bg3); border-radius: 3px; cursor: pointer; white-space: nowrap }
 .btn:hover { border-color: var(--fg3) }
 .btn.primary { background: var(--acc); border-color: var(--acc); color: #fff }
@@ -196,7 +198,7 @@ td .empty, th .empty { border: 0; background: none; padding: 10px 2px }
 .alerts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px }
 .alert { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 3px; border: 1px solid var(--line); background: var(--bg2); border-left-width: 3px }
 .alert.warn { border-left-color: var(--warn) } .alert.err { border-left-color: var(--err) } .alert.busy { border-left-color: var(--busy) } .alert.acc { border-left-color: var(--acc) } .alert.ok { border-left-color: var(--ok) }
-.alert .t { font-weight: 600; white-space: nowrap }
+.alert .t { font-weight: 600; flex: 0 0 auto; max-width: 30%; overflow-wrap: anywhere }
 .alert .d { color: var(--fg2); flex: 1; min-width: 0 }
 .alert .d b { color: var(--fg) }
 .alert .a { margin-left: auto; display: flex; gap: 6px; flex: none }
@@ -237,21 +239,25 @@ details.help > .body b { color: var(--fg) }
 .actbar .name small { color: var(--fg3); font-family: var(--sans); margin-left: 6px; font-size: 12px }
 .actbar .full { width: 100% }
 /* Campo con etichetta umana e il nome della leva in piccolo. */
-.f { display: grid; grid-template-columns: 168px minmax(0, 1fr) minmax(0, max-content); gap: 6px 10px; align-items: center; padding: 5px 8px; border-radius: 3px }
+/* Il suggerimento sta sotto il controllo: a destra, a 1280 px, schiacciava i campi fino a tagliarne i numeri. */
+.f { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 3px 10px; align-items: center; padding: 5px 8px; border-radius: 3px }
 .f + .f { border-top: 1px solid var(--line) }
-.f > label { color: var(--fg); display: flex; flex-direction: column; line-height: 1.25 }
-.f > label small { color: var(--fg3); font-family: var(--mono); font-size: 11px; font-weight: 400; overflow-wrap: anywhere }
+.f > label { color: var(--fg); display: block; line-height: 1.25; grid-row: span 2; align-self: start; padding-top: 3px }
+.f > label small { display: block; color: var(--fg3); font-family: var(--mono); font-size: 11px; font-weight: 400; overflow-wrap: anywhere }
 .f input, .f select { font: inherit; font-family: var(--mono); font-size: 12px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 4px 7px; width: 100%; min-width: 0 }
-.f .h { color: var(--fg3); font-size: 12px; max-width: 220px; line-height: 1.3; display: flex; gap: 4px; flex-wrap: wrap; align-items: center }
+.f .row.nw > select { min-width: 110px }
+.f .h { grid-column: 2; color: var(--fg3); font-size: 12px; line-height: 1.3; display: flex; gap: 4px 8px; flex-wrap: wrap; align-items: center }
+.f .h:empty { display: none }
 .f.mod { background: var(--warn-bg); outline: 1px solid var(--mod) }
 .f.mod > label::before { content: "● "; color: var(--mod); font-size: 9px }
 .f.bad { outline: 1px solid var(--err) }
 .f .base { font-family: var(--mono); font-size: 11px; color: var(--mod); text-decoration: line-through }
-.f-err { color: var(--err); font-size: 12px; padding: 0 8px 4px 186px }
+.f-err { color: var(--err); font-size: 12px; padding: 0 8px 4px 178px }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; flex: none }
 .seg button { padding: 3px 10px; font-size: 12px; background: var(--bg); border: 0; border-right: 1px solid var(--line); cursor: pointer; white-space: nowrap; color: var(--fg) }
 .seg button:last-child { border-right: 0 }
-.seg button.on { background: var(--acc); color: #fff }
+/* Come i filtri: fondo tenue e testo pieno, perché il bianco su --acc scuro sta a 3,1:1. */
+.seg button.on { background: var(--acc-bg); color: var(--fg); box-shadow: inset 0 -2px 0 var(--acc) }
 /* Filtri a bottoni. */
 .chips { display: flex; gap: 4px; flex-wrap: wrap }
 .chip { padding: 2px 9px; border: 1px solid var(--line); border-radius: 12px; font-size: 12px; background: var(--bg2); color: var(--fg2); cursor: pointer; white-space: nowrap }
@@ -259,7 +265,17 @@ details.help > .body b { color: var(--fg) }
 .chip .n { font-family: var(--mono); font-size: 11px; color: var(--fg3); margin-left: 4px }
 /* Lista + dettaglio. */
 .md { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 12px; align-items: start }
-.md.wide { grid-template-columns: minmax(0, 2.6fr) minmax(0, 1fr) }
+.md.wide { grid-template-columns: minmax(0, 2.2fr) minmax(330px, 1fr) }
+/* Nelle celle strette le pillole vanno a capo invece di allargare la tabella. */
+td .pill, td .badge { white-space: normal }
+.ev .tag { white-space: normal }
+table.compact { font-size: 12px }
+table.compact th, table.compact td { padding: 4px 5px }
+/* Sotto 1400 px di pagina Benchmark nasconde Build e Richieste: restano nel dettaglio dell'avvio. */
+@container main (max-width: 1400px) { .narrow-hide { display: none } }
+@container main (max-width: 1250px) { .narrow-hide2 { display: none } }
+/* Motore: la tabella delle richieste è la parte che serve durante una sessione, e prende più spazio. */
+.g21.lw { grid-template-columns: minmax(0, 2.3fr) minmax(300px, 1fr) }
 .card.flush { padding: 0; overflow-x: auto }
 .split { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 14px; align-items: start }
 .av2 { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) }

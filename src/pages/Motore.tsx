@@ -800,7 +800,7 @@ export default function Motore(props: { status: EngineStatus | null; overview: O
               {(rd) => (
                 <>
                   <KpiRow rd={rd()} />
-                  <div class="grid g21 mb" style={{ "align-items": "start" }}>
+                  <div class="grid g21 lw mb" style={{ "align-items": "start" }}>
                     <TurnsCard summary={rd().telemetry} />
                     <div class="grid" style={{ "align-items": "start" }}>
                       <MemoryCard
