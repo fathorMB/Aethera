@@ -17,6 +17,7 @@ generated: true
 | 6 | M-06 | Comportamento quando qualcosa va storto | active | 8/9 (1 blocked) | 89% |
 | 7 | M-07 | Confezionamento, prima esecuzione e documentazione | active | 5/7 (2 blocked) | 71% |
 | 8 | M-08 | Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU | done | 14/14 | 100% |
+| 9 | M-09 | Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove | proposed | 0/11 | 0% |
 
 ## M-01 — Mockup di design della v1
 
@@ -73,4 +74,11 @@ generated: true
 - `priority`: 8
 - `file`: milestones/M-08.md
 - `outcome`: L'operatore ha un rapporto misurato, non stimato, che dice quanta banda la 890M raggiunge davvero, cosa costa tenere pesi oltre i 48 GB di VGM (memoria condivisa, esperti in RAM, VGM a 64), quanto rendono checkpoint dello stato ricorrente, MTP adattivo e KV q8_0 sul 35B, come si comporta l'SSD sui GGUF, e quanto un secondo modello sulla NPU rallenta il motore principale; ogni misura è un avvio registrato da Aethera con manifest e telemetria, e il rapporto in reports/ dice quali leve entrano nei profili standard.
+
+## M-09 — Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove
+
+- `status`: proposed
+- `priority`: 9
+- `file`: milestones/M-09.md
+- `outcome`: L'operatore vede nella finestra quello che M-08 ha dovuto ricavare a mano. Ogni avvio registra le condizioni che cambiano i numeri: versione dei driver GPU e NPU, profilo energetico, VGM, disco dei pesi. La pagina Motore mostra, richiesta per richiesta, quanta parte del prompt il motore ha riusato e quando un client ha compattato la conversazione. I profili standard e lo schema contengono le leve misurate, senza nasconderle in extra_args. Claude Code funziona contro il motore locale con Qwen3.6 senza passaggi manuali.
 
