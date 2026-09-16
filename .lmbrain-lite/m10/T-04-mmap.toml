@@ -1,0 +1,36 @@
+measure = "T-04-mmap"
+title = "Flash-Next UD-IQ3_XXS a VGM 48, --load-mode mmap + --lazy-mode auto: tabella n-gram letta dal file"
+base = "qwen3.8-flash-next.iq3_xxs.vulkan"
+repetitions = 5
+warmup = 1
+
+# Deroga al vincolo «mai mmap» scelta dall'operatore il 16-09: si lancia solo con
+# sorveglia-ram.ps1 acceso, che ferma il motore se la RAM libera resta sotto 2 GiB.
+# Prefill freddo per la tabella = giro di riscaldamento; caldo = i cinque giri buoni.
+[[variant]]
+name = "mmap-lazy-auto"
+note = "come la ricetta, con --load-mode mmap: la condizione perche' --lazy-mode legga dal file"
+[variant.server]
+load_mode = "mmap"
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234

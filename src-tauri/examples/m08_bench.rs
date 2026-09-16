@@ -82,6 +82,11 @@ struct ServerPatch {
     cache_type_k: Option<String>,
     cache_type_v: Option<String>,
     load_mode: Option<String>,
+    /// M-10: `--lazy-mode` e le regole `-ot` (la tabella n-gram lasciata sul file).
+    lazy_mode: Option<String>,
+    tensor_overrides: Option<Vec<String>>,
+    fit: Option<String>,
+    fit_target: Option<String>,
     threads: Option<i32>,
     threads_batch: Option<i32>,
 }
@@ -399,6 +404,16 @@ fn patch(p: &mut Profile, v: &Variant) {
     set!(cache_type_k);
     set!(cache_type_v);
     set!(load_mode);
+    set!(tensor_overrides);
+    if v.server.lazy_mode.is_some() {
+        s.lazy_mode = v.server.lazy_mode.clone();
+    }
+    if v.server.fit.is_some() {
+        s.fit = v.server.fit.clone();
+    }
+    if v.server.fit_target.is_some() {
+        s.fit_target = v.server.fit_target.clone();
+    }
     set!(opt threads);
     set!(opt threads_batch);
     if let Some(x) = v.speculative.kind.clone() {
@@ -520,7 +535,8 @@ fn main() -> Result<(), String> {
         .map_err(|e| format!("{}: {e}", scenario_path.display()))?;
 
     let dir = scenario_path.parent().unwrap_or(Path::new("."));
-    let out_dir = root.path.join("m08");
+    // I risultati vanno nella cartella che ha il nome di quella dello scenario (m08, m10…).
+    let out_dir = root.path.join(dir.file_name().and_then(|n| n.to_str()).unwrap_or("m08"));
     std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
     let out_path = out_dir.join(format!("{}.jsonl", sc.measure));
     let meta_path = out_dir.join(format!("{}.meta.json", sc.measure));

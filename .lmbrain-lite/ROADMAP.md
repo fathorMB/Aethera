@@ -18,7 +18,9 @@ generated: true
 | 7 | M-07 | Confezionamento, prima esecuzione e documentazione | active | 5/7 (2 blocked) | 71% |
 | 8 | M-08 | Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU | done | 14/14 | 100% |
 | 9 | M-09 | Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove | active | 10/11 (1 blocked) | 91% |
-| 10 | M-10 | Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD | approved | 0/13 | 0% |
+| 10 | M-10 | Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD | active | 4/13 | 31% |
+| 11 | M-11 | Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48 | active | 3/6 | 50% |
+| 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | proposed | 0/11 | 0% |
 
 ## M-01 — Mockup di design della v1
 
@@ -85,8 +87,22 @@ generated: true
 
 ## M-10 — Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD
 
-- `status`: approved
+- `status`: active
 - `priority`: 10
 - `file`: milestones/M-10.md
 - `outcome`: Si sa, con misure e non con stime, se Qwen3.8-Flash-Next intero (tutti i 512 esperti, nessuna potatura) gira su questa macchina come agente di coding utilizzabile: corpo del modello residente nella VGM regolata a 64 o 72 GB, tabella n-gram lasciata su SSD con --lazy-mode, prefill freddo e caldo, decode a 32k e 64k, e task riusciti per ora di macchina contro Qwen3.6-35B-A3B. Alla fine c'è un rapporto con un verdetto per quant (IQ3_XXS, Q3_K_XL, IQ4_XS) e la ricetta da portare nei profili.
+
+## M-11 — Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48
+
+- `status`: active
+- `priority`: 11
+- `file`: milestones/M-11.md
+- `outcome`: Si sa, con misure, se il taglio «coding» di Qwen3.8-Flash-Next fatto da Jab1718 (160 esperti su 512, tabella n-gram tolta, calibrazione DoRA, 42,6 miliardi di parametri) vale come modello di coding su questa macchina senza toccare la VGM: tutto in VGM 48, decode e prefill a 32k e 64k, e soprattutto task riusciti per ora di macchina con Nonio contro Qwen3.6-35B-A3B e contro Flash-Next intero di M-10. Le affermazioni della scheda (91% pass@1 su una batteria propria) non contano come prova.
+
+## M-12 — Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare
+
+- `status`: proposed
+- `priority`: 12
+- `file`: milestones/M-12.md
+- `outcome`: La finestra di Aethera segue il mockup approvato in design/aethera-v2-ui: lo stato del motore e le due azioni (Riavvia, Ferma) sono sempre visibili nella striscia in alto; ogni pagina ha le sue azioni nella testa; in Avvio le dodici leve essenziali hanno l'etichetta in italiano e le altre stanno in «Avanzate» con i verdetti di M-08, e la fascia con Avvia/Scarta/Aggiorna/Salva come resta fissa in cima; Motore mostra quattro KPI con giudizio, memoria come barra impilata, avvisi in una fascia sola e riga di comando/log a scomparsa; Catalogo e Benchmark hanno lista a sinistra e dettaglio a destra, con la fascia di confronto a due spunte; Impostazioni è in tre schede (Macchina, Client, App). Tutti i dati di oggi restano; nessun comando Tauri nuovo; l'operatore la vede e la approva dalla finestra.
 

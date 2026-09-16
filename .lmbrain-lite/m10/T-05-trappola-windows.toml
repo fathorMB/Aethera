@@ -1,0 +1,40 @@
+measure = "T-05"
+title = "Issue #28355: prefill freddo e page fault con --lazy-mode auto contro off (tabella in RAM)"
+base = "qwen3.8-flash-next.iq3_xxs.vulkan"
+repetitions = 10
+warmup = 1
+
+# Dieci giri: dopo il decimo si legge dal campionatore quanta tabella e' rimasta in page cache
+# (ws_mapped_gib e standby_gib). La variante «off» si lancia solo se la RAM libera lo permette:
+# la tabella intera (~27 GB a Q3_K_XL, meno a IQ3_XXS) va nella memoria del processo.
+[[variant]]
+name = "lazy-auto"
+note = "tabella letta dal file a richiesta"
+
+[[variant]]
+name = "lazy-off"
+note = "tabella caricata tutta in RAM all'avvio"
+[variant.server]
+lazy_mode = "off"
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234

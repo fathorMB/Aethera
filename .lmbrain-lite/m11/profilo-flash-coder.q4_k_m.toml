@@ -1,0 +1,40 @@
+# M-11 — da copiare in C:\AetheraData\profiles\ quando il GGUF è scaricato e verificato.
+schema_version = 1
+name = "qwen3.8-flash-coder.q4_k_m.vulkan"
+notes = "M-11: taglio coding di Jab1718 (160 esperti, niente tabella n-gram, niente MTP). Tutto in VGM 48."
+
+[model]
+repo = "Jab1718/qwen3.8-flash-coder-26gb-gguf"
+file = "qwen3.8-flash-coder-26gb-q4_k_m.gguf"
+size_gb = 28.39
+quant = "Q4_K_M"
+
+[runtime]
+kind = "llama.cpp"
+backend = "vulkan"
+build = "b10991"
+
+[server]
+host = "127.0.0.1"
+port = 8080
+ctx = 32768
+n_parallel = 1
+n_gpu_layers = 999
+flash_attn = "on"
+cache_type_k = "f16"
+cache_type_v = "f16"
+ubatch = 2048
+batch = 2048
+load_mode = "none"
+metrics = true
+jinja = true
+slot_save = true
+
+[speculative]
+type = "none"
+
+[cache]
+
+[client]
+context_window = 28672
+reserved_output_tokens = 4096

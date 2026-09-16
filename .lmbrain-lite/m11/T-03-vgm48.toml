@@ -1,0 +1,36 @@
+measure = "T-03"
+title = "Flash-Coder a VGM 48: Q4_K_M e Q8_0 interi in VGM, stessi carichi di M-10 T-04"
+base = "qwen3.8-flash-coder.q4_k_m.vulkan"
+repetitions = 5
+warmup = 1
+
+[[variant]]
+name = "q4_k_m"
+note = "28,4 GB, --load-mode none"
+
+[[variant]]
+name = "q8_0"
+note = "45,4 GB, --load-mode none: verificare che il contesto a 32k ci stia"
+profile = "qwen3.8-flash-coder.q8_0.vulkan"
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234

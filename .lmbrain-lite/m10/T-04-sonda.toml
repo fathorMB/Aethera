@@ -1,0 +1,17 @@
+measure = "T-04-sonda"
+title = "Sonda: la lettura pigra si attiva con --load-mode none? (non e' una misura: il download di Q3_K_XL scrive sullo stesso disco)"
+base = "qwen3.8-flash-next.iq3_xxs.vulkan"
+repetitions = 1
+warmup = 0
+
+[[variant]]
+name = "lazy-auto"
+note = "ricetta di partenza"
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Rispondi solo: pronto."
+n_predict = 16
+temperature = 0.0
+seed = 1234

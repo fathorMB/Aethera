@@ -1,0 +1,33 @@
+measure = "T-04-none"
+title = "Flash-Next UD-IQ3_XXS a VGM 48, --load-mode none: tabella n-gram in memoria privata (la lettura pigra non si attiva senza mmap)"
+base = "qwen3.8-flash-next.iq3_xxs.vulkan"
+repetitions = 5
+warmup = 1
+
+# Sonda r-20260916-183230: con none il processo legge tutto il file al caricamento e la tabella
+# resta in RAM. Questa e' quindi anche la variante «lazy-off» di T-05 per IQ3_XXS.
+[[variant]]
+name = "none-lazy-auto"
+note = "ricetta di partenza: -ngl 999, -ot per_layer_token_embd=CPU, --lazy-mode auto, --load-mode none"
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234

@@ -1,0 +1,24 @@
+measure = "T-09"
+title = "Flash-Next IQ3_XXS a VGM 64: riuso del prefisso in quattro turni con una riga cambiata a meta' (come M-08 T-04)"
+base = "qwen3.8-flash-next.iq3_xxs.vulkan"
+repetitions = 5
+warmup = 1
+
+# Turni 0 e 1 condividono tutto il prefisso; 2 e 3 cambiano una riga a meta' del prompt. Il riuso
+# si legge da tokens_cached / cache_n e dal log del motore (riga release). Se manca, T-09b con i
+# checkpoint dello stato ricorrente.
+[[variant]]
+name = "iq3_xxs-mmap"
+[variant.server]
+load_mode = "mmap"
+
+[[workload]]
+name = "turni-7k"
+kind = "turns"
+prompt = "prompt-7k.txt"
+turns = 4
+divergence_at = 0.5
+instruction = "Leggi il codice qui sopra. Elenca in italiano, in non piu' di dieci righe, le tre funzioni piu' a rischio di regressione e perche'."
+n_predict = 128
+temperature = 0.0
+seed = 1234

@@ -1,0 +1,43 @@
+# M-10 — bozza del profilo, da copiare in C:\AetheraData\profiles\ quando T-01 e T-02 sono chiusi.
+# Nome del file dei pesi e size_gb vanno controllati sul file scaricato (T-01).
+schema_version = 1
+name = "qwen3.8-flash-next.iq3_xxs.vulkan"
+notes = "M-10: corpo in VGM, tabella per_layer_token_embd lasciata sul file con --lazy-mode auto. Mai load_mode mmap (M-08 T-09)."
+
+[model]
+repo = "unsloth/Qwen3.8-Flash-Next-GGUF"
+file = "Qwen3.8-Flash-Next-UD-IQ3_XXS-00001-of-00003.gguf"
+# size_gb omesso: il GGUF è diviso in tre parti e Aethera confronta solo la prima (10 MB)
+quant = "UD-IQ3_XXS"
+
+[runtime]
+kind = "llama.cpp"
+backend = "vulkan"
+build = "b10991"
+
+[server]
+host = "127.0.0.1"
+port = 8080
+ctx = 32768
+n_parallel = 1
+n_gpu_layers = 999
+flash_attn = "on"
+cache_type_k = "f16"
+cache_type_v = "f16"
+ubatch = 2048
+batch = 2048
+load_mode = "none"
+lazy_mode = "auto"
+tensor_overrides = ["per_layer_token_embd=CPU"]
+metrics = true
+jinja = true
+slot_save = true
+
+[speculative]
+type = "none"
+
+[cache]
+
+[client]
+context_window = 28672
+reserved_output_tokens = 4096

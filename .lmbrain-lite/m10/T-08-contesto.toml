@@ -1,0 +1,36 @@
+measure = "T-08"
+title = "Flash-Next IQ3_XXS a VGM 64, mmap + lazy auto, ctx 65536: prefill e decode con ~30k e ~60k token nel contesto"
+base = "qwen3.8-flash-next.iq3_xxs.vulkan"
+repetitions = 2
+warmup = 1
+
+# Il 21k di M-08 allungato con altri sorgenti del repository (congelati il 16-09 sera, stima 3,26
+# caratteri per token: il numero vero e' prompt_n nelle righe). Due giri buoni: a 60k un prefill
+# costa oltre dieci minuti. KV f16 soltanto.
+[[variant]]
+name = "iq3_xxs-mmap-64k"
+[variant.server]
+load_mode = "mmap"
+ctx = 65536
+
+[[workload]]
+name = "contesto-30k"
+prompt = "prompt-30k.txt"
+instruction = "Summarize in English, in at most twelve lines, what this program does as a whole and where a wrong change would do the most damage."
+n_predict = 256
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234
+
+[[workload]]
+name = "contesto-60k"
+prompt = "prompt-60k.txt"
+instruction = "Summarize in English, in at most twelve lines, what this program does as a whole and where a wrong change would do the most damage."
+n_predict = 256
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234

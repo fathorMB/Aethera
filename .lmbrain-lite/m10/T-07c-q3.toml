@@ -1,0 +1,35 @@
+measure = "T-07c"
+title = "Flash-Next UD-Q3_K_XL a VGM 64, mmap + lazy auto, senza soglia sulla RAM (come T-07b)"
+base = "qwen3.8-flash-next.q3_k_xl.vulkan"
+repetitions = 5
+warmup = 1
+
+# Scelta dell'operatore del 16-09 dopo T-07: il sorvegliante non guarda la RAM disponibile, ferma il
+# motore se il file di paging cresce oltre 2 GiB o se dopo 300 s non risponde a /health.
+[[variant]]
+name = "q3_k_xl-mmap"
+note = "come T-07, senza soglia sulla RAM"
+[variant.server]
+load_mode = "mmap"
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234

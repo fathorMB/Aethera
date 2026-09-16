@@ -1,0 +1,44 @@
+measure = "T-07"
+title = "Flash-Next a VGM 64 con --load-mode mmap + --lazy-mode auto: IQ3_XXS e UD-Q3_K_XL, corpo in VGM, tabella n-gram sul file"
+base = "qwen3.8-flash-next.q3_k_xl.vulkan"
+repetitions = 5
+warmup = 1
+
+# VGM 64 (T-06): Windows ha 31,6 GiB, la tabella pesa 26,8 GiB in tutti e due i quant, quindi con
+# none non ci sta. Si prova solo mmap, con sorveglia-ram.ps1 sulla RAM disponibile e sul file di
+# paging (scelta dell'operatore del 16-09). IQ3_XXS per primo: corpo 49,5 GiB contro 57,0.
+# Prefill freddo per la tabella = giro di riscaldamento; caldo = i cinque giri buoni.
+[[variant]]
+name = "iq3_xxs-mmap"
+note = "corpo 49,5 GiB: confronto con T-04 a VGM 48"
+profile = "qwen3.8-flash-next.iq3_xxs.vulkan"
+[variant.server]
+load_mode = "mmap"
+
+[[variant]]
+name = "q3_k_xl-mmap"
+note = "corpo 57,0 GiB"
+[variant.server]
+load_mode = "mmap"
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+seed = 1234
