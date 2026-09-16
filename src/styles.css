@@ -14,8 +14,11 @@
   color-scheme: light;
 }
 [data-theme="dark"] {
-  --bg: #141619; --bg2: #1c1f24; --bg3: #24282f; --line: #30353d; --fg: #e6e8eb; --fg2: #a3a9b3; --fg3: #6f7680;
-  --acc: #5b8dff; --ok: #3ec46f; --warn: #e5a23a; --err: #ef5a5a; --busy: #b287f0; --mod: #e5a23a;
+  --bg: #141619; --bg2: #1c1f24; --bg3: #24282f; --line: #30353d; --fg: #e6e8eb; --fg2: #a3a9b3;
+  /* Come in chiaro, --fg3 e --err sono ritoccati per restare sopra 4,5:1 anche su --bg3, la superficie
+     più chiara: il mockup aveva #6f7680 (3,2:1) e #ef5a5a (4,4:1, il «Ferma» rosso). */
+  --fg3: #8a919b;
+  --acc: #5b8dff; --ok: #3ec46f; --warn: #e5a23a; --err: #f26b6b; --busy: #b287f0; --mod: #e5a23a;
   color-scheme: dark;
 }
 * { box-sizing: border-box }

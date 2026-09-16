@@ -2,17 +2,22 @@
 updated: 2026-09-16
 by: lead
 ---
-**La lista di quello che devi provare tu è in [`reports/da-provare-operatore.md`](reports/da-provare-operatore.md).** L'app è **aperta adesso**: finestra «Aethera», endpoint 8090 che risponde, nessun motore acceso, porte libere.
+**Sessione chiusa il 16-09.** Hai aperto l'app e detto che va: **M-05 è chiuso**, otto task su otto. Tutto pubblicato su `main` fino a `42e9b1f`. L'app è rimasta aperta.
 
-In breve, in ordine di costo per te:
+## M-08, dodici task su quattordici
 
-1. **Alla finestra, 20 minuti (M-05 T-08).** Nuovo profilo, duplica, rinomina, elimina; «Avvia…» dal Catalogo; «Importa da disco…»; «Importa cartella…»; model card. I dialoghi che chiedono un nome sono in-app (`window.prompt` non esiste nella WebView): va confermato che si vedano e rispondano.
-2. **Alla finestra, i guasti, 15 minuti (M-06 T-09).** Uscita con un download in corso; radice dati rinominata mentre l'app è aperta; «Perché è uscito»; «Ricollega…»; `machine.toml` rotto a mano.
-3. **Uno sguardo, 5 minuti (M-07 T-04 e T-05).** Stati vuoti e tema chiaro nell'app vera: finora li ho guardati solo montando la finestra nel browser con dati finti.
-4. **Serve una VM (M-07 T-02).** Qui ho provato tutto tranne la clausola che conta, «senza Rust né Node».
-5. **Serve Adrenalin e un riavvio (M-08 T-08).** VGM a 64 GB, poi rimetterla a 48. Non l'ho fatto da solo di notte.
-6. **Due client su tre (M-08 T-10).** OpenCode non è installato e non l'ho installato al posto tuo; Claude Code non parla con un endpoint OpenAI, quindi contro questo motore non ci si punta — da correggere anche nello studio.
+Rapporto in [`reports/misure-motore-2026-09.md`](reports/misure-motore-2026-09.md), 524 righe: una tabella per misura con run id, il verdetto leva per leva, **undici correzioni da riportare nello studio** (con pagina e riga) e la lista di cosa serve ad Aethera a valle.
 
-**Tre decisioni tue:** il contrasto del tema scuro (`--fg3` a 3,6:1 — `#838a94` lo mette a norma); il tag della v1; e se la condizione di FastFlowLM (uso libero sotto i 10 M$ di fatturato) vale per te.
+**Entrano:** build b10991 (prefill +6%), `-ub 2048` sul Coder-Next (+21%), `-ngl 999` per i 48-70 GB. **Confermate:** `-ub 4096` sul G1, `--load-mode auto`. **Scartate:** KV `q8_0`, `--n-cpu-moe`, i checkpoint, `--cache-reuse`, `mmap`.
 
-M-08 è a undici task su quattordici: resta la NPU (T-11), il rapporto finale (T-12) e i due client.
+**La cosa che pesa più di ogni leva non è nel motore:** un client che rimanda indietro la risposta appena ricevuta paga 6 s a turno, uno che la perde ne paga 16,4. Nonio fa la cosa giusta (100% di prefisso conservato). MTP vale il 36% sul solo decode; questo vale il 170% sul turno.
+
+## Cosa resta, tutto in [`reports/da-provare-operatore.md`](reports/da-provare-operatore.md)
+
+- **M-06 T-09** — l'ho lasciato aperto di proposito: quei cinque pezzi si vedono solo **provocando** il guasto, non usando l'app. Quindici minuti, e dire che erano provati sarebbe stato falso.
+- **M-07 T-02** (una VM) e **T-07** (il tag).
+- **M-08 T-08** — VGM a 64 GB: serve Adrenalin e un riavvio. A 48 GB il Coder-Next **ci sta già**.
+- **M-08 T-10** — OpenCode non installato; Claude Code non parla con un endpoint OpenAI, quindi va tolto anche dallo studio.
+- **M-08 T-11** — NPU non misurata. FastFlowLM è pronto in versione portatile, licenza letta: libera sotto i 10 M$ di fatturato, e quello lo sai solo tu.
+
+**Una decisione visiva:** in tema scuro `--fg3` sta a 3,6:1, sotto soglia. `#838a94` lo mette a norma senza cambiare l'aria. Non l'ho toccato: è la palette che hai approvato in M-01.
