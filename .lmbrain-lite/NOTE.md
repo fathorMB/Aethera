@@ -2,14 +2,21 @@
 updated: 2026-09-16
 by: lead
 ---
-**M-03 e M-04 chiusi.** La v1 ha motore, profili, memoria misurata, telemetria, stato «in uso», endpoint, catalogo, stima, hash, download e build verificate. Pubblicato fino a `b2afcba`.
+**M-05, M-06 e M-07 scritti, provati e pubblicati** (`5b6464a`, `b5ce08f`, `69f5228`). 91 prove unitarie verdi, due nuovi E2E reali sulla Minisforum (`e2e_m05` 36 controlli, `e2e_m06` 22), installatore costruito, installato, avviato e disinstallato.
 
-**Tre milestone proposti, in attesa che tu li approvi nell'app:**
+## Dipende da te
 
-- **M-05 — Uso quotidiano senza toccare i file a mano.** Oggi un profilo nuovo si fa solo importando i JSON di minis-config o duplicandone uno, e non si cancella dalla finestra. Qui dentro finiscono anche **due debiti miei**: «Avvia…» dal Catalogo e i pulsanti «Importa da disco…» / «Importa cartella…» erano nel titolo di M-04 T-07 e non li ho realizzati.
-- **M-06 — Comportamento quando qualcosa va storto.** Configurazioni illeggibili, pesi spariti, disco pieno, rete caduta, app chiusa con un download in corso. Oggi non è mai stato provato niente di tutto questo.
-- **M-07 — Confezionamento, prima esecuzione e documentazione.** Il percorso guidato dal nulla al motore acceso, il tema chiaro mai guardato, e il README che oggi è di **9 byte**.
+**1. Guarda la finestra.** È l'unica cosa che manca davvero: stanotte non l'ha aperta nessuno.
 
-Ordine consigliato: 5 → 6 → 7, con M-07 per ultimo perché note di rilascio e tag si scrivono alla fine. Se preferisci un altro ordine, riordinali nell'app.
+- **M-05 T-08** — «Nuovo profilo…», «Duplica…», «Rinomina…», «Elimina…» coi loro dialoghi; «Avvia…» da una riga del Catalogo; «Importa da disco…»; «Importa cartella…» nella scheda Build; «Leggi la model card» e «Prendi dal catalogo». I dialoghi sono in-app perché `window.prompt` nella WebView non esiste: vanno visti aprirsi e rispondere.
+- **M-06 T-09** — dialogo d'uscita con un download in corso, pagina «la radice dati non risponde» (stacca un disco o rinomina la cartella), riquadro «Perché è uscito» sul Motore, «Ricollega…» nel Catalogo, riparazione di `machine.toml`.
+- **M-07 T-04 e T-05** sono chiusi, ma li ho guardati montando la finestra nel browser con dati finti: un secondo sguardo nell'app vera non è sprecato.
 
-**Buona notizia sul confezionamento**: ho provato `tauri build` e funziona già — esce `Aethera_0.1.0_x64-setup.exe` (3,5 MB) in 2m13s. Quindi M-07 T-01 è verifica e rifinitura, non lavoro da zero. Resta intatto **T-02**, che è la prova che conta: quell'installatore non l'ha ancora eseguito nessuno, e «si costruisce» non vuol dire «si installa e parte su una macchina senza Rust né Node».
+**2. M-07 T-02 — una macchina pulita.** Provato tutto il resto (installazione silenziosa, avvio dal percorso installato, disinstallazione senza tracce), ma la clausola «senza Rust né Node» qui non è provabile: serve una VM o un altro computer.
+
+**3. M-07 T-07 — il tag.** Note di rilascio scritte (`RELEASE-NOTES.md`). Il tag si mette dopo i punti 1 e 2: `git tag -a v0.1.0` e `git push origin v0.1.0`. Per chiamarla `1.0.0` la versione va cambiata in `tauri.conf.json`, `Cargo.toml` e nel titolo della finestra.
+
+## Decidi tu
+
+- **Contrasto del tema scuro:** `--fg3` a 3,6:1 e «Ferma» a 4,42:1, sotto soglia. Non l'ho toccato perché è la palette che hai approvato in M-01; `#838a94` la porta a norma senza cambiarne l'aria.
+- **`.lmbrain-lite/design/studio-motore-2026-09/`** ha due file modificati che non ho scritto io (la correzione sui ~177B). Lasciati fuori dai miei commit.
