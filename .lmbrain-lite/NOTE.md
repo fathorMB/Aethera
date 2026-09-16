@@ -2,20 +2,17 @@
 updated: 2026-09-16
 by: lead
 ---
-**M-08 in corso, notte del 16-09.** Approvato a voce; procedo da solo. Stato vivo: `.lmbrain-lite/m08/` (scenari, prompt congelati, strumenti) e `C:\AetheraData\m08\` (righe grezze). Ogni misura è un avvio di Aethera da profilo: il run id in `runs/` è la prova.
+**La lista di quello che devi provare tu è in [`reports/da-provare-operatore.md`](reports/da-provare-operatore.md).** L'app è **aperta adesso**: finestra «Aethera», endpoint 8090 che risponde, nessun motore acceso, porte libere.
 
-## Già misurato
+In breve, in ordine di costo per te:
 
-- **T-02 banda.** Il denso Qwen3-8B fa 13,42 tok/s leggendo 4,672 GB per token = **62,7 GB/s**, dentro la finestra 60-67 che lo studio dava come tetto della piattaforma. Il MoE 35B fa 21,83 tok/s leggendo 2,265 GB per token = **49,4 GB/s**, il 79% di quel tetto. Quindi **il limite non è la macchina**: il 21% che manca al MoE è costo dei kernel e del router. Il «~42 GB/s» dello studio era sottostimato e va corretto.
-- **T-03 SSD.** 2 MiB sequenziale QD8: 4.378 MB/s (dichiarati 5.700). 4 KiB casuale QD32: 296 MB/s. Un'anomalia da rifare: a 2 MiB *casuale* la banda scende da 1.952 (QD1) a 771 MB/s (QD8). Il disco aveva appena assorbito 53 GB di download: rifaccio il giro a disco fermo prima di scrivere il verdetto.
-- **Scaricati e verificati** (codice del Catalogo, hash confrontato): build b10991, Qwen3-8B Q4_K_M, Qwen3-Coder-Next Q4_K_M 48,53 GB.
+1. **Alla finestra, 20 minuti (M-05 T-08).** Nuovo profilo, duplica, rinomina, elimina; «Avvia…» dal Catalogo; «Importa da disco…»; «Importa cartella…»; model card. I dialoghi che chiedono un nome sono in-app (`window.prompt` non esiste nella WebView): va confermato che si vedano e rispondano.
+2. **Alla finestra, i guasti, 15 minuti (M-06 T-09).** Uscita con un download in corso; radice dati rinominata mentre l'app è aperta; «Perché è uscito»; «Ricollega…»; `machine.toml` rotto a mano.
+3. **Uno sguardo, 5 minuti (M-07 T-04 e T-05).** Stati vuoti e tema chiaro nell'app vera: finora li ho guardati solo montando la finestra nel browser con dati finti.
+4. **Serve una VM (M-07 T-02).** Qui ho provato tutto tranne la clausola che conta, «senza Rust né Node».
+5. **Serve Adrenalin e un riavvio (M-08 T-08).** VGM a 64 GB, poi rimetterla a 48. Non l'ho fatto da solo di notte.
+6. **Due client su tre (M-08 T-10).** OpenCode non è installato e non l'ho installato al posto tuo; Claude Code non parla con un endpoint OpenAI, quindi contro questo motore non ci si punta — da correggere anche nello studio.
 
-## Rilievo che ti riguarda
+**Tre decisioni tue:** il contrasto del tema scuro (`--fg3` a 3,6:1 — `#838a94` lo mette a norma); il tag della v1; e se la condizione di FastFlowLM (uso libero sotto i 10 M$ di fatturato) vale per te.
 
-`--spec-draft-adaptive` del piano **non esiste** in b10809: le leve vere sono `--spec-draft-n-min/n-max/p-min`. T-05 le misura con 2 / 4 / 0,75.
-
-## Ti servirà decidere
-
-**T-08 VGM a 64 GB** chiede la GUI Adrenalin e un riavvio: non lo faccio da solo di notte. Misuro tutto il resto a 48.
-
-**T-11 NPU**: FastFlowLM è MIT per la CLI ma i kernel NPU sono binari proprietari, liberi solo per uso non commerciale o per aziende **sotto i 10 M$ di fatturato**. Uso la versione portatile (zip, nessuna installazione); la condizione sul fatturato la puoi confermare solo tu.
+M-08 è a undici task su quattordici: resta la NPU (T-11), il rapporto finale (T-12) e i due client.

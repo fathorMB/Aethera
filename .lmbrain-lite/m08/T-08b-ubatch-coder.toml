@@ -1,0 +1,40 @@
+measure = "T-08b"
+title = "Coder-Next oltre i 48 GB: quanto batch ci sta ancora, e se il prefill ne guadagna"
+base = "qwen3-coder-next.q4_k_m.vulkan"
+repetitions = 3
+warmup = 1
+
+# Nata da T-08: il modello ci sta (46,10 GiB dedicati su 48 di VGM, 0,37 in memoria condivisa) e il
+# decode e' buono, ma il prefill e' 144 tok/s contro i 262 che il 35B fa allo stesso ubatch. Il
+# profilo G3 porta -ub 512 / -b 2048, cioe' i valori prudenti scritti prima di avere la macchina.
+# La domanda: un ubatch piu' grande entra ancora, con soli 1,9 GiB di margine, e serve?
+#
+# Se una variante non parte per memoria, e' un risultato: il banco lo scrive nelle condizioni.
+
+[[variant]]
+name = "ub-512"
+note = "il profilo G3 come e' scritto oggi"
+[variant.server]
+ubatch = 512
+batch = 2048
+
+[[variant]]
+name = "ub-2048"
+[variant.server]
+ubatch = 2048
+batch = 2048
+
+[[variant]]
+name = "ub-4096"
+note = "come il profilo G1; qui il margine di memoria e' quasi zero"
+[variant.server]
+ubatch = 4096
+batch = 4096
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 256
+temperature = 0.0
+seed = 1234

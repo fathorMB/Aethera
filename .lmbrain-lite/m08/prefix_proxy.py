@@ -17,10 +17,14 @@ import hashlib
 import http.client
 import json
 import os
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 STATE = {"prev": {}, "lock": threading.Lock(), "n": 0}
 

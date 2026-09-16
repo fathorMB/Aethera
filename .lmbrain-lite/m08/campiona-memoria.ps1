@@ -15,7 +15,9 @@ param(
   [string]$Out = "C:\AetheraData\m08\memoria.csv"
 )
 
-New-Item -ItemType Directory -Force -Path (Split-Path $Out) | Out-Null
+$Out = [System.IO.Path]::GetFullPath($Out)
+$dir = Split-Path $Out -Parent
+if ($dir) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
 $rows = @()
 $deadline = (Get-Date).AddSeconds($Seconds)
 while ((Get-Date) -lt $deadline) {
