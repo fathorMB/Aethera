@@ -2,21 +2,16 @@
 updated: 2026-09-17
 by: lead
 ---
-**Priorità della notte 16→17-09: M-14, fork leggero di llama.cpp** (approvato dall'operatore in chat).
+**Riavvio del 17-09 notte: VGM di nuovo a 48** (operatore). Al rientro: **lanciare M-14 con un sub-agent Opus**, priorità della notte.
 
-- Quando la macchina è libera dalle misure a VGM 64 di M-10, si passa M-14 a un sub-agent Opus.
-- Toolchain: Build Tools 2022 con MSVC 14.44, CMake e Ninja ci sono. **Manca il Vulkan SDK**: senza, niente build (T-04…T-06).
-- Le misure di T-04/T-06 si confrontano con M-08, quindi vanno fatte **a VGM 48**.
+## M-14, cosa sapere
+- Toolchain pronta: Build Tools 2022 (MSVC 14.44, CMake e Ninja inclusi), Vulkan SDK 1.4.357.0.
+- T-07 solo Rust; la finestra dopo il merge di M-12.
+- Misure a VGM 48, confrontabili con M-08.
 
-**In corso**
-- M-10 a VGM 64: T-08 all'ultimo giro, poi T-09.
-- M-12: sub-agent sulla finestra v2.
-
-**Fatto stasera**
-- M-13: release di prova v0.1.0-rc.1 in bozza; installatore provato dall'operatore. Bozza e tag restano fino alla v0.1.0.
-- Repo pubblico, percorsi tolti (PR #2); `.lmbrain-lite/m10` segue a misure finite.
-
-**Tu**
-- Vulkan SDK.
-- VGM a 48 a fine misure.
-- T-07 di M-13 quando vuoi la v0.1.0.
+## Stato
+- **GitHub** `main` = `adf182a` (PR #1, #2, #3). Repo pubblico, percorsi fuori. Bozza e tag v0.1.0-rc.1 restano fino alla v0.1.0.
+- **M-10**: T-01, T-02, T-04, T-06, T-07, T-08 fatti; T-09 blocked (prova dei checkpoint); T-10 (batteria Nonio) e T-13 (rapporto) aperti. T-11/T-12 non scattano (decode < 12).
+- **M-11**: T-01…T-03 fatti; restano contesto lungo, batteria e rapporto.
+- **M-12**: 10/11 sul branch locale `m12-finestra-v2` (worktree in `.claude/worktrees`), non unito. T-10 all'operatore: gruppo 6b di `reports/da-provare-operatore.md`.
+- **M-13**: resta T-07 (v0.1.0).
