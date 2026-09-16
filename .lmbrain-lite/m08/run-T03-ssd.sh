@@ -9,8 +9,9 @@
 
 set -u
 DISKSPD="${DISKSPD:?percorso di diskspd.exe}"
-FILE="${FILE:-C:/Git/minis-config/models/Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf}"
-OUT="${1:-C:/AetheraData/m08}"
+. "$(dirname "$0")/../percorsi.sh"
+FILE="${FILE:-${AETHERA_PESI:?imposta AETHERA_PESI}/Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf}"
+OUT="${1:-$AETHERA_RADICE/m08}"
 mkdir -p "$OUT"
 RES="$OUT/T-03-diskspd.txt"
 : > "$RES"

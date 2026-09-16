@@ -4,7 +4,7 @@
 > da qui. Restano fuori tre cose e sono dichiarate dove cadono: la VGM a 64 GB (chiede la GUI di
 > Adrenalin e un riavvio), due client su tre in T-10, e la NPU di T-11. Ogni riga viene da un avvio
 > registrato da Aethera: il `run id` nelle condizioni di ogni misura è il manifest, il log e la
-> telemetria di quell'avvio, in `C:\AetheraData\runs\`.
+> telemetria di quell'avvio, in `<radice>\runs\`.
 
 Questo rapporto sostituisce con misure fatte su **questa** macchina i numeri di altre macchine che
 lo studio `design/studio-motore-2026-09/` citava da fonti esterne. Dove una misura contraddice lo
@@ -36,7 +36,7 @@ ragionamento esplicito **spento** (`enable_thinking: false`), che è la modalit�
 senza template un modello istruito risponde con un EOS e si misurerebbe il solo prefill.
 
 **Cinque giri più un riscaldamento non contato**, mediana e scarto tipo. I numeri sono quelli che
-manda il motore (`timings` della risposta), scritti grezzi in `C:\AetheraData\m08\<misura>.jsonl`:
+manda il motore (`timings` della risposta), scritti grezzi in `<radice>\m08\<misura>.jsonl`:
 il rapporto aggrega, non riscrive. La quota di prompt riusata dalla cache è `timings.cache_n` della
 risposta, confermata leggendo `/slots` mentre la richiesta gira; **non** viene da
 `/metrics`, il cui contatore `prompt_tokens_cached_total` sale all'avvio della richiesta successiva.
@@ -73,7 +73,7 @@ Righe grezze: `m08/T-02-llama-bench.jsonl`.
 
 **[aggiornamento 16-09 pomeriggio] Il driver frenava, e il «tetto» non è un tetto.** Adrenalin 26.8.1 ha
 portato il driver GPU da 32.0.22042.1 a **32.0.31041.1004**; tutto il resto identico (overlay «Massime
-prestazioni», VGM 48, b10809, stessa riga di `llama-bench`). Righe in `C:\AetheraData\m08\driver31041\`.
+prestazioni», VGM 48, b10809, stessa riga di `llama-bench`). Righe in `<radice>\m08\driver31041\`.
 
 | modello | decode prima | decode dopo | **banda utile dopo** | prefill 512 prima → dopo | pp4096+tg128 prima → dopo |
 |---|---:|---:|---:|---:|---:|
@@ -544,5 +544,5 @@ Tutto e' in `.lmbrain-lite/m08/`, versionato:
 | estende contro riscrive | `T-14-estensione.py` |
 | tabelle da queste righe | `analisi.py` |
 
-Le righe grezze stanno in `C:\AetheraData\m08\`, e ogni variante ha il suo `runs/<id>` con manifest,
+Le righe grezze stanno in `<radice>\m08\`, e ogni variante ha il suo `runs/<id>` con manifest,
 riga di comando, log e memoria misurata.

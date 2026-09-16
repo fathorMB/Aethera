@@ -265,7 +265,7 @@ body.clean .new { outline: none } body.clean .new::before { display: none }
     <button data-p="benchmark">Benchmark <span class="k">4</span></button>
     <button data-p="impostazioni">Impostazioni <span class="k">5</span></button>
     <div class="foot new" data-t="il piede dice dove sei">
-      <b>Radice dati</b><span class="mono">C:\AetheraData</span>
+      <b>Radice dati</b><span class="mono">D:\AetheraDati</span>
       <br><br><b>Avvio acceso</b><span class="mono">r-20260916-173342</span><br>da 42 m 18 s · 18 richieste
       <br><br><b>Lavori</b>1 download · 41 % · Q3_K_XL
     </div>
@@ -457,15 +457,15 @@ body.clean .new { outline: none } body.clean .new::before { display: none }
 
     <div class="grid mb new" data-t="i pezzi tecnici a scomparsa" style="gap:6px">
       <details><summary>Riga di comando <span class="mono cond">llama-server.exe … 14 argomenti</span><span class="r">1 differenza dal profilo · <span class="pill mod">ubatch 512 → 2048</span></span></summary><div class="body">
-<pre class="cmd" style="margin-top:8px">C:\AetheraData\builds\llama-b10991-win-vulkan-x64\llama-server.exe
-  --model C:\AetheraData\models\Qwen3.6-35B-A3B-Q4_K_M.gguf
+<pre class="cmd" style="margin-top:8px">D:\AetheraDati\builds\llama-b10991-win-vulkan-x64\llama-server.exe
+  --model D:\AetheraDati\models\Qwen3.6-35B-A3B-Q4_K_M.gguf
   --host 127.0.0.1 --port 8080 --alias G1
   --ctx-size 65536 --parallel 1 --n-gpu-layers 999
   --flash-attn on --cache-type-k f16 --cache-type-v f16
   --ubatch-size <s>512</s> <b>2048</b> --batch-size 2048
   --spec-type draft-mtp --spec-draft-adaptive --draft-n-min 2 --draft-n-max 4 --draft-p-min 0.75
-  --jinja --chat-template-file C:\AetheraData\templates\qwen3.6-tollerante.jinja
-  --metrics --slot-save-path C:\AetheraData\runs\r-20260916-173342\slots</pre>
+  --jinja --chat-template-file D:\AetheraDati\templates\qwen3.6-tollerante.jinja
+  --metrics --slot-save-path D:\AetheraDati\runs\r-20260916-173342\slots</pre>
         <div class="row" style="margin-top:8px"><button class="btn sm">Copia riga</button><button class="btn sm">Copia percorso manifest</button><span class="cond right">runs\r-20260916-173342\manifest.toml</span></div>
       </div></details>
       <details><summary>Log del motore <span class="mono cond">runs\r-20260916-173342\llama-server.log</span><span class="r">ultima riga 18:14:08 · si apre da solo dopo un'uscita con errore</span></summary><div class="body">
@@ -481,7 +481,7 @@ srv  log_server_r: request: POST /v1/chat/completions 127.0.0.1 200</pre>
       <div class="grid g3">
         <div class="card"><div class="row"><span class="badge err big"><i></i>ORFANO</span><span class="cond">sola lettura</span></div><dl class="kv" style="margin-top:8px"><dt>Indirizzo</dt><dd class="mono">127.0.0.1:8080</dd><dt>Processo</dt><dd class="mono">llama-server.exe · PID 9120</dd><dt>Alias servito</dt><dd class="mono">G1</dd><dt>Slot</dt><dd>libero</dd><dt>Origine</dt><dd class="cond">lasciato acceso all'uscita dall'avvio r-20260916-091204</dd></dl><div class="row" style="margin-top:8px"><span class="cond">Aethera non ha il suo log né la sua telemetria.</span><button class="btn sm danger right">Termina…</button></div></div>
         <div class="card"><div class="row"><span class="badge err big"><i></i>USCITO CON ERRORE</span><span class="cond">codice 1 · 16-09 18:41:10</span></div><h3 style="margin-top:8px">Perché è uscito <span class="cond">dalle righe del log, non dal codice</span></h3><pre class="cmd" style="margin:0 0 6px">error: unknown argument: --ctx-checkpoint</pre><div class="note warn">La leva non esiste in questa build: è arrivata con b10982. Cambia build nel profilo, oppure togli la leva.</div><div class="row" style="margin-top:8px"><button class="btn sm primary">Riavvia con la stessa riga</button><button class="btn sm">Apri il profilo</button></div></div>
-        <div class="card"><h3>Primo avvio <span class="cond">dalla cartella dei dati al motore acceso</span></h3><div class="steps"><div class="step done"><span class="n">✓</span><span>Radice dati <span class="cond">— C:\AetheraData</span></span><span></span></div><div class="step done"><span class="n">✓</span><span>Una build di llama.cpp <span class="cond">— b10991-vulkan</span></span><span></span></div><div class="step now"><span class="n">3</span><span>Dei pesi verificati <span class="cond">— nessun modello verificato nel catalogo</span></span><button class="btn sm primary">Vai</button></div><div class="step"><span class="n">4</span><span>Un profilo <span class="cond">— che cita pesi e build</span></span><span></span></div><div class="step"><span class="n">5</span><span>Avvia <span class="cond">— e questa pagina si riempie</span></span><span></span></div></div></div>
+        <div class="card"><h3>Primo avvio <span class="cond">dalla cartella dei dati al motore acceso</span></h3><div class="steps"><div class="step done"><span class="n">✓</span><span>Radice dati <span class="cond">— D:\AetheraDati</span></span><span></span></div><div class="step done"><span class="n">✓</span><span>Una build di llama.cpp <span class="cond">— b10991-vulkan</span></span><span></span></div><div class="step now"><span class="n">3</span><span>Dei pesi verificati <span class="cond">— nessun modello verificato nel catalogo</span></span><button class="btn sm primary">Vai</button></div><div class="step"><span class="n">4</span><span>Un profilo <span class="cond">— che cita pesi e build</span></span><span></span></div><div class="step"><span class="n">5</span><span>Avvia <span class="cond">— e questa pagina si riempie</span></span><span></span></div></div></div>
       </div>
     </div></details>
   </section>
@@ -509,7 +509,7 @@ srv  log_server_r: request: POST /v1/chat/completions 127.0.0.1 200</pre>
           <div class="it"><div class="n">qwen3-8b-banco</div><div class="m"><span>4,9 GB</span><span>none</span></div></div>
         </div>
         <div class="row" style="margin-top:8px"><button class="btn sm">Duplica…</button><button class="btn sm">Rinomina…</button><button class="btn sm danger">Elimina…</button></div>
-        <div class="cond mono" style="margin-top:8px;word-break:break-all">C:\AetheraData\profiles</div>
+        <div class="cond mono" style="margin-top:8px;word-break:break-all">D:\AetheraDati\profiles</div>
       </div>
 
       <div>
@@ -639,7 +639,7 @@ srv  log_server_r: request: POST /v1/chat/completions 127.0.0.1 200</pre>
           <h2>qwen3.6-35b-a3b-q4_k_m <span class="r">dettaglio</span></h2>
           <div class="row mb"><button class="btn sm primary" title="Apre la pagina Avvio con questi pesi: il profilo che li usa, o uno nuovo">Avvia…</button><button class="btn sm">Ricalcola SHA-256</button><button class="btn sm">Rileggi metadati GGUF</button><button class="btn sm">Leggi la model card</button><button class="btn sm danger right">Rimuovi…</button></div>
           <dl class="kv">
-            <dt>File</dt><dd class="mono">Qwen3.6-35B-A3B-Q4_K_M.gguf <span class="cond">C:\AetheraData\models</span></dd>
+            <dt>File</dt><dd class="mono">Qwen3.6-35B-A3B-Q4_K_M.gguf <span class="cond">D:\AetheraDati\models</span></dd>
             <dt>Sorgente</dt><dd class="mono">huggingface.co/Qwen/Qwen3.6-35B-A3B-GGUF · resolve/main</dd>
             <dt>SHA-256</dt><dd><span class="mono">b46fedd3…9064772</span> <span class="badge ok tight"><i></i>verificato 15-09 22:41</span></dd>
             <dt>Dimensione</dt><dd><span class="num">22,28</span> GB <span class="cond">decimali, come il publisher</span></dd>
@@ -666,8 +666,8 @@ srv  log_server_r: request: POST /v1/chat/completions 127.0.0.1 200</pre>
     <details class="help new" data-t="scheda Build con lo stesso schema" style="margin-top:12px"><summary>Scheda «Build llama.cpp» (stessa disposizione: elenco a sinistra, dettaglio a destra)</summary><div class="body">
       <div class="md" style="margin-top:8px">
         <div class="card" style="padding:0"><table><thead><tr><th>Id</th><th>Origine</th><th>Cartella</th><th></th></tr></thead><tbody>
-          <tr class="click sel"><td class="mono">b10991-vulkan</td><td class="cond">machine.toml</td><td class="mono mini">C:\AetheraData\builds\llama-b10991-win-vulkan-x64</td><td class="r"><span class="badge ok tight"><i></i>in uso ora</span></td></tr>
-          <tr class="click"><td class="mono">b10809-vulkan</td><td class="cond">builds/</td><td class="mono mini">C:\AetheraData\builds\llama-b10809-win-vulkan-x64</td><td></td></tr>
+          <tr class="click sel"><td class="mono">b10991-vulkan</td><td class="cond">machine.toml</td><td class="mono mini">D:\AetheraDati\builds\llama-b10991-win-vulkan-x64</td><td class="r"><span class="badge ok tight"><i></i>in uso ora</span></td></tr>
+          <tr class="click"><td class="mono">b10809-vulkan</td><td class="cond">builds/</td><td class="mono mini">D:\AetheraDati\builds\llama-b10809-win-vulkan-x64</td><td></td></tr>
         </table></div>
         <div class="card"><h2>b10991-vulkan <span class="r">commit 930e2fa59 · pubblicata 15-09</span></h2>
           <div class="row mb"><button class="btn sm">--list-devices</button><button class="btn sm">Cerca le release di ggml-org</button><button class="btn sm">Importa cartella…</button></div>
@@ -785,16 +785,16 @@ weights_volume = "C:"</pre></div></details>
       <div class="grid" style="align-items:start">
         <div class="card">
           <h2>Radice dati <span class="r">machine.toml · profiles · builds · runs</span></h2>
-          <div class="f"><label>Radice</label><div class="mono">C:\AetheraData</div><button class="btn sm">Cambia…</button></div>
+          <div class="f"><label>Radice</label><div class="mono">D:\AetheraDati</div><button class="btn sm">Cambia…</button></div>
           <div class="f"><label>Nome macchina</label><input value="MORO-AI"><span></span></div>
-          <div class="f"><label>Cartella pesi</label><input value="C:\AetheraData\models"><button class="btn sm">Cambia…</button></div>
+          <div class="f"><label>Cartella pesi</label><input value="D:\AetheraDati\models"><button class="btn sm">Cambia…</button></div>
           <div class="f"><label>Margine RAM<small>ram_margin_gib</small></label><input value="8"><span class="h">GiB disponibili al picco</span></div>
         </div>
         <div class="card">
           <h2>Build llama.cpp <span class="r">dichiarate in machine.toml o trovate in builds/</span></h2>
           <table><thead><tr><th>id</th><th>cartella</th><th>origine</th><th></th></tr></thead><tbody>
-            <tr><td class="mono">b10991-vulkan</td><td class="mono mini">C:\AetheraData\builds\llama-b10991-win-vulkan-x64</td><td class="cond">machine.toml</td><td class="r"><button class="btn sm">Togli</button></td></tr>
-            <tr><td class="mono">b10809-vulkan</td><td class="mono mini">C:\AetheraData\builds\llama-b10809-win-vulkan-x64</td><td class="cond">builds/</td><td class="r"></td></tr>
+            <tr><td class="mono">b10991-vulkan</td><td class="mono mini">D:\AetheraDati\builds\llama-b10991-win-vulkan-x64</td><td class="cond">machine.toml</td><td class="r"><button class="btn sm">Togli</button></td></tr>
+            <tr><td class="mono">b10809-vulkan</td><td class="mono mini">D:\AetheraDati\builds\llama-b10809-win-vulkan-x64</td><td class="cond">builds/</td><td class="r"></td></tr>
           </tbody></table>
           <div class="row" style="margin-top:8px"><button class="btn sm">Aggiungi build…</button><span class="cond">L'id porta build e backend separati da trattini: un profilo con build <code>b10991</code> e backend <code>vulkan</code> la trova così.</span></div>
         </div>
@@ -829,7 +829,7 @@ weights_volume = "C:"</pre></div></details>
 $env:ANTHROPIC_AUTH_TOKEN = "aethera"
 $env:ANTHROPIC_MODEL = "G1"
 $env:CLAUDE_CODE_MAX_OUTPUT_TOKENS = "4096"
-$env:CLAUDE_CONFIG_DIR = "C:\AetheraData\claude"   # facoltativa
+$env:CLAUDE_CONFIG_DIR = "D:\AetheraDati\claude"   # facoltativa
 claude</pre>
         <div class="row" style="margin-top:8px"><button class="btn sm">Copia come PowerShell</button><button class="btn sm">Copia come bash</button><span class="cond right">alias, porta e output sono quelli dell'avvio acceso</span></div>
       </div>

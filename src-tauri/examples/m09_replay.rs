@@ -92,7 +92,7 @@ fn main() -> Result<(), String> {
             "reference": { "decode_median": 30.9, "runs": 3 },
             "runs": history,
             "snippets": snippets,
-            "overview_conditions": system::probe().conditions(Some(&PathBuf::from(r"C:\Git\minis-config\models"))),
+            "overview_conditions": system::probe().conditions(std::env::var_os("AETHERA_PESI").map(PathBuf::from).as_deref()),
         });
         std::fs::write(&out, serde_json::to_string_pretty(&v).unwrap()).map_err(|e| e.to_string())?;
         println!("dati del banco in {}", out.display());

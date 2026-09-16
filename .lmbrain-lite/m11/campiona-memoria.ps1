@@ -11,13 +11,13 @@
 # (la tabella per_layer_token_embd letta con --lazy-mode); read_gib = byte letti dal processo
 # (quanto della tabella e' venuto dal disco). La doppia copia resta in private_gib.
 #
-# Uso: powershell -File campiona-memoria.ps1 -Seconds 1800 -Out C:\AetheraData\m10\T-04-memoria.csv
+# Uso: powershell -File campiona-memoria.ps1 -Seconds 1800 -Out <radice>\m10\T-04-memoria.csv
 
 param(
   [string]$StopFile = "",
   [int]$Seconds = 600,
   [int]$IntervalMs = 2000,
-  [string]$Out = "C:\AetheraData\m10\memoria.csv"
+  [Parameter(Mandatory = $true)][string]$Out
 )
 
 $Out = [System.IO.Path]::GetFullPath($Out)

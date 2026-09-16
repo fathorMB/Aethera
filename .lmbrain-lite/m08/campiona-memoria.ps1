@@ -7,12 +7,12 @@
 #   --load-mode mmap  -> le pagine restano del file: Private Bytes resta basso, mentre il working
 #                        set condiviso e la cache di sistema crescono.
 #
-# Uso: powershell -File campiona-memoria.ps1 -Seconds 600 -Out C:\AetheraData\m08\T-09-memoria.csv
+# Uso: powershell -File campiona-memoria.ps1 -Seconds 600 -Out <radice>\m08\T-09-memoria.csv
 
 param(
   [int]$Seconds = 600,
   [int]$IntervalMs = 2000,
-  [string]$Out = "C:\AetheraData\m08\memoria.csv"
+  [Parameter(Mandatory = $true)][string]$Out
 )
 
 $Out = [System.IO.Path]::GetFullPath($Out)

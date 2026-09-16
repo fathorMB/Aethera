@@ -1,6 +1,6 @@
 ---
 title: Roadmap
-updated: 2026-09-16
+updated: 2026-09-17
 generated: true
 ---
 # Roadmap
@@ -22,6 +22,7 @@ generated: true
 | 11 | M-11 | Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48 | active | 3/6 | 50% |
 | 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | active | 0/11 | 0% |
 | 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | active | 4/7 (1 blocked) | 57% |
+| 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | proposed | 0/9 | 0% |
 
 ## M-01 — Mockup di design della v1
 
@@ -113,4 +114,11 @@ generated: true
 - `priority`: 13
 - `file`: milestones/M-13.md
 - `outcome`: Un push di un tag v* sul repository produce, senza passi a mano sulla macchina dell'operatore, una GitHub Release in bozza con l'installatore NSIS di Aethera, il suo SHA-256 e le note prese da RELEASE-NOTES.md; ogni pull request passa gli stessi controlli (build del frontend, vitest, cargo test); una versione diversa fra tag, tauri.conf.json e Cargo.toml ferma la release. L'installatore scaricato dalla release è quello che l'operatore installa e prova. La firma digitale resta fuori.
+
+## M-14 — Fork leggero di llama.cpp: build locali con patch misurate sopra master
+
+- `status`: proposed
+- `priority`: 14
+- `file`: milestones/M-14.md
+- `outcome`: Aethera può usare build di llama.cpp compilate su questa macchina da master più una serie corta di patch, ognuna in un ramo suo, ribasata a ogni build adottata e tenuta solo se una misura la giustifica. Uno script fa checkout, rebase, build Vulkan e copia in builds/ con un id che dichiara base, serie di patch e backend (per esempio b10991+moro1-vulkan); il manifest di ogni avvio lo registra e Benchmark non confronta una build patchata con una liscia senza dirlo. La prima patch (int8 coopmat, PR #27952) è misurata contro la base con la procedura di M-08, e il rapporto dice se entra o si butta.
 

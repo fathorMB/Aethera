@@ -158,11 +158,29 @@ e le prove sulla macchina vera, che vogliono pesi e build veri e una radice dati
 prendere i percorsi (creano la loro radice temporanea e la cancellano):
 
 ```bash
-cd src-tauri && cargo run --example e2e_m05 -- C:\AetheraData
+cd src-tauri && cargo run --example e2e_m05 -- <radice>
 ```
 
 `e2e_m03` e `e2e_m04` provano memoria e catalogo, `e2e_m05` il percorso da una radice vuota a un
 motore acceso, `e2e_m06` il comportamento quando qualcosa va storto.
+
+## Percorsi nei documenti e negli script dei banchi
+
+Il kit in `.lmbrain-lite/` (log, rapporti, mockup) non riporta i percorsi della macchina su cui è
+stato scritto: al loro posto ci sono dei segnaposto.
+
+| segnaposto | che cosa indica | variabile negli script |
+|---|---|---|
+| `<radice>` | la radice dati di Aethera | `AETHERA_RADICE` |
+| `<repo>` | il checkout di questo repository | `AETHERA_REPO` |
+| `<pesi>` | la cartella dei pesi (`models_dir`) | `AETHERA_PESI` |
+| `<nonio>` | la build di llama.cpp usata dai banchi, o Nonio | `AETHERA_BUILD`, `AETHERA_NONIO_EXE` |
+| `<download>` | dove finiscono i download grossi | `AETHERA_DOWNLOAD` |
+| `<minis-config>` | il checkout di minis-config | `AETHERA_G1_JSON` (profilo G1) |
+
+Gli script in `.lmbrain-lite/m08`, `m10` e `m11` leggono i percorsi da
+`.lmbrain-lite/percorsi.local.sh`, che non si committa: si copia `percorsi.esempio.sh` e si
+mettono i valori della propria macchina. I test usano percorsi fittizi (`X:\…`).
 
 ## Come si fa una release
 

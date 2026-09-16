@@ -1,4 +1,4 @@
-# M-11 — da copiare in C:\AetheraData\profiles\ quando il GGUF è scaricato e verificato.
+# M-11 — da copiare in <radice>\profiles\ quando il GGUF è scaricato e verificato.
 schema_version = 1
 name = "qwen3.8-flash-coder.q8_0.vulkan"
 notes = "M-11: taglio coding di Jab1718 (160 esperti, niente tabella n-gram, niente MTP). Tutto in VGM 48."

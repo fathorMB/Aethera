@@ -3,11 +3,12 @@
 # si sovrappongono, altrimenti misurano la contesa e non la leva.
 #
 # Uso: bash run-tutto.sh <radice> <cartella-esempi> [misure…]
-#   bash run-tutto.sh C:/AetheraData C:/Git/Aethera/src-tauri/target/release/examples T-04 T-05
+#   bash run-tutto.sh <radice> <repo>/src-tauri/target/release/examples T-04 T-05
 
 set -u
-ROOT="${1:-C:/AetheraData}"
-EX="${2:-C:/Git/Aethera/src-tauri/target/release/examples}"
+. "$(dirname "$0")/../percorsi.sh"
+ROOT="${1:-$AETHERA_RADICE}"
+EX="${2:-$AETHERA_REPO/src-tauri/target/release/examples}"
 shift 2 2>/dev/null || true
 HERE="$(cd "$(dirname "$0")" && pwd)"
 MISURE=("$@")

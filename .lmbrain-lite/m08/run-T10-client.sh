@@ -12,7 +12,8 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LABEL="${1:?etichetta del client}"; shift
-OUT="${OUT:-C:/AetheraData/m08/T-10-prefissi.jsonl}"
+. "$(dirname "$0")/../percorsi.sh"
+OUT="${OUT:-$AETHERA_RADICE/m08/T-10-prefissi.jsonl}"
 
 python "$HERE/prefix_proxy.py" --port 8081 --upstream http://127.0.0.1:8080 \
   --label "$LABEL" --out "$OUT" ${DUMP:+--dump "$DUMP"} ${FOLD_SYSTEM:+--fold-system} &

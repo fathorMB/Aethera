@@ -9,11 +9,12 @@ porta 52625. Per ogni condizione si mandano al 35B gli stessi due carichi di T-0
   C  npu-genera     richieste /v1/chat/completions in continuo al 4B
 
 Uso: python T-11-npu.py <condizione> [--reps 5] [--engine http://127.0.0.1:8080]
-Le righe finiscono in C:/AetheraData/m08/T-11.jsonl (35B) e T-11-npu.jsonl (carico NPU).
+Le righe finiscono in <radice>/m08/T-11.jsonl (35B) e T-11-npu.jsonl (carico NPU).
 """
 
 import argparse
 import json
+import os
 import threading
 import time
 import urllib.request
@@ -21,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).parent
-OUT = Path("C:/AetheraData/m08")
+OUT = Path(os.environ["AETHERA_RADICE"]) / "m08"  # radice dati da percorsi.local.sh
 FLM = "http://127.0.0.1:52625"
 
 # Gli stessi carichi e lo stesso campionamento di T-05-mtp.toml.

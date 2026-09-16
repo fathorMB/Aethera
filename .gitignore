@@ -6,3 +6,8 @@ src-tauri/gen/schemas/
 
 # worktree dei sub-agent di Claude Code
 .claude/
+
+# percorsi della macchina per gli script dei banchi
+.lmbrain-lite/percorsi.local.sh
+# configurazione MCP locale (contiene il percorso dell'utente)
+.mcp.json

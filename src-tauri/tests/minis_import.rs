@@ -60,12 +60,12 @@ fn g1_command_line_matches_serve_ps1() {
     let expected = cmdline::split_line(recorded["command_line"].as_str().unwrap());
 
     let paths = cmdline::LaunchPaths {
-        model: PathBuf::from(r"C:\Git\minis-config\models\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf"),
-        slot_dir: Some(PathBuf::from(r"C:\Git\minis-config\manifests\slots")),
+        model: PathBuf::from(r"X:\pesi\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf"),
+        slot_dir: Some(PathBuf::from(r"X:\minis-config\manifests\slots")),
         draft_model: None,
         chat_template: None,
     };
-    let binary = PathBuf::from(r"C:\Nonio\llama-b10809-vulkan\llama-server.exe");
+    let binary = PathBuf::from(r"X:\llama\b10809-vulkan\llama-server.exe");
     let mut ours = cmdline::split_line(&cmdline::render_line(&binary, &cmdline::build_args(&p, &paths)));
 
     // Unica differenza attesa: Aethera dichiara il modo di caricamento, serve.ps1 lo lasciava al default.
@@ -96,12 +96,12 @@ fn manifest_roundtrips_through_toml() {
             commit: Some("5266f24da".into()),
             backend: "vulkan".into(),
             build_id: "b10809-vulkan".into(),
-            binary: r"C:\Nonio\llama-b10809-vulkan\llama-server.exe".into(),
+            binary: r"X:\llama\b10809-vulkan\llama-server.exe".into(),
             version_text: Some("version: 0.4.0-dev (build 10809, commit 5266f24da)".into()),
         },
         model: manifest::ModelSection {
             file: p.model.file.clone(),
-            path: r"C:\Git\minis-config\models\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf".into(),
+            path: r"X:\pesi\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf".into(),
             size_bytes: 22_290_000_000,
             size_gb: 22.29,
             sha256_declared: p.model.sha256.clone(),

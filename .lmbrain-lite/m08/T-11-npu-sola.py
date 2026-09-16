@@ -5,6 +5,7 @@ disco, così un crash non si porta via niente.
 Uso: python T-11-npu-sola.py [minuti-embedding] [minuti-chat] [minuti-chat-da-un-token]
 """
 import importlib.util
+import os
 import json
 import sys
 import threading
@@ -15,7 +16,7 @@ spec = importlib.util.spec_from_file_location("t11", Path(__file__).with_name("T
 t11 = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(t11)
 
-OUT = Path("C:/AetheraData/m08/T-11-npu-sola.jsonl")
+OUT = Path(os.environ["AETHERA_RADICE"]) / "m08" / "T-11-npu-sola.jsonl"  # radice dati da percorsi.local.sh
 
 
 class Rows(list):

@@ -20,7 +20,8 @@
 set -u
 FLM="${FLM:?cartella di flm.exe}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-OUT="${OUT:-C:/AetheraData/m08}"
+. "$(dirname "$0")/../percorsi.sh"
+OUT="${OUT:-$AETHERA_RADICE/m08}"
 mkdir -p "$OUT"
 
 echo "=== stack NPU ==="

@@ -2,7 +2,7 @@
 
 Un solo file, `index.html`, con nove pagine: Sintesi e proposte, Macchina e fisica, NPU XDNA 2, Motore llama.cpp, Qwen3.8-Flash-Next, Streaming da SSD, Mappa dei modelli, Piano di prova, Fonti. Navigazione dalla colonna sinistra o con i tasti 1–9; «tema» in alto a destra.
 
-**Aggiornato il 16-09 con le misure di M-08** (vedi il riquadro in cima alla Sintesi e gli esiti in corsivo nel Piano di prova). In origine era uno **studio**, non una decisione né un milestone: nessuna misura nuova è stata fatta sulla macchina (un'altra sessione stava lavorando sui milestone e il motore non andava toccato). I numeri locali vengono dagli avvii in `C:\AetheraData\runs` e dal banco del 15-09 di minis-config; i numeri esterni da cinque ricerche web parallele condotte il 16-09-2026, con oltre 400 fra ricerche e pagine lette.
+**Aggiornato il 16-09 con le misure di M-08** (vedi il riquadro in cima alla Sintesi e gli esiti in corsivo nel Piano di prova). In origine era uno **studio**, non una decisione né un milestone: nessuna misura nuova è stata fatta sulla macchina (un'altra sessione stava lavorando sui milestone e il motore non andava toccato). I numeri locali vengono dagli avvii in `<radice>\runs` e dal banco del 15-09 di minis-config; i numeri esterni da cinque ricerche web parallele condotte il 16-09-2026, con oltre 400 fra ricerche e pagine lette.
 
 Ogni dato porta un marcatore: **V** verificato dalla fonte, **I** inferito o calcolato, **M** misurato su questa macchina. Le pagine di amd.com sono andate in timeout più volte: dove un dato AMD viene da fonti terze è detto.
 

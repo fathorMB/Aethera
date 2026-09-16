@@ -236,7 +236,7 @@ mod tests {
             model: PathBuf::from(r"C:\m\x.gguf"),
             slot_dir: None,
             draft_model: None,
-            chat_template: Some(PathBuf::from(r"C:\AetheraData\templates\qwen3.6-tollerante.jinja")),
+            chat_template: Some(PathBuf::from(r"X:\radice\templates\qwen3.6-tollerante.jinja")),
         };
         p.server.n_gpu_layers = None;
         p.server.fit = Some("on".into());
@@ -255,7 +255,7 @@ mod tests {
         assert_eq!(get("--n-cpu-moe"), Some(Some("4".into())));
         assert_eq!(get("--override-tensor"), Some(Some(r"blk\.1\.ffn=CPU,exps=Vulkan0".into())));
         assert_eq!(get("--lazy-mode"), Some(Some("off".into())));
-        assert_eq!(get("--chat-template-file"), Some(Some(r"C:\AetheraData\templates\qwen3.6-tollerante.jinja".into())));
+        assert_eq!(get("--chat-template-file"), Some(Some(r"X:\radice\templates\qwen3.6-tollerante.jinja".into())));
         assert_eq!(get("--checkpoint-min-step"), Some(Some("128".into())));
         assert_eq!(get("--cache-ram"), Some(Some("-1".into())));
         assert_eq!(get("--no-kv-unified"), Some(None));

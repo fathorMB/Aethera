@@ -33,7 +33,7 @@ Ognuno di questi deve dire **cosa è successo e cosa fare**, senza perdere dati.
 
 - [ ] **Uscita con un download in corso**: fai partire un download dal Catalogo e chiudi l'app. Deve
       aprirsi il dialogo che elenca i lavori, qualunque sia la preferenza d'uscita impostata.
-- [ ] **Radice dati che non risponde**: rinomina `C:\AetheraData` mentre l'app è aperta. Deve
+- [ ] **Radice dati che non risponde**: rinomina `<radice>` mentre l'app è aperta. Deve
       comparire una pagina intera al posto delle altre, con «Riprova» e «Scegli un'altra cartella…».
       (Poi rinominala indietro.)
 - [ ] **«Perché è uscito»** sulla pagina Motore: avvia un profilo con una leva inesistente (mettila
@@ -74,7 +74,7 @@ La VGM a 64 GB non si cambia da riga di comando. **Non l'ho fatto da solo di not
 finestra di Adrenalin e un riavvio, e va rimessa a 48 dopo.
 
 - [ ] Portare la VGM a 64 GB, riavviare, rilanciare
-      `m08_bench.exe C:/AetheraData .lmbrain-lite/m08/T-08-oltre48.toml`, poi **rimetterla a 48**.
+      `m08_bench.exe <radice> .lmbrain-lite/m08/T-08-oltre48.toml`, poi **rimetterla a 48**.
       Serve a chiudere la domanda «il decode torna al tetto se tutto è dedicato?». Quello che già
       sappiamo: a 48 GB il Coder-Next da 48,53 GB **ci sta** (46,10 GiB dedicati, 0,37 condivisi) e
       fa 17,75 tok/s, quindi la VGM a 64 serve solo a sapere se si guadagna ancora, non a farlo

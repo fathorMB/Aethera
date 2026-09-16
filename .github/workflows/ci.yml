@@ -8,9 +8,9 @@
 #
 # Esclusi di proposito:
 #   - gli esempi in src-tauri/examples (e2e_*, m08_*, m09_*…): vogliono llama-server, la GPU e
-#     C:\AetheraData. Per questo cargo riceve --lib --bins --tests e non --all-targets: gli
+#     <radice>. Per questo cargo riceve --lib --bins --tests e non --all-targets: gli
 #     esempi non vengono né eseguiti né compilati.
-#   - nessun test unitario oggi richiede GPU, motore o C:\AetheraData (verificato il 16-09-2026:
+#   - nessun test unitario oggi richiede GPU, motore o <radice> (verificato il 16-09-2026:
 #     usano cartelle temporanee, socket su 127.0.0.1:0 e testi fissi), quindi non serve un filtro.
 #     Un test nuovo che ne avesse bisogno va marcato #[ignore] con il motivo.
 

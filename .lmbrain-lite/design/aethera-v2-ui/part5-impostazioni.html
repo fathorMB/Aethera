@@ -16,16 +16,16 @@
       <div class="grid" style="align-items:start">
         <div class="card">
           <h2>Radice dati <span class="r">machine.toml · profiles · builds · runs</span></h2>
-          <div class="f"><label>Radice</label><div class="mono">C:\AetheraData</div><button class="btn sm">Cambia…</button></div>
+          <div class="f"><label>Radice</label><div class="mono">D:\AetheraDati</div><button class="btn sm">Cambia…</button></div>
           <div class="f"><label>Nome macchina</label><input value="MORO-AI"><span></span></div>
-          <div class="f"><label>Cartella pesi</label><input value="C:\AetheraData\models"><button class="btn sm">Cambia…</button></div>
+          <div class="f"><label>Cartella pesi</label><input value="D:\AetheraDati\models"><button class="btn sm">Cambia…</button></div>
           <div class="f"><label>Margine RAM<small>ram_margin_gib</small></label><input value="8"><span class="h">GiB disponibili al picco</span></div>
         </div>
         <div class="card">
           <h2>Build llama.cpp <span class="r">dichiarate in machine.toml o trovate in builds/</span></h2>
           <table><thead><tr><th>id</th><th>cartella</th><th>origine</th><th></th></tr></thead><tbody>
-            <tr><td class="mono">b10991-vulkan</td><td class="mono mini">C:\AetheraData\builds\llama-b10991-win-vulkan-x64</td><td class="cond">machine.toml</td><td class="r"><button class="btn sm">Togli</button></td></tr>
-            <tr><td class="mono">b10809-vulkan</td><td class="mono mini">C:\AetheraData\builds\llama-b10809-win-vulkan-x64</td><td class="cond">builds/</td><td class="r"></td></tr>
+            <tr><td class="mono">b10991-vulkan</td><td class="mono mini">D:\AetheraDati\builds\llama-b10991-win-vulkan-x64</td><td class="cond">machine.toml</td><td class="r"><button class="btn sm">Togli</button></td></tr>
+            <tr><td class="mono">b10809-vulkan</td><td class="mono mini">D:\AetheraDati\builds\llama-b10809-win-vulkan-x64</td><td class="cond">builds/</td><td class="r"></td></tr>
           </tbody></table>
           <div class="row" style="margin-top:8px"><button class="btn sm">Aggiungi build…</button><span class="cond">L'id porta build e backend separati da trattini: un profilo con build <code>b10991</code> e backend <code>vulkan</code> la trova così.</span></div>
         </div>
@@ -60,7 +60,7 @@
 $env:ANTHROPIC_AUTH_TOKEN = "aethera"
 $env:ANTHROPIC_MODEL = "G1"
 $env:CLAUDE_CODE_MAX_OUTPUT_TOKENS = "4096"
-$env:CLAUDE_CONFIG_DIR = "C:\AetheraData\claude"   # facoltativa
+$env:CLAUDE_CONFIG_DIR = "D:\AetheraDati\claude"   # facoltativa
 claude</pre>
         <div class="row" style="margin-top:8px"><button class="btn sm">Copia come PowerShell</button><button class="btn sm">Copia come bash</button><span class="cond right">alias, porta e output sono quelli dell'avvio acceso</span></div>
       </div>

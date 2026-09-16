@@ -21,7 +21,7 @@ volte, quindi non è un lavoro lungo ma un blocco del dispositivo.
 
 ## Dump
 
-Dodici minidump `WATCHDOG` (copie in `C:\AetheraData\m08\dumps`, analisi con WinDbg 1.2606 in `analisi\`),
+Dodici minidump `WATCHDOG` (copie in `<radice>\m08\dumps`, analisi con WinDbg 1.2606 in `analisi\`),
 tutti con lo stesso responsabile:
 
 - `FAILURE_BUCKET_ID: LKD_0x141_IMAGE_ipustack.sys`
