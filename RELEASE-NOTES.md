@@ -67,3 +67,22 @@ quelli servono solo per compilare.
   che arrivano da un browser, ma chiunque possa eseguire codice su questo computer può usarlo.
 - La lettura della model card riconosce le forme più comuni; un publisher che scrive il
   campionamento in un modo inconsueto non viene letto, e lo dichiara invece di inventare valori.
+
+## Installatore non firmato e Windows SmartScreen
+
+Questa sezione vale per ogni versione e il workflow di release la aggiunge alle note di ciascuna.
+
+L'installatore (`Aethera_X.Y.Z_x64-setup.exe`) **non ha firma digitale**, per scelta: la firma resta
+fuori finché non serve. Accanto all'installatore, nella release, c'è il file `.sha256`: prima di
+eseguirlo si controlla che l'hash coincida, per esempio in PowerShell con
+`Get-FileHash .\Aethera_X.Y.Z_x64-setup.exe -Algorithm SHA256`.
+
+Alla prima esecuzione Windows SmartScreen mostra la schermata blu **«Windows ha protetto il PC»**,
+con l'editore «Sconosciuto». Per andare avanti:
+
+1. fare clic su **«Ulteriori informazioni»**;
+2. controllare che il nome del file sia quello scaricato dalla release;
+3. fare clic su **«Esegui comunque»**.
+
+L'avviso non dice che il file è dannoso: dice che non è firmato e che Windows non lo ha ancora visto
+abbastanza volte.

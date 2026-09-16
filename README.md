@@ -163,3 +163,45 @@ cd src-tauri && cargo run --example e2e_m05 -- C:\AetheraData
 
 `e2e_m03` e `e2e_m04` provano memoria e catalogo, `e2e_m05` il percorso da una radice vuota a un
 motore acceso, `e2e_m06` il comportamento quando qualcosa va storto.
+
+## Come si fa una release
+
+L'installatore lo produce GitHub, non la macchina di chi rilascia: un tag `vX.Y.Z` avvia
+`.github/workflows/release.yml`, che crea una release **in bozza** con l'installatore NSIS, il suo
+`.sha256` e le note. Ogni pull request e ogni push su `main` passano invece da
+`.github/workflows/ci.yml` (build del frontend, vitest, `cargo test`, `cargo clippy`; mai gli esempi
+che vogliono il motore o la GPU).
+
+1. **La versione, uguale in quattro posti:** `src-tauri/tauri.conf.json` (`version`),
+   `src-tauri/Cargo.toml` (`[package] version`), `package.json` (`version`) e `src-tauri/Cargo.lock`,
+   che si aggiorna da solo con `cargo check` in `src-tauri`. Il titolo della finestra oggi non
+   contiene la versione; se un giorno la contiene, va cambiato anche lì. Il controllo si prova in
+   locale:
+
+   ```bash
+   python .github/scripts/controlla_versione.py --tag vX.Y.Z
+   ```
+
+2. **Le note:** in `RELEASE-NOTES.md` una sezione `## X.Y.Z — …` in cima. Diventa il testo della
+   release, con in coda la sezione «Installatore non firmato». Senza la sezione della versione il
+   workflow usa tutto il file e lo segnala con un avviso.
+3. **Commit su `main` e push**, poi il tag annotato e il suo push:
+
+   ```bash
+   git tag -a vX.Y.Z -m "Aethera X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+   Se il tag e i file non dicono la stessa versione il workflow si ferma prima della build e dice
+   quale file correggere: si cancella il tag (`git push origin :refs/tags/vX.Y.Z` e
+   `git tag -d vX.Y.Z`), si corregge, si rimette.
+4. **Si guarda la bozza** nella pagina Releases del repository: installatore presente, `.sha256`
+   presente, note giuste. Meglio ancora scaricarlo, controllare l'hash e installarlo.
+5. **Si pubblica a mano** con «Publish release». Il workflow non pubblica mai da solo.
+
+**Tag di prova.** Un tag `vX.Y.Z-rc.N` è accettato con i file ancora a `X.Y.Z`: la release in bozza
+esce marcata come pre-release e le note dicono che è una prova. Serve a provare il workflow senza
+toccare la versione. Altri suffissi (`-beta`, `-alpha`…) sono rifiutati.
+
+**Tempi.** Il primo run su un tag compila Rust in release da zero: la cache di un tag vede solo
+quella di `main`, che però è in modalità debug. Contare una ventina di minuti per il job Windows.
