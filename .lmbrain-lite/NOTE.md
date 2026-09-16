@@ -2,7 +2,7 @@
 updated: 2026-09-16
 by: lead
 ---
-**Sessione del 16-09 pomeriggio.** Commit locali fino a `aa3b9d5`, **non ancora inviati a GitHub** (12 dopo `42e9b1f`): chiedere all'operatore prima del push. `gh` installata e autenticata (account fathorMB).
+**Sessione del 16-09 pomeriggio.** Tutto inviato a GitHub su `main` (push del 16-09 approvato dall'operatore). `gh` installata e autenticata (account fathorMB).
 
 ## Fatto oggi
 - **Tema scuro:** `--fg3` #8a919b e `--err` #f26b6b, sopra 4,5:1 anche su `--bg3`.
