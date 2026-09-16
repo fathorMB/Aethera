@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aethera — studio motore, NPU e modelli (settembre 2026)</title>
+<style>
+:root{
+  --bg:#f4f5f7;--bg2:#ffffff;--bg3:#e9ebef;--line:#d5d8de;--fg:#1a1c20;--fg2:#5b6270;--fg3:#8a9099;
+  --acc:#2f6fed;--ok:#1f9d55;--warn:#c77d0a;--err:#d23b3b;--busy:#8a4fd6;
+  --mono:"Cascadia Mono","JetBrains Mono",Consolas,ui-monospace,monospace;
+  --sans:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#141619;--bg2:#1c1f24;--bg3:#24282f;--line:#30353d;--fg:#e6e8eb;--fg2:#a3a9b3;--fg3:#6f7680;
+  --acc:#5b8dff;--ok:#3ec46f;--warn:#e5a23a;--err:#ef5a5a;--busy:#b287f0;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font:13px/1.5 var(--sans)}
+code,.mono{font-family:var(--mono);font-size:12px}
+code{background:var(--bg3);padding:0 4px;border-radius:3px}
+pre{background:#0e1013;color:#d7dbe0;padding:10px 12px;border-radius:4px;overflow:auto;font:12px/1.45 var(--mono);border:1px solid var(--line)}
+[data-theme="light"] pre{background:#1c1f24}
+a{color:var(--acc)}
+button{font:inherit;color:inherit}
+.app{display:grid;grid-template-rows:40px 1fr;grid-template-columns:200px 1fr;height:100vh;min-width:900px}
+.top{grid-column:1/3;display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.brand{font-weight:600;letter-spacing:.3px}
+.brand small{color:var(--fg3);font-weight:400;margin-left:6px}
+.top .spacer{flex:1}
+.top button{background:var(--bg3);border:1px solid var(--line);border-radius:3px;padding:3px 9px;cursor:pointer}
+.nav{background:var(--bg2);border-right:1px solid var(--line);padding:8px 0;display:flex;flex-direction:column;overflow:auto}
+.nav button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 12px;background:none;border:0;border-left:3px solid transparent;color:var(--fg2);cursor:pointer}
+.nav button:hover{background:var(--bg3)}
+.nav button.on{color:var(--fg);border-left-color:var(--acc);background:var(--bg3)}
+.nav .k{font-family:var(--mono);color:var(--fg3);font-size:11px;margin-left:auto}
+.nav .foot{margin-top:auto;padding:10px 12px;color:var(--fg3);font-size:11px;border-top:1px solid var(--line)}
+.main{overflow:auto;padding:16px 22px 40px}
+.page{display:none;max-width:1180px}.page.on{display:block}
+h1{font-size:17px;font-weight:600;margin:0 0 2px}
+h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--fg2);margin:22px 0 8px;padding-top:6px;border-top:1px solid var(--line)}
+h3{font-size:13px;font-weight:600;margin:14px 0 6px}
+.sub{color:var(--fg3);margin:0 0 14px}
+p{margin:6px 0}
+ul,ol{margin:6px 0;padding-left:20px}
+li{margin:2px 0}
+table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12px}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--fg2);font-weight:600;background:var(--bg2);position:sticky;top:0}
+td.n,th.n{text-align:right;font-family:var(--mono);white-space:nowrap}
+tr.hl td{background:rgba(91,141,255,.08)}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--bg3);white-space:nowrap}
+.badge i{width:7px;height:7px;border-radius:50%;background:var(--fg3);display:inline-block}
+.badge.ok i{background:var(--ok)}.badge.warn i{background:var(--warn)}.badge.err i{background:var(--err)}.badge.busy i{background:var(--busy)}.badge.acc i{background:var(--acc)}
+.badge.ok{color:var(--ok)}.badge.warn{color:var(--warn)}.badge.err{color:var(--err)}.badge.busy{color:var(--busy)}.badge.acc{color:var(--acc)}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin:8px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.kpi{background:var(--bg2);border:1px solid var(--line);border-radius:4px;padding:8px 12px}
+.kpi b{display:block;font-size:20px;font-family:var(--mono);font-weight:500}
+.kpi span{color:var(--fg3);font-size:11px}
+.note{border-left:3px solid var(--acc);background:rgba(91,141,255,.07);padding:8px 12px;margin:10px 0;border-radius:0 4px 4px 0}
+.note.warn{border-color:var(--warn);background:rgba(229,162,58,.08)}
+.note.err{border-color:var(--err);background:rgba(239,90,90,.08)}
+.note.ok{border-color:var(--ok);background:rgba(62,196,111,.08)}
+.src{color:var(--fg3);font-size:11px}
+.src a{color:var(--fg3)}
+.v{font-family:var(--mono);font-size:10px;color:var(--fg3);border:1px solid var(--line);border-radius:2px;padding:0 3px;margin-left:3px;vertical-align:middle}
+.bar{height:14px;background:var(--bg3);border-radius:2px;position:relative;overflow:hidden;margin:2px 0}
+.bar i{position:absolute;top:0;bottom:0;left:0}
+.bar i.vgm{background:var(--acc)}.bar i.win{background:var(--fg3);opacity:.6}.bar i.model{background:var(--ok)}.bar i.kv{background:var(--busy)}.bar i.over{background:var(--err)}
+.legend{font-size:11px;color:var(--fg3)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin:0 3px 0 8px;vertical-align:middle}
+.rank{display:grid;grid-template-columns:34px 1fr 120px 120px;gap:8px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+.rank .no{font-family:var(--mono);font-size:18px;color:var(--fg3)}
+.rank .t{font-weight:600}
+.rank .d{color:var(--fg2);font-size:12px}
+.sources{columns:2;font-size:11px;color:var(--fg2)}
+.sources a{color:var(--fg2);word-break:break-all}
+@media (max-width:900px){.app{min-width:0;grid-template-columns:1fr}.nav{display:none}.grid2,.grid3{grid-template-columns:1fr}.sources{columns:1}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><span class="brand">Aethera <small>studio motore · NPU · modelli · SSD — 16 settembre 2026</small></span><span class="spacer"></span><span class="src">MORO-AI · HX 470 · 890M · 96 GB · b10809</span><button id="theme">tema</button></div>
+  <nav class="nav">
+    <button data-p="sintesi" class="on">Sintesi e proposte<span class="k">1</span></button>
+    <button data-p="macchina">Macchina e fisica<span class="k">2</span></button>
+    <button data-p="npu">NPU XDNA 2<span class="k">3</span></button>
+    <button data-p="motore">Motore llama.cpp<span class="k">4</span></button>
+    <button data-p="qwen38">Qwen3.8-Flash-Next<span class="k">5</span></button>
+    <button data-p="ssd">Streaming da SSD<span class="k">6</span></button>
+    <button data-p="modelli">Mappa dei modelli<span class="k">7</span></button>
+    <button data-p="piano">Piano di prova<span class="k">8</span></button>
+    <button data-p="fonti">Fonti<span class="k">9</span></button>
+    <div class="foot">Studio, non decisione. <span class="v">V</span> verificato dalla fonte · <span class="v">I</span> inferito · <span class="v">M</span> misurato qui</div>
+  </nav>
+  <main class="main">

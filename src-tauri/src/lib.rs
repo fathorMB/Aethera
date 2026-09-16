@@ -4,6 +4,7 @@ pub mod catalog;
 pub mod clients;
 pub mod cmdline;
 mod commands;
+pub mod diagnose;
 pub mod download;
 pub mod endpoint;
 pub mod engine;
@@ -79,6 +80,8 @@ pub fn run() {
             commands::set_data_root,
             commands::save_machine,
             commands::set_exit_behavior,
+            commands::machine_text,
+            commands::machine_reset,
             commands::list_profiles,
             commands::preview,
             commands::save_profile,
@@ -95,6 +98,7 @@ pub fn run() {
             commands::engine_protect,
             commands::engine_status,
             commands::engine_log,
+            commands::engine_failure,
             commands::orphan_terminate,
             commands::client_snippets,
             commands::runs_list,
@@ -107,6 +111,7 @@ pub fn run() {
             commands::catalog_reread,
             commands::catalog_removal_plan,
             commands::catalog_remove,
+            commands::catalog_relink,
             commands::catalog_import_plan,
             commands::catalog_import,
             commands::catalog_modelcard,
@@ -127,7 +132,8 @@ pub fn run() {
         .on_window_event(|window, event| {
             // X con il motore acceso riduce nella tray: il motore non si ferma chiudendo una finestra.
             if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.state::<AppState>().engine.is_running() {
+                let state = window.state::<AppState>();
+                if state.engine.is_running() || !state.tasks.running().is_empty() {
                     api.prevent_close();
                     let _ = window.hide();
                 }
@@ -151,8 +157,16 @@ fn notice(app: &AppHandle, text: impl Into<String>) {
 
 fn request_quit(app: &AppHandle) {
     let state = app.state::<AppState>();
-    if !state.engine.is_running() {
+    // Un lavoro in corso si chiede sempre, qualunque sia la preferenza sull'uscita: la preferenza
+    // dice che cosa fare del motore, non che cosa fare di un download a metà.
+    let busy = !state.tasks.running().is_empty();
+    if !state.engine.is_running() && !busy {
         app.exit(0);
+        return;
+    }
+    if busy {
+        show_main(app);
+        let _ = app.emit("aethera://ask-exit", ());
         return;
     }
     let behavior = state.settings().exit_behavior;

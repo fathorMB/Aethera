@@ -78,6 +78,17 @@ impl DataRoot {
         self.path.join(MACHINE_FILE)
     }
 
+    /// La radice si può raggiungere e ci si può scrivere. Un disco esterno staccato, una cartella
+    /// di rete caduta o una cartella di sola lettura si vedono solo provando: `is_dir()` mente su un
+    /// percorso a cui non si ha accesso, e accorgersene al primo salvataggio vuol dire accorgersene
+    /// quando c'è già qualcosa da perdere.
+    pub fn check_writable(&self) -> Result<(), String> {
+        let probe = self.path.join(".aethera-prova-scrittura");
+        fs::write(&probe, b"aethera").map_err(|e| crate::diagnose::write_error("scrittura", &self.path, &e))?;
+        let _ = fs::remove_file(&probe);
+        Ok(())
+    }
+
     /// Crea la struttura se manca e scrive un `machine.toml` iniziale al primo avvio.
     pub fn ensure(&self, system: &SystemReport) -> Result<MachineConfig, String> {
         for dir in [self.path.clone(), self.profiles(), self.builds(), self.runs()] {
@@ -199,6 +210,21 @@ mod tests {
         assert_eq!(split_build_id("llama-b10809-win-cpu-x64"), (Some("b10809".into()), Some("cpu".into())));
         // Una cartella che non dice né build né backend non li inventa.
         assert_eq!(split_build_id("mia-build"), (None, None));
+    }
+
+    #[test]
+    fn an_unusable_data_root_says_which_path_and_what_to_do() {
+        let root = DataRoot::new(std::env::temp_dir().join("aethera-radice-mai-creata-12345"));
+        let e = root.check_writable().unwrap_err();
+        assert!(e.contains("aethera-radice-mai-creata-12345"), "{e}");
+        assert!(e.contains("non esiste") || e.contains("permessi"), "deve dire che farne: {e}");
+
+        // Una radice che c'è ed è scrivibile non lascia in giro il file di prova.
+        let ok = DataRoot::new(std::env::temp_dir().join("aethera-radice-buona-12345"));
+        fs::create_dir_all(&ok.path).unwrap();
+        assert!(ok.check_writable().is_ok());
+        assert_eq!(fs::read_dir(&ok.path).unwrap().count(), 0, "la prova di scrittura non lascia tracce");
+        let _ = fs::remove_dir_all(&ok.path);
     }
 
     #[test]

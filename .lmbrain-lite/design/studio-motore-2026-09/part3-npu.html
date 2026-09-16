@@ -1,0 +1,46 @@
+<section class="page" id="p-npu">
+<h1>NPU XDNA 2: cosa può fare davvero</h1>
+<p class="sub">Verdetto: non accelera il motore principale. Può però diventare un <b>secondo silicio</b> con un secondo modello, senza rubare potenza alla iGPU.</p>
+
+<div class="grid3">
+  <div class="kpi"><b>0</b><span>backend ggml per XDNA in llama.cpp: issue #21725 aperta senza risposta <span class="v">V</span></span></div>
+  <div class="kpi"><b>11–17 tok/s</b><span>Qwen3.6-35B-A3B su NPU con FastFlowLM (Ryzen AI 7 350 e Strix Halo) <span class="v">V</span>, contro i 21 di Vulkan qui</span></div>
+  <div class="kpi"><b>16K</b><span>contesto massimo del percorso ibrido OGA (prefill NPU + decode iGPU) <span class="v">V</span></span></div>
+</div>
+
+<h2>Stato dei runtime a settembre 2026</h2>
+<table>
+<tr><th>Runtime</th><th>Versione</th><th>Cosa gira sulla NPU</th><th>Modelli utili a noi</th><th>Contesto</th><th>Prestazioni note</th><th>Limiti</th></tr>
+<tr><td>Ryzen AI Software (OGA)</td><td>1.8.0 del 23-07-2026, OGA 0.14 <span class="v">V</span></td><td>NPU-only tutto; ibrido: prefill NPU, decode iGPU</td><td>Qwen3 ≤ 8B, gpt-oss-20b (NPU-only), Phi-4, Llama 3 <span class="v">V</span></td><td>16K (Token Fusion), 4K (Full Fusion)</td><td>nessun numero 2026 su Strix Point</td><td>Solo Windows; formato ONNX pre-ottimizzato, non GGUF; <b>Gorgon Point non compare</b> nella lista dei processori supportati; nessun Qwen3.5/3.6/3.8, nessun MoE 30B+</td></tr>
+<tr><td>Lemonade Server</td><td>11.9.0 del 02-09-2026 <span class="v">V</span></td><td>Dipende dal backend: OGA ibrido, FLM NPU-only; llama.cpp non usa la NPU</td><td>GGUF via llama.cpp, catalogo FLM</td><td>quello del backend</td><td>Strix Halo, FLM v10: NPU 2,3× più veloce in TTFT, iGPU 2,4× in decode <span class="v">V</span></td><td>Uno strato in più sopra llama-server; <code>/v1/slots</code> inoltrato solo per il backend llama.cpp; Gorgon Point citato nel codice, non nella FAQ</td></tr>
+<tr class="hl"><td>FastFlowLM (FLM)</td><td>1.0.5 del 09-09-2026, org ROCm <span class="v">V</span></td><td>Tutto: prefill e decode</td><td><b>Qwen3.6-35B-A3B</b> Q4_K con tool calling, gpt-oss-20b (senza tool), Qwen3.5 0.8/2/4/9B, Qwen3-4B-2507, EmbeddingGemma, Whisper <span class="v">V</span></td><td>fino a 256k</td><td>Qwen3.6-35B: 17,5 tok/s a 1k → 11,2 a 32k (AI 7 350); 16,5 su Strix Halo con <b>TTFT fisso 2,7 s</b> (issue #710) <span class="v">V</span>; &lt; 2 W</td><td><b>Gorgon Point dichiarato supportato</b>; un solo LLM caricato per volta (ma LLM + embedding + ASR coesistono); coda 10; cap allocazione 15,6 GB su Windows; cache del prefisso non documentata; nessun Qwen3-Coder</td></tr>
+<tr><td>Fork llama.cpp su NPU (Linux)</td><td>OllamaAMDNPU, llama-apu</td><td>solo MUL_MAT via XRT</td><td>1–8B</td><td>—</td><td>prefill NPU 14–20 tok/s contro 800 di Vulkan; «0,6% di utilizzo AIE» <span class="v">V</span></td><td>Solo Linux, sperimentali, conclusione degli autori: servono kernel mlir-aie</td></tr>
+<tr><td>Windows ML / Foundry Local</td><td>preview</td><td>LLM NPU-only via OGA</td><td>Phi, Mistral-7B, Qwen2.5 ≤ 7B</td><td>n.d.</td><td>—</td><td>«ibrido nella roadmap»; modelli piccoli e vecchi</td></tr>
+</table>
+
+<h2>Le quattro idee «NPU» e il loro esito</h2>
+<table>
+<tr><th>Idea</th><th>Esito</th><th>Perché</th></tr>
+<tr><td>Prefill su NPU + decode su Vulkan con lo stesso GGUF e la stessa KV</td><td><span class="badge err"><i></i>non fattibile</span></td><td>Nessun runtime lo fa: l'ibrido OGA partiziona il <em>suo</em> modello ONNX a 16K. Le KV di due motori diversi non si scambiano <span class="v">V</span></td></tr>
+<tr><td>Modello draft sulla NPU per la decodifica speculativa</td><td><span class="badge err"><i></i>non fattibile</span></td><td>llama.cpp accetta draft solo come GGUF eseguiti da un device ggml (<code>--spec-draft-device</code>); la NPU non è un device ggml e il draft via HTTP è stato chiuso senza PR (issue #23982) <span class="v">V</span>. Per di più il draft esterno su MoE A3B è negativo (−3/−12%) <span class="v">V</span>: MTP interno vince</td></tr>
+<tr><td>Motore principale su NPU (FLM Qwen3.6-35B-A3B)</td><td><span class="badge warn"><i></i>solo confronto</span></td><td>11–17 tok/s contro 21; TTFT fisso 2,7 s per il dispatch degli esperti, letale nei loop agentici; nessuna cache del prefisso documentata. Vale come banco A/B «stack completo», non come motore quotidiano</td></tr>
+<tr><td><b>Secondo modello sulla NPU in parallelo</b></td><td><span class="badge ok"><i></i>fattibile oggi</span></td><td>FLM serve un LLM piccolo (Qwen3.5-4B o Qwen3-4B-2507, 256k, tool calling) più un modello di embedding sulla porta 52625, mentre Vulkan tiene il 35B. Costo misurato su Strix Halo con NPU e iGPU insieme: −14% decode iGPU, +15–19% TTFT <span class="v">V</span>; su 90 GB/s probabilmente un po' di più <span class="v">I</span></td></tr>
+</table>
+
+<h2>Proposta: il «motore ausiliario» di Aethera</h2>
+<p>La NPU ha senso se le si dà un lavoro che oggi ruba turni al modello principale o che non si fa affatto. Tre lavori concreti, in ordine di valore per il coding agentico:</p>
+<ol>
+<li><b>Indice semantico del repository sulla NPU.</b> EmbeddingGemma (o Qwen3-Embedding-0.6B) su FLM calcola gli embedding dei file mentre la iGPU è occupata. L'agente cerca per significato invece di leggere file a caso: meno token di prompt, meno prefill, meno rami che invalidano la cache. La proposta di minis-config (05, §1) lo teneva come «solo se la ricerca lessicale fallisce»: la NPU cambia il costo, perché non toglie nulla al motore.</li>
+<li><b>Sotto-agente economico per i compiti di contorno.</b> Messaggi di commit, riassunto di un log lungo, classificazione di un errore, riscrittura di una descrizione: un 4B sulla NPU li fa a 15–25 tok/s <span class="v">I</span> senza toccare la cache del 35B. Nonio e i banchi potrebbero instradare per tipo di compito su due endpoint.</li>
+<li><b>Reranker per i risultati di ricerca</b> prima di metterli nel contesto: jina-reranker-v3 0,6B o Qwen3-Reranker-0.6B. Su NPU via FLM solo se il catalogo lo aggiunge; altrimenti su CPU con un secondo llama-server (<code>--reranking</code>), che su UMA costa banda ma poca potenza.</li>
+</ol>
+<div class="note">Per Aethera significa una cosa precisa: lo schema dei profili ha già <code>runtime.kind</code>; un secondo <b>slot di motore «ausiliario»</b> con kind <code>flm</code>, la sua porta e il suo modello, mostrato nella pagina Motore come riga secondaria, con lo stesso stato «in uso» e la stessa telemetria. La v1 dice «un motore alla volta»: qui sarebbero due motori su due silici, e la regola resta vera per silicio.</div>
+
+<h2>Prerequisiti e rischi</h2>
+<ul>
+<li><b>Driver NPU</b>: il nostro 32.0.203.314 soddisfa FLM (≥ .311) e Ryzen AI 1.8 (≥ .280). Il driver MCDM 32.00.20102.3930 arriva con Adrenalin 26.8/26.9, che porta anche la regressione DPM della VRAM: se serve il driver NPU nuovo, prenderlo <b>separatamente</b> e verificare che FLM lo accetti <span class="v">V</span>.</li>
+<li><b>Gorgon Point</b>: dichiarato da FLM, assente dalla lista Ryzen AI SW 1.8. Lo stesso silicio XDNA 2 rende probabile che OGA funzioni, ma non è scritto da nessuna parte <span class="v">I</span>.</li>
+<li><b>Contesa di banda</b>: la NPU legge dalla stessa DDR5. Un 4B a Q4 in decode a 20 tok/s consuma ~50 GB/s di picco per brevi istanti; la misura di Strix Halo dice −14% sul decode della GPU. Va misurato qui con la telemetria di Aethera, con e senza motore ausiliario attivo.</li>
+<li><b>Licenza FLM</b>: README dice MIT per l'orchestrazione e kernel «liberi anche per uso commerciale»; una wiki terza parla di soglia 10 M$ di fatturato. Leggere il file LICENSE della versione installata.</li>
+</ul>
+</section>

@@ -120,6 +120,8 @@ export type ExitBehavior = "ask" | "stop" | "leave";
 
 export interface Overview {
   data_root: string | null;
+  /** Perché la radice scelta non è utilizzabile: disco staccato, cartella sparita, sola lettura. */
+  data_root_error: string | null;
   machine: MachineConfig | null;
   machine_error: string | null;
   system: SystemReport;
@@ -377,6 +379,25 @@ export interface ModelRow {
   part_bytes: number | null;
   profiles: string[];
   sampling_by_mode: Record<string, Sampling>;
+  /** File presenti che pesano quanto questa voce dichiara: forse è lei, rinominata. */
+  renamed_candidates: string[];
+}
+
+export interface CatalogView {
+  rows: ModelRow[];
+  error: string | null;
+}
+
+/** Una riga di log che spiega un guasto, con il consiglio quando è riconosciuta. */
+export interface Reason {
+  line: string;
+  hint: string | null;
+}
+
+export interface MachineText {
+  path: string;
+  text: string | null;
+  error: string | null;
 }
 
 export interface RemovalPlan {
@@ -474,7 +495,11 @@ export const catalogModelcard = (id: string, replace: boolean) =>
   invoke<CardReport>("catalog_modelcard", { id, replace });
 export const buildsImportDir = (path: string) => invoke<BuildsView>("builds_import_dir", { path });
 
-export const catalogList = () => invoke<ModelRow[]>("catalog_list");
+export const catalogList = () => invoke<CatalogView>("catalog_list");
+export const catalogRelink = (id: string, file: string) => invoke<ModelRow[]>("catalog_relink", { id, file });
+export const machineText = () => invoke<MachineText>("machine_text");
+export const machineReset = () => invoke<Overview>("machine_reset");
+export const engineFailure = () => invoke<Reason[]>("engine_failure");
 export const catalogVerify = (id: string) => invoke<string>("catalog_verify", { id });
 export const catalogAdd = (repo: string, file: string) => invoke<ModelRow[]>("catalog_add", { repo, file });
 export const catalogDownload = (id: string) => invoke<string>("catalog_download", { id });
@@ -510,7 +535,8 @@ export const clientSnippets = () => invoke<ClientSnippets | null>("client_snippe
 export const runsList = () => invoke<RunRow[]>("runs_list");
 export const runDetail = (id: string) => invoke<RunDetail>("run_detail", { id });
 export const runsCompare = (a: string, b: string) => invoke<Comparison>("runs_compare", { a, b });
-export const appExit = (stop: boolean, remember: boolean) => invoke<void>("app_exit", { stop, remember });
+export const appExit = (stop: boolean, remember: boolean, cancelTasks = false) =>
+  invoke<void>("app_exit", { stop, remember, cancelTasks });
 
 /** Il run corrente o l'ultimo, qualunque sia lo stato. */
 export function runOf(s: EngineStatus | null): RunInfo | null {

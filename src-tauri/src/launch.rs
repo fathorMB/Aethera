@@ -41,12 +41,32 @@ pub fn prepare(root: &DataRoot, m: &MachineConfig, base: &str, edited: &Profile,
     let builds = root.builds_available(m);
     let build = machine::resolve_build(&builds, &edited.runtime.build, &edited.runtime.backend).cloned();
     if build.is_none() {
-        blockers.push(format!(
-            "nessuna build {} · {} su questa macchina: dichiarala in Impostazioni o mettila in {}",
-            edited.runtime.build,
-            edited.runtime.backend,
-            root.builds().display()
-        ));
+        // Una build dichiarata in machine.toml ma sparita dal disco è un guasto diverso da una
+        // build mai dichiarata, e si ripara in un altro modo: dirlo risparmia una caccia.
+        let declared: Vec<&machine::BuildEntry> = m
+            .builds
+            .iter()
+            .filter(|b| {
+                let parts: Vec<&str> = b.id.split('-').collect();
+                parts.contains(&edited.runtime.build.as_str()) && parts.contains(&edited.runtime.backend.as_str())
+            })
+            .collect();
+        blockers.push(match declared.first() {
+            Some(b) => format!(
+                "la build {} · {} è dichiarata in machine.toml come «{}» ma in {} non c'è {}: la cartella è stata spostata o cancellata. Ridichiarala in Impostazioni o rimettila lì.",
+                edited.runtime.build,
+                edited.runtime.backend,
+                b.id,
+                b.path.display(),
+                machine::server_binary_name()
+            ),
+            None => format!(
+                "nessuna build {} · {} su questa macchina: dichiarala in Impostazioni o mettila in {}",
+                edited.runtime.build,
+                edited.runtime.backend,
+                root.builds().display()
+            ),
+        });
     }
 
     let in_models = |file: &str| m.models_dir.as_ref().map(|d| d.join(file));
@@ -66,7 +86,11 @@ pub fn prepare(root: &DataRoot, m: &MachineConfig, base: &str, edited: &Profile,
                     }
                 }
             }
-            _ => blockers.push(format!("pesi non trovati: {}", p.display())),
+            _ => blockers.push(format!(
+                "pesi non trovati: {}. Il file è stato rinominato o spostato: il Catalogo dice quali file ci sono davvero in {} e permette di ricollegare la voce.",
+                p.display(),
+                m.models_dir.as_ref().map(|d| d.display().to_string()).unwrap_or_default()
+            )),
         },
     }
     if let Some(draft) = edited.speculative.draft_model.as_deref().and_then(in_models) {

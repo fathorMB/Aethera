@@ -1,8 +1,8 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import * as api from "../api";
-import type { ClientSnippets, EngineStatus, ExitBehavior, MachineConfig, Overview } from "../api";
-import { copy, Val } from "../components";
+import type { ClientSnippets, EngineStatus, ExitBehavior, MachineConfig, MachineText, Overview } from "../api";
+import { Confirm, copy, Val } from "../components";
 
 const input = {
   background: "var(--bg)",
@@ -20,8 +20,18 @@ export default function Impostazioni(props: { overview: Overview; status: Engine
   const [machine, setMachine] = createSignal<MachineConfig | null>(null);
   const [message, setMessage] = createSignal<{ kind: "ok" | "err"; text: string } | null>(null);
   const [snippets, setSnippets] = createSignal<ClientSnippets | null>(null);
+  /** Il testo di machine.toml: serve solo quando non si lascia leggere, perché senza vederlo non si corregge. */
+  const [raw, setRaw] = createSignal<MachineText | null>(null);
+  const [askReset, setAskReset] = createSignal(false);
 
   createEffect(() => setMachine(props.overview.machine ? structuredClone(props.overview.machine) : null));
+  // Quando machine.toml non è valido l'app non ha niente da mostrare nei campi: si mostra il file.
+  createEffect(
+    on(
+      () => props.overview.machine_error,
+      async (e) => setRaw(e ? await api.machineText().catch(() => null) : null),
+    ),
+  );
 
   // Le righe cambiano con l'avvio e con il contesto servito, non a ogni secondo.
   const runKey = () => {
@@ -88,7 +98,28 @@ export default function Impostazioni(props: { overview: Overview; status: Engine
         {(m) => <div class={`note ${m().kind === "err" ? "err" : ""} mb`}>{m().text}</div>}
       </Show>
       <Show when={props.overview.machine_error}>
-        <div class="note err mb">{props.overview.machine_error}</div>
+        <div class="card mb">
+          <h2>
+            machine.toml non è valido <span class="r mono">{raw()?.path}</span>
+          </h2>
+          <div class="note err mb">{props.overview.machine_error}</div>
+          <p style={{ margin: "0 0 8px", color: "var(--fg2)" }}>
+            Aethera non lo tocca: finché è così non sa dove sono i pesi né quali build hai dichiarato, ma niente è andato
+            perso. Correggilo con un editor — il contenuto è qui sotto — oppure fattene scrivere uno nuovo: il vecchio
+            viene messo da parte con la data, non cancellato.
+          </p>
+          <Show when={raw()?.text}>
+            <pre class="log">{raw()!.text}</pre>
+          </Show>
+          <div class="row" style={{ "margin-top": "8px" }}>
+            <button class="btn danger" onClick={() => setAskReset(true)}>
+              Scrivi un machine.toml nuovo…
+            </button>
+            <button class="btn" onClick={() => run(async () => { setRaw(await api.machineText()); })}>
+              Rileggi
+            </button>
+          </div>
+        </div>
       </Show>
 
       <div class="grid g2" style={{ "align-items": "start" }}>
@@ -368,6 +399,26 @@ export default function Impostazioni(props: { overview: Overview; status: Engine
           </div>
         </div>
       </div>
+      <Show when={askReset()}>
+        <Confirm
+          title="Scrivere un machine.toml nuovo?"
+          lines={[
+            `Il file di adesso viene rinominato in machine.toml.<data>.bak e resta nella radice dati: da lì puoi ricopiarne la cartella dei pesi e le build.`,
+            "Al suo posto ne nasce uno vuoto, con il nome di questa macchina e nient'altro: cartella dei pesi e build vanno ridichiarate.",
+            "I profili, gli avvii registrati e il catalogo non vengono toccati.",
+          ]}
+          confirmLabel="Scrivilo"
+          danger
+          onCancel={() => setAskReset(false)}
+          onConfirm={() =>
+            run(async () => {
+              setAskReset(false);
+              props.onChange(await api.machineReset());
+              setMessage({ kind: "ok", text: "machine.toml rifatto. Il vecchio è nella radice dati con estensione .bak." });
+            })
+          }
+        />
+      </Show>
     </section>
   );
 }

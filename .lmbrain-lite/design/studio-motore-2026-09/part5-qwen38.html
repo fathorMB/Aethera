@@ -1,0 +1,84 @@
+<section class="page" id="p-qwen38">
+<h1>Studio di fattibilità: Qwen3.8-Flash-Next</h1>
+<p class="sub">Cos'è, quanto pesa davvero, quali varianti ridotte esistono e cosa ci si può aspettare su questa macchina. Rilasciato il 26 agosto 2026 <span class="v">V</span>.</p>
+
+<div class="grid3">
+  <div class="kpi"><b>125B + 51B + 4B</b><span>modello principale (6B attivi, 512 esperti, 10+1 attivi) + tabella n-gram + testa MTP: ~180B nel checkpoint <span class="v">V</span></span></div>
+  <div class="kpi"><b>72,5–120 GB</b><span>GGUF del modello intero, da IQ1_S a Q4_K_M <span class="v">V</span>. Nessuna entra nei 73,5 GB di Vulkan con margine</span></div>
+  <div class="kpi"><b>57–69 GB</b><span>varianti potate dalla community (REAP-256, REAP-320, 131B-A6B) <span class="v">V</span>: le uniche che lasciano spazio al contesto</span></div>
+</div>
+
+<h2>Cos'è</h2>
+<table>
+<tr><th>Dato</th><th>Valore</th></tr>
+<tr><td>Posizionamento</td><td>«Anteprima sperimentale dell'architettura Qwen4»; Qwen3.8-Flash (API) è la versione di produzione <span class="v">V</span></td></tr>
+<tr><td>Architettura</td><td>48 layer, hidden 2560. Ibrida: Gated DeltaNet in 36 layer, Qwen Sparse Attention a micro-blocchi in 12 layer (budget 2048, ratio 4), Gated Residual, embedding n-gram al layer 2 (hash degli ultimi 3 token, 16 teste × 160 valori) <span class="v">V</span></td></tr>
+<tr><td>Parametri</td><td>125B totali, 6B attivi; 512 esperti, 10 routed + 1 shared; tabella n-gram 51B; MTP 1 layer da 4B addestrato multi-step <span class="v">V</span></td></tr>
+<tr><td>Contesto</td><td>262.144 nativo, 1M con YaRN; multimodale (mmproj nei GGUF) <span class="v">V</span></td></tr>
+<tr><td>Licenza</td><td>qwen-community-1.0 (non Apache) <span class="v">V</span></td></tr>
+<tr><td>llama.cpp</td><td>arch <code>qwen4exp</code>, merge in master il 27-08-2026 (PR #27742, ≈ b10660); correzioni di coerenza il 1-09 (PR #27941). <b>b10809 è dopo il merge ma ha bisogno della #27941: usare ≥ b10982</b> <span class="v">V</span></td></tr>
+<tr><td>MTP in llama.cpp</td><td>Non nel merge iniziale. PR #28243 (Unsloth, <code>--spec-type draft-mtp</code>) ancora draft a metà settembre; funziona nel fork Unsloth e in build patchate; accettazione 0,7–0,95 su codice, collasso a 0,32–0,38 riportato con UD-Q3_K_XL <span class="v">V</span></td></tr>
+<tr><td>Benchmark ufficiali</td><td>SWE-bench Pro 62,5 · SWE-bench Multilingual 81,0 · DeepSWE 1.1 58,7 · LiveCodeBench v6 91,9 · Toolathlon Verified 73,5 <span class="v">V</span>. <b>Non pubblicati</b>: SWE-bench Verified, Terminal-Bench, Aider. Per confronto Qwen3.6-35B-A3B: SWE-bench Verified 73,4, Terminal-Bench 2.0 51,5 <span class="v">V</span></td></tr>
+<tr><td>Campionamento (card)</td><td>Thinking: 1,0 / 0,95 / 20 / 0 / presence 0. Non-thinking: 0,7 / 0,8 / 20 / 0 / presence 1,5. <code>reasoning_effort</code> ∈ {low, medium, xhigh}, default xhigh; «high» <b>non</b> è accettato dal template <span class="v">V</span>. Nessuna terna «coding» separata</td></tr>
+<tr><td>Verbosità</td><td>240M token di output contro una mediana di 140M nell'indice Artificial Analysis <span class="v">V</span>: ragiona molto. Utili <code>--reasoning-budget</code> e <code>reasoning_effort medium</code></td></tr>
+</table>
+
+<h2>Le versioni «a meno parametri»</h2>
+<div class="note warn">Le varianti «120B» e «98B» citate non esistono con quei nomi su Hugging Face, e Qwen non ha pubblicato taglie ridotte di Flash-Next <span class="v">V</span>. Quello che esiste è lavoro della community: potatura degli esperti (REAP) o taglio della tabella n-gram. Le cifre in GB cambiano da quant a quant e da fonte a fonte: qui sono in GB decimali come sulle pagine HF.</div>
+<table>
+<tr><th>Variante</th><th>Metodo</th><th>Esperti</th><th>Quant</th><th class="n">GB</th><th>Qualità dichiarata</th><th>Nota</th></tr>
+<tr><td>Qwen/Qwen3.8-Flash-Next (intero)</td><td>—</td><td>512</td><td>UD-IQ1_S / UD-IQ1_M</td><td class="n">72,5 / 74,5</td><td>top-1 77–80%, KLD 0,32–0,40 <span class="v">V</span></td><td>Entra solo in mmap con n-gram su CPU; qualità inadeguata al coding <span class="v">I</span></td></tr>
+<tr><td>idem</td><td>—</td><td>512</td><td>UD-Q2_K_XL / UD-IQ3_XXS / UD-Q3_K_XL</td><td class="n">78,9 / 82 / 90</td><td>—</td><td>Oltre i 73,5 GB di Vulkan; solo con esperti su CPU e Windows sotto i 12 GB</td></tr>
+<tr><td>idem</td><td>—</td><td>512</td><td>UD-IQ4_XS / UD-Q4_K_XL</td><td class="n">93,7 / 111</td><td>top-1 92,3%, KLD 0,047 a Q4_K_XL</td><td>Non entrano nei 96 GB fisici senza streaming da SSD</td></tr>
+<tr class="hl"><td>AnonimousA/…-REAP-320</td><td>REAP (Cerebras) su calibrazione multi-dominio, fatto sulla UD-Q3_K_XL</td><td>512 → 320</td><td>UD-Q3_K_XL / UD-Q2_K_XL</td><td class="n">69 / 61,5</td><td>HumanEval 96,3%; fabbricazione di nomi 25% (base 0%) <span class="v">V</span></td><td>132B totali. La tabella n-gram (26,8 GiB in questa quant) non è potata ed è letta via mmap. Consiglia <code>--n-cpu-moe 4</code> oltre 98k</td></tr>
+<tr><td>AnonimousA/…-REAP-256-duo</td><td>REAP su codice + orchestrazione agenti</td><td>512 → 256</td><td>UD-Q3_K_XL</td><td class="n">61,9</td><td>12–13/13 su batteria di 6 task; HumanEval 89,6% <span class="v">V</span></td><td>117B totali; «a volte si blocca nel reasoning» a contesti lunghi; superato da REAP-320</td></tr>
+<tr><td>Cyronius/…-131B-A6B</td><td>Rimozione di 14 teste su 16 della tabella n-gram, transformer intatto, nessun retraining</td><td>512</td><td>Q3_K_XL / Q4_0</td><td class="n">64,8 / 75,4</td><td>PPL wikitext 4,66 contro 2,40 del base; tool calling «allineato» <span class="v">V</span></td><td>Approccio complementare al REAP: nessuno ha pubblicato i due tagli insieme</td></tr>
+<tr><td>dzannotti/…-MTP-GGUF</td><td>testa MTP separata</td><td>—</td><td>Q4_K_M / Q8_0</td><td class="n">~1,5 / 2,8</td><td>—</td><td>Serve per <code>--spec-type draft-mtp</code> con build patchata</td></tr>
+</table>
+
+<h2>Dove sta la memoria: quattro configurazioni</h2>
+<div class="card">
+<p class="legend" style="margin:0 0 6px">Scala: 96 GB fisici. <i style="background:var(--ok)"></i>pesi <i style="background:var(--busy)"></i>KV + buffer stimati <i style="background:var(--fg3)"></i>Windows + margine <i style="background:var(--err)"></i>fuori dai 96 GB</p>
+<p style="margin:4px 0"><b>A · intero UD-Q3_K_XL 90 GB</b> — non entra: 90 + 8 + 12 = 110 GB</p>
+<div class="bar"><i class="model" style="width:93.7%"></i><i class="over" style="left:93.7%;width:6.3%"></i></div>
+<p style="margin:4px 0"><b>B · intero UD-IQ1_M 74,5 GB</b> — entra a filo con n-gram su CPU; qualità top-1 80%</p>
+<div class="bar"><i class="model" style="width:77.6%"></i><i class="kv" style="left:77.6%;width:6%"></i><i class="win" style="left:83.6%;width:12.5%"></i></div>
+<p style="margin:4px 0"><b>C · REAP-320 UD-Q3_K_XL 69 GB</b> — 48 in VGM + 21 in RAM (esperti via <code>--n-cpu-moe</code> o VGM a 64) + KV ~6 + Windows 16: 91 GB</p>
+<div class="bar"><i class="model" style="width:71.9%"></i><i class="kv" style="left:71.9%;width:6.2%"></i><i class="win" style="left:78.1%;width:16.7%"></i></div>
+<p style="margin:4px 0"><b>D · REAP-256 UD-Q3_K_XL 61,9 GB</b> — il più comodo: 84 GB, margine 12</p>
+<div class="bar"><i class="model" style="width:64.5%"></i><i class="kv" style="left:64.5%;width:6.2%"></i><i class="win" style="left:70.7%;width:16.7%"></i></div>
+</div>
+<p>La KV di <code>qwen4exp</code> è piccola perché solo 12 layer su 48 hanno attenzione, e sparsa: nessuna fonte ne dà la misura esatta; i ~6 GB sopra sono una stima prudente <span class="v">I</span> a 64k. La tabella n-gram va <b>obbligatoriamente su CPU</b> con <code>-ot "per_layer_token_embd=CPU"</code>: l'operazione non è supportata su Vulkan <span class="v">V</span>. Accesso per hash dei 3 token precedenti: lettura sparsa, pochi MB per token, il candidato ideale per il mmap da SSD (vedi «Streaming da SSD»).</p>
+
+<h2>Cosa aspettarsi in velocità</h2>
+<table>
+<tr><th>Hardware</th><th>Configurazione</th><th class="n">Prefill</th><th class="n">Decode</th><th>Fonte</th></tr>
+<tr><td>Strix Halo 8060S, 256 GB/s</td><td>UD-Q4_K_XL, Vulkan, n-gram su CPU, 2 slot con cache</td><td class="n">110</td><td class="n">15,6 (24,3 su 2 slot)</td><td>soothill.io <span class="v">V</span></td></tr>
+<tr><td>Strix Halo</td><td>UD-IQ4_XS, Vulkan RADV</td><td class="n">395</td><td class="n">27,2</td><td>strix-halo-guide <span class="v">V</span></td></tr>
+<tr><td>Strix Halo</td><td>UD-Q4_K_XL + MTP (fork), Vulkan</td><td class="n">—</td><td class="n">37,2 codice / 30,3 prosa</td><td>dzannotti <span class="v">V</span></td></tr>
+<tr><td>Strix Halo, <b>Windows</b>, HIP</td><td>UD-IQ4_XS + MTP, ctx 262k, 74 GB occupati</td><td class="n">—</td><td class="n">38</td><td>discussion #27950 <span class="v">V</span></td></tr>
+<tr><td>Strix Halo, HIP master</td><td>UD-IQ4_XS senza patch</td><td class="n">—</td><td class="n">19 → 5,5 oltre 1k di contesto</td><td>issue #27856 aperta, specifica HIP <span class="v">V</span></td></tr>
+<tr class="hl"><td><b>HX 470 / 890M, 90 GB/s (qui)</b></td><td>REAP-320 o REAP-256 Q3, Vulkan, esperti parziali in RAM</td><td class="n">40–100</td><td class="n">8–13 senza MTP; 12–18 con MTP su codice</td><td>stima per rapporto di banda e CU <span class="v">I</span>; <b>nessuna misura pubblica</b></td></tr>
+</table>
+<div class="note err">Il decode con Gated DeltaNet rallenta col contesto: issue #28734 (CUDA) mostra il top-k della QSA eseguito come scansione densa, con patch che portano 250k da 11 a 41,8 tok/s. Non è chiaro se Vulkan sia colpito allo stesso modo. E il <b>prefix caching su GDN</b> è un problema aperto (issue #19794, #18497, #20225 su Qwen3-Next): senza checkpoint dello stato ricorrente ogni turno rifà tutto. Un prefill da 40–100 tok/s su 32k senza cache è <b>5–13 minuti</b>: su questa macchina Flash-Next vive o muore con i checkpoint.</div>
+
+<h2>Verdetto</h2>
+<ol>
+<li><b>Il modello intero non è un candidato</b> su 96 GB: le quantizzazioni che entrano (IQ1/Q2) hanno qualità da scartare, quelle decenti (IQ4_XS 93,7 GB) chiedono lo streaming da SSD o 128 GB.</li>
+<li><b>I potati sono l'unica via</b>, e sono esperimenti di terzi: REAP-320 Q3 (69 GB) o REAP-256 Q3 (61,9 GB), nessuno con SWE-bench o Terminal-Bench pubblicati, fabbricazione di nomi al 25% sul REAP-320. Da trattare come «un solo potato, motivato, con provenienza verificata» (proposta 05, §3).</li>
+<li><b>Il guadagno di qualità sull'attuale non è dimostrato</b> per il nostro uso: Flash-Next batte il 35B su SWE-bench Pro (62,5 contro n.d.) e LiveCodeBench, ma il 35B ha 73,4 su SWE-bench Verified e nessuno dei due è confrontabile direttamente. In cambio il decode scende da 21 a una cifra sotto i 15.</li>
+<li><b>La prova ha comunque senso</b>, per due motivi che non riguardano il punteggio: è l'anteprima dell'architettura Qwen4 (il prossimo 35B sarà così), e obbliga a risolvere ora tre cose che Aethera dovrà sapere fare: build ≥ b10982, <code>-ot</code> per tensori specifici, esperti in RAM o VGM alta, checkpoint dello stato ricorrente.</li>
+</ol>
+
+<h2>Ricetta di prova (da adattare, non da copiare)</h2>
+<pre>llama-server.exe --model Qwen3.8-Flash-Next-REAP-320-UD-Q3_K_XL.gguf ^
+  --host 127.0.0.1 --port 8080 --alias qwen3.8-flash-next-reap320.q3_k_xl.vulkan ^
+  --ctx-size 65536 --parallel 1 --kv-unified ^
+  --n-gpu-layers 999 -ot "per_layer_token_embd=CPU" --n-cpu-moe 8 ^
+  --flash-attn on --ubatch-size 1024 --batch-size 4096 ^
+  --ctx-checkpoints 128 --checkpoint-min-step 128 --cache-ram 15000 ^
+  --jinja --reasoning-format deepseek ^
+  --chat-template-kwargs "{\"reasoning_effort\":\"medium\"}" ^
+  --metrics --slot-save-path C:\AetheraData\slots</pre>
+<p>Variabili da esplorare una alla volta: <code>--n-cpu-moe</code> 0/4/8/16 contro VGM 64 GB; KV q8_0 solo dopo una prova di coerenza (un report la dà per instabile su qwen4exp, un altro la usa senza problemi <span class="v">V</span>); MTP con build patchata e la testa dzannotti; <code>reasoning_effort</code> low/medium. Mai <code>GGML_CUDA_ENABLE_UNIFIED_MEMORY</code> (output corrotto su APU) <span class="v">V</span>.</p>
+</section>

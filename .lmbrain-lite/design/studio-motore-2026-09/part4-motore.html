@@ -1,0 +1,48 @@
+<section class="page" id="p-motore">
+<h1>Motore llama.cpp: le leve sulla 890M</h1>
+<p class="sub">Cosa è cambiato dopo b10809, cosa vale davvero su Vulkan RDNA 3.5, e cosa lasciare stare.</p>
+
+<div class="grid3">
+  <div class="kpi"><b>180</b><span>build fra b10809 (4-09) e b10991 (15-09) <span class="v">M</span>; la novità Vulkan grossa (int8 coopmat1, PR #27952, +33% prefill MoE) è ancora aperta <span class="v">V</span></span></div>
+  <div class="kpi"><b>+33%</b><span>prefill già ottenuto qui con MTP e <code>-ub 4096</code> (267 → 366 tok/s) <span class="v">M</span></span></div>
+  <div class="kpi"><b>&lt; 1 s</b><span>TTFT sui turni successivi con checkpoint dello stato ricorrente, contro minuti senza (report Claude Code + llama.cpp) <span class="v">V</span></span></div>
+</div>
+
+<h2>Leve, ordinate per guadagno ÷ sforzo</h2>
+<table>
+<tr><th>#</th><th>Leva</th><th>Guadagno atteso</th><th>Evidenza</th><th>Rischio / nota per Aethera</th></tr>
+<tr class="hl"><td>1</td><td><b>Checkpoint dello stato ricorrente</b>: <code>--ctx-checkpoints 128 --checkpoint-min-step 128 --cache-ram 15000 --kv-unified</code></td><td>TTFT dei turni successivi da minuti a sotto il secondo su modelli ibridi (Qwen3.6, Qwen3-Next)</td><td>mykolaaleksandrov.dev (giugno 2026), discussion #27950 (TTFT 1,5–4 min → 0,3–0,5 s con <code>--ctx-checkpoints 8</code>) <span class="v">V</span></td><td><code>--cache-reuse</code> è inutile sui modelli ricorrenti (lo stato non è per-token) <span class="v">V</span>. Il profilo Aethera ha già la sezione <code>[cache]</code>: questi tre campi vanno esposti come leve marcate <code>cache</code></td></tr>
+<tr><td>2</td><td><b>Prefisso stabile lato client</b></td><td>Evita il ri-prefill totale a ogni turno</td><td>Caso documentato: Claude Code cambiava l'intestazione ad ogni richiesta (<code>CLAUDE_CODE_ATTRIBUTION_HEADER</code>) e azzerava la cache <span class="v">V</span></td><td>Aethera lo può <b>rilevare</b>: se <code>n_prompt_tokens_cache</code> da <code>/slots</code> è ~0 su turni consecutivi dello stesso client, mostrare «prefisso instabile» nella pagina Motore</td></tr>
+<tr><td>3</td><td><b>MTP con profondità adattiva</b>: <code>--spec-draft-adaptive</code>, n-min 2, n-max 4, p-min 0,75</td><td>+24–36% decode; fork RDNA con «adaptive depth»: +26% prosa, +35% codice <span class="v">V</span></td><td>Discussion #27950, patch stew675, banco del 15-09 qui (MTP vince su codice, perde su riassunti) <span class="v">M</span></td><td>Il draft esterno classico su MoE A3B è <b>negativo</b> (HackMD, −3/−12%) <span class="v">V</span>: non comprare draft. Profilo A/B «MTP adattivo» contro «MTP 3 fisso»</td></tr>
+<tr><td>4</td><td><b>KV cache q8_0</b> a 64k–128k: <code>-ctk q8_0 -ctv q8_0</code></td><td>Strix Halo: +15% decode e +9% prefill sul 35B a 64k; ×2,66 su Coder-30B a 64k <span class="v">V</span></td><td>Nathanw1014/strix-halo-llamacpp, stew675 <span class="v">V</span></td><td>Sul 35B la KV è solo sui 10 blocchi ad attenzione piena (0,67 GiB a 32k <span class="v">M</span>): il guadagno c'è solo oltre 64k. Qualità non misurata; gfx1150 non testato</td></tr>
+<tr><td>5</td><td><b>Aggiornare a ≥ b10982</b> come variabile di prova</td><td>Pochi %: fix Vulkan accumulati (GET_ROWS, view tensors), sparse FA (non serve al 35B)</td><td>Release page, PR #28105, #28253 <span class="v">V</span></td><td>Obbligatorio invece per Qwen3.8-Flash-Next (arch <code>qwen4exp</code>, merge 27-08, fix 1-09). Aethera scarica e verifica le build da sola: costa un click</td></tr>
+<tr><td>6</td><td><b>Piano energetico «Prestazioni»</b> e modalità BIOS</td><td>Su Framework 13 Linux: +36% decode, +120% prefill fra risparmio e prestazioni <span class="v">V</span></td><td>msf.github.io <span class="v">V</span>; su Windows nessun dato</td><td>Prova da un'ora con la telemetria di Aethera. Il manifest dovrebbe registrare il piano energetico attivo come condizione della misura</td></tr>
+<tr><td>7</td><td><b>Build patchata RDNA</b> (fork stew675, o PR #27952 quando entra)</td><td>Prefill MoE +33%, complessivo +9–17% sul 35B-A3B <span class="v">V</span></td><td>PR #27952 aperta; fork v16 del 15-09 <span class="v">V</span></td><td>Build Windows da compilare in casa; non è una release ggml-org, quindi fuori dal download verificato di Aethera. Da tenere come build «locale» dichiarata in machine.toml</td></tr>
+<tr><td>8</td><td><b><code>--fit on</code> / <code>--fit-target</code></b></td><td>Automatizza <code>-ot</code> e contesto per i modelli oltre i 48 GB: tensori densi in VRAM, esperti su CPU</td><td>Discussion #18049, README server <span class="v">V</span></td><td>Si disattiva se il profilo passa <code>-ngl</code> o <code>-ot</code>; bug di memoria noto su Qwen3-Next. Aethera oggi passa sempre <code>-ngl</code>: servirebbe una modalità «lascia decidere al motore» con la riga registrata</td></tr>
+<tr><td>9</td><td><b>Esperti oltre la VGM in RAM</b>: <code>--n-cpu-moe N</code> o <code>-ot "blk\.(3[0-9]|4[0-9])\.ffn_.*_exps=CPU"</code></td><td>Apre i modelli 48–70 GB senza toccare la VGM</td><td>HX 370 Linux: Qwen3-Next-80B Q8 10,9 tok/s; Coder-Next CPU-only 7,7 <span class="v">V</span>; issue #19480: Qwen3-Next ~5× più lento del previsto su CPU, aperta</td><td>Nessun numero su HX 470 Windows. È la <b>prova più informativa</b> del piano</td></tr>
+<tr><td>10</td><td><b>ROCm/HIP Windows</b> (build lemonade b1328, gfx1150)</td><td>+10% decode e −5% prefill contro Vulkan quando il modello sta in VGM (autore TheRock #8186)</td><td>TheRock #8186, gist Randomblock1 (Linux: ROCm +15–25% prefill, −12% decode) <span class="v">V</span></td><td>hipMalloc vede solo la VRAM dedicata: issue #19818 e lemonade #57 aperte <span class="v">V</span>. gfx1150 fuori dalla matrice ufficiale. Solo per un banco A/B, mai per modelli oltre i 48 GB</td></tr>
+<tr><td>11</td><td><b>VGM 48 → 64 GB</b></td><td>Coder-Next Q4 (48,5 GB) e i potati di Flash-Next (58–65 GB) tutti in memoria dedicata</td><td>Tetto AMD 75% = 72 GB <span class="v">V</span></td><td>Windows resta con 32 GB: fuori il margine di 16 GiB, dentro compilatori e test. Da confrontare con la leva 9 sullo stesso modello: è la decisione che pesa di più</td></tr>
+<tr><td>12</td><td>eGPU via OCuLink (PCIe 4.0 ×4)</td><td>3× se il modello sta nella VRAM della dGPU; split iGPU+dGPU su 122B: 37–38 tok/s (Strix Halo + RTX 5080/Pro 6000) <span class="v">V</span></td><td>MindStudio <span class="v">V</span></td><td>Crollo a 1,6 tok/s se sfora la VRAM; nessuna prova pubblica di «attenzione su dGPU, esperti in UMA». La RTX 2080 SUPER di Turing (8 GB) è troppo piccola per il 35B: non vale il dock</td></tr>
+<tr><td>13</td><td>HAGS, Hardware-accelerated GPU scheduling</td><td>—</td><td>nessuna evidenza llama.cpp trovata</td><td>Non toccare</td></tr>
+</table>
+
+<h2>Vulkan contro ROCm su questa iGPU: chiuso, per ora</h2>
+<table>
+<tr><th>Fonte</th><th>Hardware</th><th>Backend</th><th class="n">Prefill</th><th class="n">Decode</th><th>Nota</th></tr>
+<tr><td>gist Randomblock1, marzo 2026</td><td>HX 370 / 890M, Fedora</td><td>Vulkan / ROCm</td><td class="n">303 / 402</td><td class="n">18,2 / 16,0</td><td>Llama2-7B Q4_0; «stesso pattern su Qwen3.5-35B Q4_K»</td></tr>
+<tr><td>lemonade #57, febbraio 2026, aperta</td><td>HX 370 / 890M, 96 GB, modello oltre la VRAM</td><td>Vulkan / ROCm</td><td class="n">370 / 150</td><td class="n">23 / 18</td><td>ROCm: 94 split di grafo, traffico GPU↔CPU continuo</td></tr>
+<tr><td>soothill, 27-08-2026</td><td>Strix Halo, Flash-Next 104 GB</td><td>Vulkan / ROCm</td><td class="n">17,9 / 17,0</td><td class="n">11,5 / 1,8</td><td>ROCm 6,4× più lento sul modello grande</td></tr>
+<tr><td>TheRock #8186, 13-09-2026</td><td>890M</td><td>ROCm vs Vulkan</td><td class="n">−5%</td><td class="n">+10%</td><td>gfx1150 «wheel esistono ma non supportate»</td></tr>
+</table>
+<p>Con 22 GB dentro 48 GB di VGM ROCm potrebbe dare qualche punto sul prefill; sopra i 48 GB non parte. Per un motore che deve reggere modelli da 48 a 70 GB, Vulkan resta l'unico backend sensato <span class="v">I</span>.</p>
+
+<h2>Driver: quando non aggiornare è la leva</h2>
+<ul>
+<li>Il driver installato (32.0.22042.1, pacchetto 25.20.42) è precedente ad Adrenalin 26.5.1. Dalla 26.5.1 alla 26.9.1 la discussion #23443 documenta la VRAM scaricata in RAM dopo 15 s di inattività (meccanismo WDDM D3); fix annunciato per 26.9.2 <span class="v">V</span>. Per un motore che aspetta un agente fra un tool e l'altro sarebbe un disastro silenzioso: ogni turno ricomincerebbe da RAM.</li>
+<li>Aethera potrebbe accorgersene: <code>GPU Process Memory\Dedicated Usage</code> del processo che scende a riposo e risale al turno successivo è esattamente la firma. È un buon controllo in più per la pagina Motore.</li>
+<li>Con VGM «Auto» Vulkan su Windows 11 dichiara 0 byte: tenere sempre un valore fisso <span class="v">V</span> (già così: 48 GB).</li>
+</ul>
+
+<h2>Cosa registrare in più nel manifest</h2>
+<p>Ogni prova qui sopra è una variabile in più che oggi il manifest non conosce. Per confrontare gli avvii servono: piano energetico attivo, versione del driver GPU e NPU, VGM letta, presenza del motore ausiliario, e i tre campi di checkpoint della cache. Sono letture di sistema che <code>system.rs</code> sa già fare per la VGM.</p>
+</section>

@@ -1,0 +1,29 @@
+  </main>
+</div>
+<script>
+(function(){
+  var buttons=document.querySelectorAll('.nav button[data-p]');
+  var pages=document.querySelectorAll('.page');
+  function show(id){
+    pages.forEach(function(p){p.classList.toggle('on',p.id==='p-'+id)});
+    buttons.forEach(function(b){b.classList.toggle('on',b.dataset.p===id)});
+    document.querySelector('.main').scrollTop=0;
+    try{history.replaceState(null,'','#'+id)}catch(e){}
+  }
+  buttons.forEach(function(b){b.addEventListener('click',function(){show(b.dataset.p)})});
+  var keys=['sintesi','macchina','npu','motore','qwen38','ssd','modelli','piano','fonti'];
+  document.addEventListener('keydown',function(e){
+    if(e.target.tagName==='INPUT')return;
+    var n=parseInt(e.key,10);
+    if(n>=1&&n<=keys.length)show(keys[n-1]);
+  });
+  var h=location.hash.replace('#','');
+  if(keys.indexOf(h)>=0)show(h);
+  var root=document.documentElement;
+  document.getElementById('theme').addEventListener('click',function(){
+    root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';
+  });
+})();
+</script>
+</body>
+</html>

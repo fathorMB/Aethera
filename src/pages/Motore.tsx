@@ -173,6 +173,8 @@ function OrphanCard(props: { orphan: Orphan }) {
 
 export default function Motore(props: { status: EngineStatus | null; onGo: (page: "avvio") => void }) {
   const [log, setLog] = createSignal("");
+  /** Le righe del log che spiegano un'uscita con errore: un codice di uscita da solo non dice niente. */
+  const [failure, setFailure] = createSignal<api.Reason[]>([]);
   const [error, setError] = createSignal<string | null>(null);
   const [busy, setBusy] = createSignal(false);
   const run = () => api.runOf(props.status);
@@ -189,6 +191,8 @@ export default function Motore(props: { status: EngineStatus | null; onGo: (page
       } catch (e) {
         setLog(String(e));
       }
+      // Solo dopo un'uscita con errore: a motore sano non c'è niente da spiegare.
+      setFailure(s()?.state === "exited" ? await api.engineFailure().catch(() => []) : []);
     };
     tick();
     const t = setInterval(tick, 2000);
@@ -229,6 +233,36 @@ export default function Motore(props: { status: EngineStatus | null; onGo: (page
 
       <Show when={error()}>
         <div class="note err mb">{error()}</div>
+      </Show>
+
+      <Show when={s()?.state === "exited"}>
+        <div class="card mb">
+          <h2>
+            Perché è uscito <span class="r">dalle righe del log, non dal codice di uscita</span>
+          </h2>
+          <Show
+            when={failure().length}
+            fallback={
+              <div class="cond">
+                Il log non contiene nessuna riga riconoscibile come causa. Resta il codice di uscita qui sotto e il log
+                per intero in fondo alla pagina: meglio dire che non si sa, che indicare una causa sbagliata.
+              </div>
+            }
+          >
+            <For each={failure()}>
+              {(r) => (
+                <div style={{ "margin-bottom": "8px" }}>
+                  <pre class="cmd" style={{ margin: "0 0 4px" }}>
+                    {r.line}
+                  </pre>
+                  <Show when={r.hint}>
+                    <div class="note warn">{r.hint}</div>
+                  </Show>
+                </div>
+              )}
+            </For>
+          </Show>
+        </div>
       </Show>
 
       <Show when={s()?.state === "orphan" && s()}>

@@ -1,0 +1,66 @@
+<section class="page" id="p-ssd">
+<h1>Streaming da SSD: i modelli più grandi della memoria</h1>
+<p class="sub">1,9 TB liberi su NVMe PCIe 4.0 ×4 e due slot M.2 vuoti. Cosa si può streammare, con quali strumenti su Windows + Vulkan, e quanti tok/s lascia la fisica.</p>
+
+<div class="grid3">
+  <div class="kpi"><b>5,7 GB/s</b><span>lettura sequenziale del Kingston OM8TAP42048K1 (PassMark, 143 campioni) <span class="v">V</span>; ~3,3 GB/s su random 32K QD20</span></div>
+  <div class="kpi"><b>0</b><span>streaming di esperti da SSD in llama.cpp master: PR #25294 e #27861 aperte <span class="v">V</span>. C'è solo <code>--lazy-mode</code> per i tensori giganti</span></div>
+  <div class="kpi"><b>7–17 tok/s</b><span>tetto del solo I/O per Flash-Next con hit degli esperti 53–80% su un SSD <span class="v">I</span>; misure reali dei progetti: 2–14</span></div>
+</div>
+
+<h2>Due cose diverse che si chiamano «streaming»</h2>
+<table>
+<tr><th>Caso</th><th>Cosa sta su SSD</th><th>Accesso per token</th><th>Stato in llama.cpp</th><th>Adatto qui?</th></tr>
+<tr class="hl"><td><b>A · Tensori giganti a lettura sparsa</b></td><td>La tabella n-gram di Qwen3.8-Flash-Next (<code>per_layer_token_embd</code>: 51B parametri, 27–39 GB quantizzata, 95 GiB in BF16) <span class="v">V</span></td><td>Poche righe da 160 valori per token, scelte dall'hash dei 3 token precedenti: latenza, non banda</td><td><b>In master</b>: <code>--lazy-mode auto</code> (PR #27794, 27-08-2026) mappa con MADV_RANDOM i tensori oltre 4 GiB senza popolarli <span class="v">V</span></td><td><span class="badge ok"><i></i>sì</span> M1 Max 64 GB: pesi 45,8 GB in RAM + tabella 39 GB su SSD, 17,6 tok/s, +0,3 GB di RAM in 30 minuti <span class="v">V</span></td></tr>
+<tr><td><b>B · Esperti MoE</b></td><td>Gli esperti che non entrano in memoria (o tutti)</td><td>480 lookup per token su Flash-Next (48 layer × 10): 0,9–1,9 GB per token secondo la quant <span class="v">V/I</span></td><td><b>Non in master</b>: PR #25294 (<code>--moe-stream</code>, CUDA/Metal, output che diverge), PR #27861 (cache LRU in VRAM con esperti in RAM, Vulkan confermato su RDNA3, ma non legge da SSD) <span class="v">V</span></td><td><span class="badge warn"><i></i>solo con fork o motori esterni</span></td></tr>
+</table>
+
+<h2>Il caso A è già un regalo: Flash-Next con la tabella su disco</h2>
+<p>Con la tabella n-gram lasciata su SSD, la memoria che serve a Flash-Next è quella del solo transformer: UD-IQ1_M scende da 84,9 GB a 45,8 GB in RAM (misura M1 Max <span class="v">V</span>); per una UD-Q3_K_XL da 90 GB restano <b>~60 GB</b> di esperti e attenzione <span class="v">I</span>, cioè lo stesso ordine dei potati REAP ma con <b>tutti i 512 esperti</b>. È la via per provare il modello intero senza potature.</p>
+<div class="note warn">Trappola Windows: issue #28355 (Windows, 160 GB, build ≥ 10665) segnala il prefill «estremamente lento» dopo il lazy-mode automatico: ogni lookup della tabella paga un page fault senza readahead <span class="v">V</span>. Un prefill da 32k fa decine di migliaia di lookup casuali. Da verificare qui: se succede, <code>--lazy-mode off</code> con la tabella in RAM (27–39 GB entrano nei 47,6 GB solo con la quant più piccola della tabella e nient'altro in RAM), oppure aspettare il readahead a lotti citato fra i follow-up della PR #27794.</div>
+
+<h2>Il caso B: la fisica prima degli strumenti</h2>
+<p>Tetto del solo I/O, senza calcolo né sincronizzazione (formula del doc 05 §4.5: tok/s ≤ B ÷ [W × (1 − h)]). Byte per esperto: 1,8 MiB sulla quant ~2 bit misurata in ddvnguyen #130, ~3,8 MiB stimati su Q4_K_XL <span class="v">V/I</span>.</p>
+<table>
+<tr><th>Scenario Flash-Next</th><th class="n">GB mancanti per token</th><th class="n">1 SSD, random ~3 GB/s</th><th class="n">1 SSD, seq 5,7 GB/s</th><th class="n">2 SSD in stripe, 6–7 GB/s</th></tr>
+<tr><td>Quant ~2 bit, hit 53% (cache 42 slot/layer, misurato) </td><td class="n">0,40</td><td class="n">7,5</td><td class="n">14</td><td class="n">~16</td></tr>
+<tr><td>Quant ~2 bit, hit 80%</td><td class="n">0,17</td><td class="n">17</td><td class="n">33</td><td class="n">~38</td></tr>
+<tr><td>Q4_K_XL, hit 53%</td><td class="n">0,86</td><td class="n">3,5</td><td class="n">6,6</td><td class="n">~7,5</td></tr>
+<tr><td>Q4_K_XL, hit 80%</td><td class="n">0,37</td><td class="n">8</td><td class="n">15</td><td class="n">~17</td></tr>
+<tr><td>Q4_K_XL, hit 90% (LRU-128, PR #27861)</td><td class="n">0,18</td><td class="n">16</td><td class="n">31</td><td class="n">~35</td></tr>
+</table>
+<ul>
+<li>Le misure reali stanno sotto i tetti: RTX 3060 + PCIe 4.0 ×4 (6,1 GB/s), Flash-Next 46 GB, cache 3,5 GiB: <b>10,8 tok/s</b> con hit 53% e 403 MiB per token; l'ottimo teorico di Belady 14,2; il pavimento «ogni esperto letto una volta» 21 <span class="v">V</span>. pulsar (Linux/CUDA, 30 GB di RAM): DeepSeek V4-Flash 87 GB a 8,2 tok/s, GLM-5.2 211 GB a 2,7 <span class="v">V</span>. DwarfStar: GLM 5.3 Flash 178 GiB su M5 Max 128 GB a 11,9–14,9 <span class="v">V</span>.</li>
+<li>La località degli esperti è meno concentrata di quanto si dica: su qwen4exp il working set è ~278 esperti distinti per layer su 512 <span class="v">V</span>; l'ICLR 2026 dice che la cache ottimale è 2× gli esperti attivi e che gli shared expert riducono la località <span class="v">V</span>; FlashMoE (gennaio 2026) guadagna +51% di hit con una policy appresa su recency + frequency <span class="v">V</span>. Codice e matematica sono i domini con la località migliore <span class="v">V parziale</span>.</li>
+<li>Su questa macchina l'SSD non è mai l'unico collo: la RAM di sistema e la iGPU condividono i 90 GB/s, quindi ogni byte streammato viene letto due volte (SSD → RAM → calcolo). I tetti sopra vanno letti come <b>ottimistici</b>.</li>
+</ul>
+
+<h2>Gli strumenti, e quali parlano Windows + Vulkan</h2>
+<table>
+<tr><th>Progetto</th><th>Stato</th><th>Windows</th><th>Vulkan</th><th>Modelli</th><th>Risultati</th><th>Nota</th></tr>
+<tr><td>llama.cpp <code>--lazy-mode</code></td><td>master</td><td>sì (non testato dagli autori)</td><td>sì</td><td>tutti quelli con tensori &gt; 4 GiB</td><td>vedi caso A</td><td>La via a costo zero</td></tr>
+<tr><td>llama.cpp PR #27861 (cache LRU esperti in VRAM)</td><td>draft, in attesa di review (14-09)</td><td>—</td><td><b>confermato su RX 7600/6950XT</b> con <code>GGML_VK_DISABLE_GRAPH_OPTIMIZE=1</code></td><td>Flash-Next, Qwen3.6-35B, Gemma4</td><td>Flash-Next Q4_K_XL: 18,4 → 24,2 tok/s (+31%), hit 67–90% <span class="v">V</span></td><td>Esperti in RAM, non su SSD. Su UMA la «VRAM» è la stessa DDR5: il guadagno qui è dubbio, salvo evitare il giro CPU↔GPU <span class="v">I</span></td></tr>
+<tr><td>llama.cpp PR #25294 <code>--moe-stream</code></td><td>aperta, «Large PR», output diverge sulle generazioni lunghe</td><td>citato in una PR collegata</td><td>non testato</td><td>GLM-5.2 254 GB</td><td>1,8–2,2 tok/s su 128 GB + NVMe, 2,4× rispetto a mmap+cpu-moe <span class="v">V</span></td><td>Da seguire, non da usare</td></tr>
+<tr><td>antirez/ds4 «DwarfStar»</td><td>beta, molto attivo</td><td>non citato</td><td>no (Metal, CUDA, ROCm)</td><td>DeepSeek V4, GLM 5.2/5.3, Flash-Next</td><td>11,9–14,9 tok/s su M5 Max <span class="v">V</span></td><td>Già nel doc 05 §4.5; il riferimento ROCm è gfx1151, e ROCm su gfx1150 non vede la memoria condivisa (pagina Motore). Fuori portata su Windows</td></tr>
+<tr><td>giannisanni/pulsar (ds4 in Rust)</td><td>attivo</td><td>no</td><td>no (CUDA)</td><td>11 architetture</td><td>6–8 tok/s con modelli 80–90 GB su 30 GB RAM <span class="v">V</span></td><td>Linux only</td></tr>
+<tr class="hl"><td>JustVugg/colibri</td><td>attivo, v1.11</td><td><b>sì, nativo</b></td><td><b>sì, 1.2</b></td><td>GLM-5.x, Kimi K3, DeepSeek V4, <b>Flash-Next</b>, Qwen3.6</td><td>GLM-5.2 744B: 0,05–0,1 tok/s a freddo su 25 GB, ~1,8 a caldo su 128 GB CPU <span class="v">V</span></td><td>L'unico motore Windows+Vulkan con gerarchia VRAM/RAM/SSD; supporta 2 SSD con copia doppia e hashing pesato per banda. Numeri bassissimi sui giganti; su Flash-Next nessun dato</td></tr>
+<tr><td>TinyGiant / discussion #27149</td><td>prototipo CPU</td><td>roadmap</td><td>no</td><td>Qwen3-30B-A3B</td><td>4,7 tok/s con 2 GB di RAM; re-layout contiguo −36× page fault <span class="v">V</span></td><td>Idea da rubare: riordinare gli esperti per co-attivazione nel file</td></tr>
+</table>
+
+<h2>Il secondo SSD</h2>
+<ul>
+<li>Uno slot PCIe 4.0 ×4 libero (6,7–7,3 GB/s) e uno ×1 (1,5–1,9 GB/s): il secondo disco va nello slot ×4 <span class="v">V</span>. In stripe con Disk Management (RAID 0 software) la lettura scala quasi linearmente su NVMe <span class="v">V</span>; Storage Spaces «simple» equivale.</li>
+<li>Raddoppia il tetto <b>solo</b> quando l'SSD è il collo (caso B con hit basso). Nel caso A (tabella n-gram) conta la latenza 4K QD1 (~50 µs) e il secondo disco non aiuta.</li>
+<li>Uso alternativo più sicuro: separare i pesi dal disco di sistema, così la page cache dei GGUF non compete con Windows, e tenere lì una copia dei modelli da 60–120 GB che oggi non si scaricano per mancanza di spazio logico.</li>
+</ul>
+
+<h2>Cosa provare, in ordine</h2>
+<ol>
+<li><b>Misurare l'SSD sul file vero</b>: DiskSpd (<code>-Sh</code>, blocchi 4K e 2 MiB, QD 1/8/32) sul GGUF, non su un file di test; da questo dipende quale colonna della tabella dei tetti vale. Un'ora.</li>
+<li><b>Flash-Next intero, quant piccola, tabella su SSD</b>: UD-IQ1_M (74,5 GB) o UD-Q2_K_XL (78,9) con <code>--lazy-mode auto -ot "per_layer_token_embd=CPU"</code>, esperti oltre la VGM in RAM, contesto 32k. Replica del setup M1 Max. Osservare il prefill: è la prova della trappola #28355 su Windows.</li>
+<li><b>Se il prefill regge</b>: UD-Q3_K_XL (90 GB): ~60 GB in memoria + tabella su SSD. È il primo modo per avere Flash-Next «vero» su questa macchina.</li>
+<li><b>Colibri</b> con Flash-Next come confronto «stack completo», sapendo che i numeri pubblicati sui giganti sono a una cifra bassa.</li>
+<li><b>Solo dopo</b>: secondo NVMe in stripe, se lo step 2–3 mostra che il tempo per token è I/O.</li>
+</ol>
+<div class="note">Per Aethera: <code>--load-mode</code> è già un campo del profilo; mancano <code>lazy_mode</code> e la mappa <code>-ot</code> per tensore, e la memoria misurata dovrebbe distinguere «pagine mappate da file» (RAMMap: <em>Mapped file</em>) dal working set, altrimenti la doppia copia dei pesi e lo streaming voluto si confondono. Il manifest dovrebbe registrare anche il disco su cui stanno i pesi e la sua lettura sequenziale misurata.</div>
+</section>

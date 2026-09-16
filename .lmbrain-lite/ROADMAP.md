@@ -14,7 +14,7 @@ generated: true
 | 3 | M-03 | Memoria misurata, telemetria, stato «in uso» ed endpoint Aethera | done | 11/11 | 100% |
 | 4 | M-04 | Catalogo: metadati GGUF, stima di memoria, verifica e download di pesi e build | done | 10/10 | 100% |
 | 5 | M-05 | Uso quotidiano senza toccare i file a mano | active | 7/8 (1 blocked) | 88% |
-| 6 | M-06 | Comportamento quando qualcosa va storto | approved | 0/8 | 0% |
+| 6 | M-06 | Comportamento quando qualcosa va storto | active | 8/9 (1 blocked) | 89% |
 | 7 | M-07 | Confezionamento, prima esecuzione e documentazione | approved | 0/7 | 0% |
 
 ## M-01 — Mockup di design della v1
@@ -54,7 +54,7 @@ generated: true
 
 ## M-06 — Comportamento quando qualcosa va storto
 
-- `status`: approved
+- `status`: active
 - `priority`: 6
 - `file`: milestones/M-06.md
 - `outcome`: Ogni guasto prevedibile dà un messaggio leggibile che dice cosa è successo e cosa fare, senza perdere dati né lasciare Aethera in uno stato ambiguo: file di configurazione illeggibili, pesi o build spariti, disco pieno, rete caduta, motore che esce con errore, app chiusa con un lavoro in corso.

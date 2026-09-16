@@ -1,0 +1,79 @@
+<section class="page" id="p-piano">
+<h1>Piano di prova</h1>
+<p class="sub">Esperimenti ordinati per informazione ottenuta ÷ ore spese. Una variabile alla volta, stessa riga, stesso prompt di codice vero, telemetria di Aethera come unica fonte. Ogni prova è un profilo, non una modifica a mano.</p>
+
+<h2>Fase 0 · condizioni della misura (mezza giornata)</h2>
+<table>
+<tr><th>#</th><th>Prova</th><th>Come</th><th>Cosa decide</th></tr>
+<tr><td>0.1</td><td>Piano energetico «Prestazioni» contro «Bilanciato»</td><td>Stesso profilo G1, 5 giri, prefill e decode</td><td>Se vale il +36% visto su Linux, tutte le misure future vanno rifatte in quel piano</td></tr>
+<tr><td>0.2</td><td>Banda dell'SSD sul GGUF</td><td>DiskSpd 4K/2 MiB, QD 1/8/32, unbuffered</td><td>La colonna giusta della tabella dei tetti di streaming</td></tr>
+<tr><td>0.3</td><td>Manifest arricchito</td><td>Piano energetico, versione driver GPU/NPU, VGM, disco dei pesi</td><td>Confrontabilità di tutto ciò che segue</td></tr>
+</table>
+
+<h2>Fase 1 · leve gratuite sul modello attuale (un giorno)</h2>
+<table>
+<tr><th>#</th><th>Prova</th><th>Riga</th><th>Esito atteso</th></tr>
+<tr><td>1.1</td><td>Checkpoint dello stato ricorrente</td><td><code>--ctx-checkpoints 128 --checkpoint-min-step 128 --cache-ram 15000 --kv-unified</code></td><td>TTFT dei turni con prefisso divergente: da decine di secondi a meno di uno. La misura è <code>n_prompt_tokens_cache</code> per turno da <code>/slots</code></td></tr>
+<tr><td>1.2</td><td>MTP adattivo contro MTP 3 fisso</td><td><code>--spec-draft-adaptive --spec-draft-n-min 2 --spec-draft-n-max 4 --spec-draft-p-min 0.75</code></td><td>Decode +5–15% sul codice senza perdere sui riassunti</td></tr>
+<tr><td>1.3</td><td>Build ≥ b10982 come variabile</td><td>Download verificato da Aethera, stesso profilo</td><td>Pochi punti; serve comunque per la fase 3</td></tr>
+<tr><td>1.4</td><td>KV q8_0 a 64k e 128k</td><td><code>-ctk q8_0 -ctv q8_0 -c 131072</code></td><td>Nessun guadagno sotto 64k (KV di 0,67 GiB a 32k); da +10% oltre. Controllare la coerenza dell'output a temperatura 0</td></tr>
+<tr><td>1.5</td><td>Stabilità del prefisso dei client</td><td>Nonio, OpenCode, Claude Code contro lo stesso motore</td><td>Scoprire quale client azzera la cache (caso <code>CLAUDE_CODE_ATTRIBUTION_HEADER</code>)</td></tr>
+</table>
+
+<h2>Fase 2 · la memoria oltre i 48 GB (due giorni)</h2>
+<p>È la prova che sblocca tutto ciò che sta fra 48 e 70 GB. Modello di test: Qwen3-Coder-Next Q4_K_M (48,5 GB), già nel piano G3.</p>
+<table>
+<tr><th>#</th><th>Configurazione</th><th>Cosa misura</th></tr>
+<tr><td>2.1</td><td>VGM 48 GB, <code>-ngl 999</code>, esperti eccedenti in memoria condivisa WDDM (Vulkan lo fa da solo)</td><td>Quanto costa la memoria «shared» su Windows: nessuna fonte lo sa</td></tr>
+<tr><td>2.2</td><td>VGM 48 GB, <code>--n-cpu-moe 8 / 16</code></td><td>Gli esperti su Zen 5 AVX-512 contro la iGPU: su UMA la banda è la stessa</td></tr>
+<tr><td>2.3</td><td>VGM 64 GB (riavvio), tutto dedicato</td><td>Il costo per Windows (32 GB) e se il decode torna al tetto</td></tr>
+<tr><td>2.4</td><td><code>--fit on</code> senza <code>-ngl</code></td><td>Se il motore decide meglio di noi</td></tr>
+<tr><td>2.5</td><td><code>--load-mode mmap</code> contro <code>none</code> con RAMMap aperto</td><td>Doppia copia contro pagine mappate: la telemetria deve distinguerle</td></tr>
+</table>
+<p>Criterio: la configurazione che regge ≥ 15 tok/s con la cache del prefisso intatta diventa la ricetta standard per i modelli 48–70 GB.</p>
+
+<h2>Fase 3 · Qwen3.8-Flash-Next (tre giorni, dopo la fase 2)</h2>
+<table>
+<tr><th>#</th><th>Configurazione</th><th>Cosa misura</th></tr>
+<tr><td>3.1</td><td>REAP-256 UD-Q3_K_XL (61,9 GB), build ≥ b10982, ricetta della fase 2, <code>-ot "per_layer_token_embd=CPU"</code>, checkpoint attivi</td><td>Prefill e decode a 32k; se il decode degrada col contesto (issue #28734) anche su Vulkan</td></tr>
+<tr><td>3.2</td><td>Intero UD-Q2_K_XL (78,9 GB) con tabella n-gram su SSD (<code>--lazy-mode auto</code>)</td><td>La trappola del prefill su Windows (#28355). Se regge, salire a UD-Q3_K_XL</td></tr>
+<tr><td>3.3</td><td>MTP con build patchata + testa dzannotti</td><td>Accettazione su codice: sopra 0,8 vale, sotto 0,5 no</td></tr>
+<tr><td>3.4</td><td>Task veri (i 12 del doc 05, fase C) contro il 35B</td><td>Task riusciti per ora di macchina: l'unico numero che conta</td></tr>
+</table>
+
+<h2>Fase 4 · la NPU come secondo motore (due giorni, indipendente dalle altre)</h2>
+<table>
+<tr><th>#</th><th>Configurazione</th><th>Cosa misura</th></tr>
+<tr><td>4.1</td><td>FastFlowLM 1.0.5, EmbeddingGemma sulla NPU, Vulkan 35B acceso</td><td>Decode e TTFT del 35B con e senza NPU al lavoro (contesa di banda)</td></tr>
+<tr><td>4.2</td><td>FLM Qwen3.5-4B come sotto-agente (commit, riassunti)</td><td>tok/s del 4B e degrado del 35B durante l'uso concorrente</td></tr>
+<tr><td>4.3</td><td>FLM Qwen3.6-35B-A3B come stack completo</td><td>Confronto di famiglia; il TTFT fisso di 2,7 s nei loop agentici</td></tr>
+<tr><td>4.4</td><td>Driver NPU 32.00.20102.3930 preso da solo (senza Adrenalin 26.9.1)</td><td>Se FLM lo accetta e se cambia qualcosa</td></tr>
+</table>
+
+<h2>Fase 5 · i candidati alternativi (un giorno ciascuno)</h2>
+<ol>
+<li>KAT-Coder-V2.5-Dev Q4 contro il 35B: stessa architettura, costo zero.</li>
+<li>gpt-oss-120b MXFP4 (61 GB) con la ricetta della fase 2.</li>
+<li>Gemma 4 26B-A4B come controllo dell'affidabilità dei tool call.</li>
+</ol>
+
+<h2>Cosa serve ad Aethera per reggere il piano</h2>
+<table>
+<tr><th>Bisogno</th><th>Dove</th><th>Milestone naturale</th></tr>
+<tr><td>Campi profilo: <code>ctx_checkpoints</code>, <code>checkpoint_min_step</code>, <code>cache_ram</code>, <code>kv_unified</code> (marcati <code>cache</code>); <code>spec_draft_adaptive</code>, <code>n_min/n_max/p_min</code>; <code>n_cpu_moe</code>; <code>tensor_overrides</code> (<code>-ot</code>); <code>lazy_mode</code>; <code>fit</code></td><td>profile.rs, cmdline.rs, pagina Avvio</td><td>Dopo M-05 (profilo da zero): «leve avanzate del motore»</td></tr>
+<tr><td>Manifest: piano energetico, driver GPU/NPU, VGM, disco dei pesi, motore ausiliario acceso</td><td>system.rs, manifest.rs</td><td>Stessa milestone</td></tr>
+<tr><td>Telemetria: pagine mappate da file distinte dal working set; VRAM del processo che scende a riposo (firma della regressione DPM)</td><td>memory.rs, telemetry.rs</td><td>Stessa milestone</td></tr>
+<tr><td>Rilevazione «prefisso instabile» per client</td><td>telemetry.rs, pagina Motore</td><td>M-06 (quando qualcosa va storto)</td></tr>
+<tr><td>Motore ausiliario: <code>runtime.kind = "flm"</code>, porta propria, stato e telemetria in seconda riga; blocco env per i client con due endpoint</td><td>engine.rs, clients.rs, tray</td><td>Nuova milestone «due silici»</td></tr>
+<tr><td>Build locali non ggml-org (fork patchati) dichiarate in machine.toml con hash proprio</td><td>machine.rs, builds.rs</td><td>Nuova milestone o M-07</td></tr>
+<tr><td>Catalogo: varianti potate con provenienza esplicita («community, REAP, base X»), e i file MTP separati come pesi collegati</td><td>catalog.rs, modelcard.rs</td><td>M-05 o successiva</td></tr>
+</table>
+
+<h2>Le idee più azzardate, dichiarate come tali</h2>
+<ul>
+<li><b>Riordinare gli esperti nel GGUF per co-attivazione</b> (TinyGiant: −36× page fault). Uno strumento offline che legge i log del router su un carico di codice e riscrive il file: serve solo se lo streaming da SSD diventa la via.</li>
+<li><b>Cache degli esperti calibrata sul codice</b>: la PR #27861 con una policy appresa (FlashMoE, +51% hit) e un warm-up dagli ultimi task. Su UMA il guadagno è dubbio, ma il log delle attivazioni sarebbe comunque una telemetria nuova e utile.</li>
+<li><b>Turing come rpc-server</b> (RTX 2080 SUPER, 8 GB) sulla LAN: llama.cpp lo vede come device ggml, quindi potrebbe ospitare il draft o l'attenzione. La latenza di rete per token lo rende quasi certamente perdente: da provare in un pomeriggio solo per chiudere la domanda.</li>
+<li><b>eGPU via OCuLink</b>: ha senso solo con una scheda da 24–32 GB che tenga tutto il 35B; a quel punto la iGPU non serve più e questo studio cambia macchina.</li>
+</ul>
+</section>

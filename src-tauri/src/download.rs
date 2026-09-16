@@ -7,6 +7,7 @@
 //! L'hash atteso si legge dall'API del repository (`/api/models/<repo>/tree/main`), dove ogni
 //! file LFS porta `lfs.oid` (è lo SHA-256) e `lfs.size`.
 
+use crate::diagnose;
 use crate::hash;
 use serde::Serialize;
 use std::fs::{self, File, OpenOptions};
@@ -137,6 +138,17 @@ pub fn check_disk(free: Option<u64>, expected_size: Option<u64>, have: u64) -> R
     Ok(())
 }
 
+/// Un download che si ferma a metà non è una perdita: il `.part` resta com'è e la ripresa riparte
+/// da lì, anche dopo aver chiuso Aethera. Il messaggio lo dice, perché è quello che chi guarda
+/// deve sapere per decidere se riprovare adesso o domani.
+fn interrupted(part: &Path, have: u64, total: Option<u64>, cause: String) -> String {
+    let done = match total {
+        Some(t) if t > 0 => format!("{:.2} GB su {:.2}", have as f64 / 1e9, t as f64 / 1e9),
+        _ => format!("{:.2} GB", have as f64 / 1e9),
+    };
+    format!("interrotto dopo {done}: {cause}. Il file a metà resta in {} e «Riprendi» riparte da lì, anche dopo aver chiuso e riaperto Aethera.", part.display())
+}
+
 /// Scarica, riprendendo se c'è un `.part`. Il file diventa utilizzabile solo dopo la verifica.
 pub fn download(req: &Request, on_progress: &mut dyn FnMut(u64, Option<u64>)) -> Result<Outcome, String> {
     let part = part_path(&req.target);
@@ -189,11 +201,27 @@ pub fn download(req: &Request, on_progress: &mut dyn FnMut(u64, Option<u64>)) ->
             file.flush().map_err(|e| e.to_string())?;
             return Ok(Outcome::Paused { bytes: have });
         }
-        let n = reader.read(&mut buf).map_err(|e| format!("{}: {e}", req.url))?;
+        // Un guasto qui non deve portarsi via quello che è già stato scritto: prima si scarica
+        // sul disco quello che c'è, poi si racconta che cos'è successo.
+        let n = match reader.read(&mut buf) {
+            Ok(n) => n,
+            Err(e) => {
+                let _ = file.flush();
+                let cause = format!("la rete si è interrotta ({e})");
+                return Err(interrupted(&part, have, total, cause));
+            }
+        };
         if n == 0 {
             break;
         }
-        file.write_all(&buf[..n]).map_err(|e| format!("{}: {e}", part.display()))?;
+        if let Err(e) = file.write_all(&buf[..n]) {
+            let _ = file.flush();
+            let cause = match diagnose::io_hint(&e) {
+                Some(h) => format!("{e} — {h}"),
+                None => format!("{e}"),
+            };
+            return Err(interrupted(&part, have, total, cause));
+        }
         have += n as u64;
         on_progress(have, total);
     }
@@ -232,6 +260,7 @@ pub fn download(req: &Request, on_progress: &mut dyn FnMut(u64, Option<u64>)) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::AtomicBool;
 
     #[test]
     fn builds_the_direct_link() {
@@ -259,6 +288,120 @@ mod tests {
         fs::write(&p, b"c'e' gia'").unwrap();
         assert_eq!(plan(&p, None, Some(9)), Plan::AlreadyThere);
         let _ = fs::remove_file(p);
+    }
+
+    /// Un server che serve un corpo fisso, capisce `Range: bytes=N-` e può tagliare la connessione
+    /// dopo un tot di byte. Serve a provare la ripresa senza dipendere dalla rete vera: una rete
+    /// che cade a metà è esattamente questo.
+    fn serve(body: Vec<u8>, cut_after: Option<usize>) -> String {
+        use std::io::{BufRead, BufReader, Write as _};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        std::thread::spawn(move || {
+            let Ok((mut socket, _)) = listener.accept() else { return };
+            let mut start = 0usize;
+            {
+                let mut reader = BufReader::new(socket.try_clone().expect("clone"));
+                let mut line = String::new();
+                while reader.read_line(&mut line).unwrap_or(0) > 0 {
+                    let t = line.trim();
+                    if t.is_empty() {
+                        break;
+                    }
+                    if let Some(v) = t.to_ascii_lowercase().strip_prefix("range: bytes=") {
+                        start = v.split('-').next().unwrap_or("0").trim().parse().unwrap_or(0);
+                    }
+                    line.clear();
+                }
+            }
+            let rest = &body[start.min(body.len())..];
+            let head = if start > 0 {
+                format!(
+                    "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {}-{}/{}\r\nConnection: close\r\n\r\n",
+                    rest.len(),
+                    start,
+                    body.len() - 1,
+                    body.len()
+                )
+            } else {
+                format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", rest.len())
+            };
+            let _ = socket.write_all(head.as_bytes());
+            let send = cut_after.map(|n| n.min(rest.len())).unwrap_or(rest.len());
+            let _ = socket.write_all(&rest[..send]);
+            let _ = socket.flush();
+            // Tagliare vuol dire chiudere prima di aver mandato quello che si era promesso.
+            let _ = socket.shutdown(std::net::Shutdown::Both);
+        });
+        format!("http://{addr}/pesi.gguf")
+    }
+
+    #[test]
+    fn a_download_cut_in_the_middle_keeps_its_part_and_resumes_in_a_new_session() {
+        let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!("aethera-ripresa-{n}"));
+        fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("pesi.gguf");
+        let part = part_path(&target);
+
+        // Un corpo che non si comprime e non si ripete: un troncamento si vede.
+        let body: Vec<u8> = (0..3_000_000u32).map(|i| (i.wrapping_mul(2_654_435_761) >> 13) as u8).collect();
+        let expected = {
+            let f = dir.join("sorgente.bin");
+            fs::write(&f, &body).unwrap();
+            let out = hash::sha256_file(&f, &AtomicBool::new(false), &mut |_, _| {}).unwrap();
+            let _ = fs::remove_file(&f);
+            match out {
+                hash::Outcome::Done(h) => h,
+                hash::Outcome::Cancelled => unreachable!(),
+            }
+        };
+
+        // --- Sessione 1: la rete cade dopo 1 MB ---
+        let cancel = AtomicBool::new(false);
+        let req = Request {
+            url: serve(body.clone(), Some(1_000_000)),
+            target: target.clone(),
+            expected_sha256: Some(expected.clone()),
+            expected_size: Some(body.len() as u64),
+            free_disk: None,
+            cancel: &cancel,
+        };
+        let first = download(&req, &mut |_, _| {});
+        match &first {
+            // Che il taglio arrivi come errore di lettura o come fine anticipata del corpo, il
+            // patto è lo stesso: niente file utilizzabile, e il .part intatto.
+            Err(e) => assert!(e.contains("interrotto") && e.contains("Riprendi"), "{e}"),
+            Ok(Outcome::Paused { bytes }) => assert_eq!(*bytes, 1_000_000),
+            other => panic!("un download tagliato non può essere un successo: {other:?}"),
+        }
+        assert!(!target.exists(), "un download a metà non diventa mai un file utilizzabile");
+        assert_eq!(fs::metadata(&part).unwrap().len(), 1_000_000, "il .part tiene quello che era arrivato");
+
+        // --- Sessione 2: Aethera è stata chiusa e riaperta; resta solo quello che c'è sul disco ---
+        let part_len = fs::metadata(&part).ok().map(|m| m.len());
+        assert_eq!(plan(&target, part_len, Some(body.len() as u64)), Plan::Resume(1_000_000));
+
+        let cancel2 = AtomicBool::new(false);
+        let mut seen_start = None;
+        let req2 = Request {
+            url: serve(body.clone(), None),
+            target: target.clone(),
+            expected_sha256: Some(expected.clone()),
+            expected_size: Some(body.len() as u64),
+            free_disk: None,
+            cancel: &cancel2,
+        };
+        let out = download(&req2, &mut |done, _| {
+            seen_start.get_or_insert(done);
+        })
+        .expect("la ripresa deve riuscire");
+        assert_eq!(out, Outcome::Done { bytes: body.len() as u64, sha256: Some(expected) });
+        assert!(seen_start.unwrap() > 1_000_000, "la ripresa riparte dal punto giusto, non da zero");
+        assert!(!part.exists(), "il .part sparisce solo quando il file è completo e verificato");
+        assert_eq!(fs::read(&target).unwrap(), body, "il file rimesso insieme è identico all'originale");
+
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

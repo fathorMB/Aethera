@@ -4,6 +4,7 @@ use crate::adopt;
 use crate::builds::{self, Release};
 use crate::catalog::{self, Catalog, ModelRow, ScanInput};
 use crate::clients::{self, ClientSnippets, RunFacts};
+use crate::diagnose::{self, Reason};
 use crate::cmdline::{self, ArgGroup};
 use crate::download::{self, Request as DownloadRequest};
 use crate::engine::{self, EngineStatus, RunInfo, StartRequest, Usage};
@@ -31,6 +32,10 @@ use tauri::{AppHandle, Manager, State};
 #[derive(Serialize)]
 pub struct Overview {
     pub data_root: Option<String>,
+    /// Perché la radice dati scelta non è utilizzabile: disco staccato, cartella sparita, sola
+    /// lettura. Finché è piena, Aethera non può fare niente e lo dice invece di fallire un gesto
+    /// alla volta.
+    pub data_root_error: Option<String>,
     pub machine: Option<MachineConfig>,
     pub machine_error: Option<String>,
     pub system: SystemReport,
@@ -55,6 +60,7 @@ fn build_overview(state: &AppState) -> Overview {
     let settings = state.settings().clone();
     let mut o = Overview {
         data_root: settings.data_root.as_ref().map(|p| p.display().to_string()),
+        data_root_error: None,
         machine: None,
         machine_error: None,
         system: system::probe().report(),
@@ -66,6 +72,15 @@ fn build_overview(state: &AppState) -> Overview {
     };
     if let Some(path) = settings.data_root {
         let root = DataRoot::new(path);
+        // Prima la cartella, poi il contenuto: un disco staccato e un machine.toml sbagliato sono
+        // due guasti diversi e si riparano in due modi diversi.
+        if let Err(e) = fs::create_dir_all(&root.path)
+            .map_err(|e| diagnose::write_error("creazione", &root.path, &e))
+            .and_then(|_| root.check_writable())
+        {
+            o.data_root_error = Some(e);
+            return o;
+        }
         match root.ensure(&o.system) {
             Ok(m) => {
                 o.builds = root.builds_available(&m);
@@ -90,7 +105,9 @@ pub fn set_data_root(state: State<AppState>, path: String) -> Result<Overview, S
     if !path.is_absolute() {
         return Err("serve un percorso assoluto".into());
     }
-    DataRoot::new(&path).ensure(&system::probe().report())?;
+    let root = DataRoot::new(&path);
+    root.ensure(&system::probe().report())?;
+    root.check_writable()?;
     {
         let mut s = state.settings();
         s.data_root = Some(path);
@@ -105,6 +122,41 @@ pub fn save_machine(state: State<AppState>, machine: MachineConfig) -> Result<Ov
         return Err("il nome della macchina è obbligatorio".into());
     }
     data_root(&state)?.save_machine(&machine)?;
+    Ok(build_overview(&state))
+}
+
+#[derive(Serialize)]
+pub struct MachineText {
+    pub path: String,
+    /// Il testo com'è sul disco: quando non si lascia leggere, si mostra invece di sparire.
+    pub text: Option<String>,
+    pub error: Option<String>,
+}
+
+/// `machine.toml` così com'è. Serve quando non è valido: senza vederlo non lo si corregge.
+#[tauri::command]
+pub fn machine_text(state: State<AppState>) -> Result<MachineText, String> {
+    let root = data_root(&state)?;
+    let path = root.machine_file();
+    let (text, error) = match fs::read_to_string(&path) {
+        Ok(t) => (Some(t), root.load_machine().err()),
+        Err(e) => (None, Some(diagnose::write_error("lettura", &path, &e))),
+    };
+    Ok(MachineText { path: path.display().to_string(), text, error })
+}
+
+/// Rimette un `machine.toml` nuovo quando quello che c'è non si lascia leggere. Il vecchio non si
+/// perde: viene messo da parte con la data, perché dentro poteva esserci la cartella dei pesi e
+/// l'elenco delle build, e ritrovarli è più facile che riscriverli.
+#[tauri::command]
+pub fn machine_reset(state: State<AppState>) -> Result<Overview, String> {
+    let root = data_root(&state)?;
+    let path = root.machine_file();
+    if path.is_file() {
+        let backup = root.path.join(format!("machine.toml.{}.bak", chrono::Local::now().format("%Y%m%d-%H%M%S")));
+        fs::rename(&path, &backup).map_err(|e| diagnose::write_error("messa da parte", &backup, &e))?;
+    }
+    root.ensure(&system::probe().report())?;
     Ok(build_overview(&state))
 }
 
@@ -516,6 +568,14 @@ pub fn engine_log(state: State<AppState>, lines: usize) -> Result<String, String
     }
 }
 
+/// Le righe del log che spiegano l'uscita con errore, invece del solo codice di uscita.
+#[tauri::command]
+pub fn engine_failure(state: State<AppState>) -> Vec<Reason> {
+    let Some(path) = state.engine.log_path() else { return Vec::new() };
+    let Ok(text) = engine::read_tail(&path, 400) else { return Vec::new() };
+    diagnose::engine_failure(&text, 6)
+}
+
 #[tauri::command]
 pub fn orphan_terminate(state: State<AppState>, pid: u32) -> Result<(), String> {
     state.engine.terminate_orphan(pid)
@@ -593,11 +653,21 @@ fn profiles_of(root: &DataRoot) -> Vec<Profile> {
 
 /// Scansione completa: legge il catalogo, aggiorna i metadati GGUF, ricava i buffer misurati
 /// dagli avvii e li usa per la stima. Salva il catalogo se la lettura l'ha arricchito.
-fn scan_catalog(state: &AppState) -> Result<(Catalog, Vec<ModelRow>), String> {
+fn scan_catalog(state: &AppState) -> Result<(Catalog, Vec<ModelRow>, Option<String>), String> {
     let (root, machine) = root_and_machine(state)?;
     let profiles = profiles_of(&root);
     let probe = system::probe();
-    let mut cat = catalog::load(&root)?;
+    // Un `catalog.toml` illeggibile non ferma la pagina e **non viene riscritto**: si lavora su un
+    // catalogo vuoto, che vede comunque i file nella cartella dei pesi, e si dice perché.
+    let (mut cat, error) = match catalog::load(&root) {
+        Ok(c) => (c, None),
+        Err(e) => (
+            Catalog::default(),
+            Some(format!(
+                "{e} — Aethera non lo sovrascrive: correggilo o rinominalo. Intanto il Catalogo mostra solo i file che ci sono nella cartella dei pesi, e hash e campionamento già registrati restano dentro quel file."
+            )),
+        ),
+    };
     let before = cat.clone();
 
     // Primo giro senza buffer: serve a riempire la cache dei metadati GGUF…
@@ -611,14 +681,53 @@ fn scan_catalog(state: &AppState) -> Result<(Catalog, Vec<ModelRow>), String> {
     let input = ScanInput { machine: &machine, profiles: &profiles, compute: &compute, probe: probe.as_ref() };
     let rows = catalog::scan(&mut cat, &input);
 
-    if cat != before {
+    if error.is_none() && cat != before {
         catalog::save(&root, &cat)?;
     }
-    Ok((cat, rows))
+    Ok((cat, rows, error))
+}
+
+#[derive(Serialize)]
+pub struct CatalogView {
+    pub rows: Vec<ModelRow>,
+    /// Perché il catalogo dichiarato non è stato letto. Le righe restano valide: vengono dal disco.
+    pub error: Option<String>,
 }
 
 #[tauri::command]
-pub fn catalog_list(state: State<AppState>) -> Result<Vec<ModelRow>, String> {
+pub fn catalog_list(state: State<AppState>) -> Result<CatalogView, String> {
+    let (_, rows, error) = scan_catalog(&state)?;
+    Ok(CatalogView { rows, error })
+}
+
+/// Ricollega una voce a un file diverso: i pesi sono stati rinominati e il catalogo li ha persi.
+/// L'hash calcolato in passato non vale più per un altro file: si butta, invece di portarselo
+/// dietro come se fosse ancora vero.
+#[tauri::command]
+pub fn catalog_relink(state: State<AppState>, id: String, file: String) -> Result<Vec<ModelRow>, String> {
+    let (_, machine) = root_and_machine(&state)?;
+    let dir = machine.models_dir.ok_or("cartella dei pesi non impostata (Impostazioni → machine.toml)")?;
+    let file = file.trim().to_string();
+    if file.contains(['/', '\\']) {
+        return Err("solo il nome del file: la cartella dei pesi è della macchina".into());
+    }
+    if !dir.join(&file).is_file() {
+        return Err(format!("in {} non c'è nessun «{file}»", dir.display()));
+    }
+    {
+        let _g = state.catalog_lock.lock().unwrap_or_else(|e| e.into_inner());
+        let root = data_root(&state)?;
+        let mut cat = catalog::load(&root)?;
+        if cat.models.iter().any(|e| e.id != id && e.file.eq_ignore_ascii_case(&file)) {
+            return Err(format!("«{file}» è già di un'altra voce del catalogo"));
+        }
+        let entry = cat.models.iter_mut().find(|e| e.id == id).ok_or_else(|| format!("nessuna voce «{id}»"))?;
+        entry.file = file;
+        entry.sha256_verified = None;
+        entry.verified_at = None;
+        entry.gguf = None;
+        catalog::save(&root, &cat)?;
+    }
     Ok(scan_catalog(&state)?.1)
 }
 
@@ -1097,9 +1206,36 @@ mod tests {
     }
 }
 
-/// Risposta al dialogo «Esci» quando il motore è acceso.
+/// Risposta al dialogo «Esci» quando il motore è acceso o c'è un lavoro in corso.
+///
+/// Un hash o un download a metà non si troncano in silenzio: o li si lascia finire, o si dice di
+/// fermarli — e allora si **aspetta** che si fermino davvero, perché un `.part` è utile solo se
+/// quello che c'è dentro è arrivato sul disco.
 #[tauri::command]
-pub fn app_exit(app: AppHandle, state: State<AppState>, stop: bool, remember: bool) -> Result<(), String> {
+pub fn app_exit(
+    app: AppHandle,
+    state: State<AppState>,
+    stop: bool,
+    remember: bool,
+    cancel_tasks: Option<bool>,
+) -> Result<(), String> {
+    let busy = state.tasks.running();
+    if !busy.is_empty() {
+        if cancel_tasks != Some(true) {
+            return Err(format!(
+                "{} lavori sono in corso ({}): fermali o aspetta che finiscano",
+                busy.len(),
+                busy.iter().map(|t| t.target.clone()).collect::<Vec<_>>().join(", ")
+            ));
+        }
+        state.tasks.cancel_all();
+        // I lavori si accorgono della bandiera al prossimo blocco: si dà loro il tempo di chiudere
+        // il file. Se non bastano dieci secondi si esce comunque, dicendolo nel messaggio.
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !state.tasks.running().is_empty() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    }
     if stop {
         // Un motore in uso non si ferma: l'errore torna al dialogo e Aethera resta aperta.
         if state.engine.is_running() {

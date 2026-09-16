@@ -2,7 +2,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import * as api from "../api";
 import type { AdoptPlan, BuildsView, Device, Estimate, ModelRow, TaskView } from "../api";
-import { Confirm, Val } from "../components";
+import { AskName, Confirm, Val } from "../components";
 import { clock, fixed, num, show } from "../format";
 
 const STATES: Record<api.ModelState, { cls: string; text: string }> = {
@@ -302,10 +302,15 @@ export default function Catalogo(props: { onLaunch?: (file: string) => void }) {
   const [file, setFile] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [adopt, setAdopt] = createSignal<AdoptPlan | null>(null);
+  /** Perché il catalogo dichiarato non è stato letto: le righe qui sotto vengono dal disco. */
+  const [catalogError, setCatalogError] = createSignal<string | null>(null);
+  const [relink, setRelink] = createSignal<ModelRow | null>(null);
 
   const load = async () => {
     try {
-      setRows(await api.catalogList());
+      const view = await api.catalogList();
+      setRows(view.rows);
+      setCatalogError(view.error);
       setError(null);
     } catch (e) {
       setError(String(e));
@@ -403,6 +408,11 @@ export default function Catalogo(props: { onLaunch?: (file: string) => void }) {
           <button class="btn sm right" onClick={() => setError(null)}>
             Chiudi
           </button>
+        </div>
+      </Show>
+      <Show when={catalogError()}>
+        <div class="note err mb">
+          <b>catalog.toml non è stato letto.</b> {catalogError()}
         </div>
       </Show>
       <Show when={message()}>
@@ -537,6 +547,11 @@ export default function Catalogo(props: { onLaunch?: (file: string) => void }) {
                       <Show when={r.part_bytes}>
                         <div class="cond">{gb(r.part_bytes)} GB già scaricati</div>
                       </Show>
+                      <Show when={r.renamed_candidates.length}>
+                        <div class="cond" title={r.renamed_candidates.join("\n")}>
+                          forse rinominato in {r.renamed_candidates[0]}
+                        </div>
+                      </Show>
                       <Show when={(r.hard_links ?? 1) > 1}>
                         <span class="pill" title="Lo stesso file è collegato da un altro strumento">
                           hard link ×{r.hard_links}
@@ -547,6 +562,11 @@ export default function Catalogo(props: { onLaunch?: (file: string) => void }) {
                       <Show when={r.state === "downloadable" || r.state === "downloading"}>
                         <button class="btn sm" disabled={busy()} onClick={() => act(() => api.catalogDownload(r.id))}>
                           {r.state === "downloading" ? "Riprendi" : "Scarica"}
+                        </button>
+                      </Show>
+                      <Show when={r.renamed_candidates.length}>
+                        <button class="btn sm" disabled={busy()} onClick={() => setRelink(r)}>
+                          Ricollega…
                         </button>
                       </Show>
                       <Show when={r.size_bytes != null}>
@@ -705,6 +725,27 @@ export default function Catalogo(props: { onLaunch?: (file: string) => void }) {
             </div>
           )}
         </Show>
+      </Show>
+
+      <Show when={relink()}>
+        {(r) => (
+          <AskName
+            title={`Ricollega «${r().id}»`}
+            label="file"
+            value={r().renamed_candidates[0] ?? r().file}
+            confirmLabel="Ricollega"
+            note="Lo SHA-256 già calcolato vale per il file vecchio: viene buttato, e il nuovo va verificato. Solo l'hash dice se è davvero lo stesso modello."
+            onCancel={() => setRelink(null)}
+            onConfirm={(file) =>
+              act(async () => {
+                const id = r().id;
+                setRelink(null);
+                setRows(await api.catalogRelink(id, file));
+                setMessage(`«${id}» ricollegato a ${file}. Verificalo per sapere se è davvero lo stesso modello.`);
+              })
+            }
+          />
+        )}
       </Show>
 
       <Show when={adopt()}>

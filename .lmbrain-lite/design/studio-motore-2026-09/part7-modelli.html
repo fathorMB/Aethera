@@ -1,0 +1,61 @@
+<section class="page" id="p-modelli">
+<h1>Mappa dei modelli per il coding agentico</h1>
+<p class="sub">Cosa esiste a settembre 2026 fra i pesi aperti, cosa entra nei 96 GB, e cosa conviene misurare. Punteggi auto-dichiarati dai rispettivi autori, non confrontabili fra loro alla lettera.</p>
+
+<h2>La famiglia Qwen3.8, senza equivoci</h2>
+<p>Open-weight sono <b>tre</b> modelli: Qwen3.8-27B (denso, Apache 2.0), Qwen3.8-Flash-Next (125B-A6B, qwen-community) e Qwen3.8-2.4T-A95B. Non esistono Qwen3.8-35B-A3B, 80B-A3B, 122B-A10B, 235B-A22B né un Qwen3.8-Coder; Qwen3.8-Plus/Max e Qwen3.6-Plus sono solo API <span class="v">V</span>. Il 27B denso è fuori gioco su questa banda: 2,5–5 tok/s senza MTP <span class="v">I</span>.</p>
+
+<h2>Candidati che entrano (≤ ~70 GB), ordinati per interesse</h2>
+<table>
+<tr><th>Modello</th><th>Totali / attivi</th><th class="n">GGUF Q4</th><th class="n">~Q3</th><th>SWE-bench V</th><th>Terminal-Bench</th><th>Altro</th><th>Decode stimato qui</th><th>Licenza · data</th><th>Perché sì / perché no</th></tr>
+<tr class="hl"><td><b>Qwen3.6-35B-A3B</b> (attuale)</td><td>35B / 3B, 256 esp.</td><td class="n">22,3</td><td class="n">~16</td><td>73,4</td><td>51,5 (2.0)</td><td>Aider 62,2 (Q8, terzi)</td><td class="n">21, MTP 26–28 <span class="v">M</span></td><td>Apache · apr 2026</td><td>Il punteggio più alto fra quelli che stanno tutti in VGM. Resta la baseline</td></tr>
+<tr class="hl"><td><b>KAT-Coder-V2.5-Dev</b></td><td>35B / 3B (fine-tune del 3.6-35B-A3B, solo testo)</td><td class="n">~20</td><td class="n">n.d.</td><td>69,4</td><td>41,0 (2.1)</td><td>—</td><td class="n">~21 <span class="v">I</span></td><td>Apache · lug 2026</td><td>Stessa architettura, stessa velocità, stesso MTP: costo di prova quasi zero. Punteggi sotto al base ma su versioni diverse dei banchi</td></tr>
+<tr><td><b>Qwen3-Coder-Next</b></td><td>80B / 3B, 512 esp., non-thinking</td><td class="n">48,5</td><td class="n">38,3 (Q3_K_M) · 26,8 (UD-Q2)</td><td>70,6</td><td>34,2 (2.0)</td><td>Aider 66,2</td><td class="n">16–20 <span class="v">I</span> (17,6 riportato su 890M)</td><td>Apache · feb 2026</td><td>Già nel piano (G3). Sfora la VGM di poco: è il caso di test perfetto per «esperti in RAM» contro «VGM 64». Senza thinking: meno token</td></tr>
+<tr><td>gpt-oss-120b</td><td>117B / 5,1B, MXFP4 nativo</td><td class="n">~61</td><td class="n">—</td><td>52,6 (73,5 con tool)</td><td>n.d.</td><td>Aider 44,4; τ-bench retail 67,8</td><td class="n">14–20 <span class="v">I</span></td><td>Apache · ago 2025</td><td>Formato nativo, nessuna riquantizzazione, MoE veloce; ma punteggi sotto al 35B e risposte in <code>reasoning_content</code></td></tr>
+<tr><td>Qwen3.8-Flash-Next REAP-256 / REAP-320</td><td>117B / 132B, 6B attivi</td><td class="n">—</td><td class="n">61,9 / 69 (UD-Q3_K_XL)</td><td>n.d.</td><td>n.d.</td><td>base: SWE-bench Pro 62,5, LCB 91,9</td><td class="n">8–13, MTP 12–18 <span class="v">I</span></td><td>qwen-community · set 2026</td><td>Vedi pagina dedicata. Il più forte sulla carta, il meno misurato, il più lento</td></tr>
+<tr><td>Nemotron 3 Super</td><td>120B / 12B, Mamba-2 + MoE</td><td class="n">82,5</td><td class="n">62,6 (Q3_K_XL) · 54,7 (Q2)</td><td>60,5 (OpenHands)</td><td>25,8 (hard)</td><td>τ2 61,2</td><td class="n">7–10 <span class="v">I</span></td><td>NVIDIA Open · mar 2026</td><td>12B attivi: il doppio dei byte per token del Flash-Next, con punteggi più bassi</td></tr>
+<tr><td>Devstral 2</td><td>123B denso</td><td class="n">~67</td><td class="n">n.d.</td><td>72,2</td><td>n.d.</td><td>—</td><td class="n">&lt; 2 <span class="v">I</span></td><td>Modified MIT · dic 2025</td><td>Denso: impraticabile su 90 GB/s</td></tr>
+<tr><td>Devstral Small 2</td><td>24B denso</td><td class="n">~14</td><td class="n">n.d.</td><td>68,0</td><td>n.d.</td><td>—</td><td class="n">~4 <span class="v">I</span></td><td>Apache · dic 2025</td><td>Denso: troppo lento</td></tr>
+<tr><td>GLM-4.7-Flash</td><td>30B / 3,6B</td><td class="n">~18</td><td class="n">disp.</td><td>59,2</td><td>n.d.</td><td>τ2 79,5</td><td class="n">~20 <span class="v">I</span></td><td>Z.ai · gen 2026</td><td>Tool use ottimo; MTP 10× più lento, sconsigliato. Licenza proprietaria</td></tr>
+<tr><td>Gemma 4 26B-A4B</td><td>26B / 3,8B, VL</td><td class="n">16–18</td><td class="n">n.d.</td><td>n.d.</td><td>n.d.</td><td>LCB 77,1; «tool call puliti» (tier SS OpenCode)</td><td class="n">~22 <span class="v">I</span></td><td>Apache · apr 2026</td><td>Da tenere come controllo di famiglia sull'affidabilità dei tool</td></tr>
+<tr><td>Mistral Small 4</td><td>119B / 6B</td><td class="n">n.d.</td><td class="n">n.d.</td><td>n.d.</td><td>n.d.</td><td>—</td><td class="n">~13 <span class="v">I</span></td><td>Apache · mar 2026</td><td>GGUF e supporto llama.cpp non verificati in questa ricerca</td></tr>
+</table>
+
+<h2>Fuori dai 96 GB (per non tornarci)</h2>
+<p>GLM-5.3-Flash 320B-A18B (Q4 186 GB, non ancora in llama.cpp master), GLM-5 744B, MiniMax M2.5 229B (UD-Q2 85,9 GB) e M3 428B, DeepSeek V4-Flash 284B-A13B (IQ1_S 82,5 GB), Kimi K2.6 1T, MiMo-V2.5 310B <span class="v">V</span>. «GLM-5-Air» non esiste: c'è solo GLM-4.5-Air 106B-A12B del 2025 <span class="v">V</span>. Ognuno di questi torna in gioco solo con lo streaming da SSD (pagina 6), dove DwarfStar cita proprio GLM 5.3 Flash e DeepSeek V4.</p>
+
+<h2>Decodifica speculativa: cosa comprare e cosa no</h2>
+<ul>
+<li><b>MTP interno</b> (<code>--spec-type nextn</code> / <code>draft-mtp</code>): in master dal 16-05-2026 (PR #22673) <span class="v">V</span>; +22% sul 35B-A3B a RTX 3090 con accettazione 78%; qui +33% sul prefill e fino a 28 tok/s sul codice <span class="v">M</span>.</li>
+<li><b>Draft esterno</b> (Qwen3.5-0.8B su Qwen3.6-35B): −3 ÷ −12%, fino a −73% con n=8 <span class="v">V</span>. Il tokenizer Qwen3.8 è lo stesso di 3.5/3.6, ma non ci sono draft «3.8». Su Strix Point con un denso 8B il draft dava +40–82% <span class="v">V</span>: paga solo dove la banda è il muro e il target è denso, non sui MoE A3B.</li>
+<li><b>DFlash</b> (+26% sul 35B) e <code>ngram-mod</code> (53 tok/s ma «buggy») <span class="v">V</span>: da tenere d'occhio, non da mettere in un profilo.</li>
+</ul>
+
+<h2>Embedding e reranker (per la NPU o per la CPU)</h2>
+<table>
+<tr><th>Modello</th><th>Parametri</th><th>GGUF</th><th>Punteggi</th><th>Licenza</th><th>Dove girarlo</th></tr>
+<tr><td>Qwen3-Embedding-0.6B</td><td>0,6B</td><td>Q8 639 MB</td><td>MTEB codice incluso</td><td>Apache</td><td>CPU, secondo llama-server <code>--embedding</code></td></tr>
+<tr><td>Qwen3-Embedding-4B</td><td>4B</td><td>Q4_K_M 2,5 GB</td><td>MTEB EN 74,6</td><td>Apache</td><td>CPU o iGPU a riposo</td></tr>
+<tr><td>EmbeddingGemma-300m</td><td>0,3B</td><td>catalogo FLM</td><td>—</td><td>Gemma</td><td><b>NPU via FastFlowLM</b>, in parallelo al 35B <span class="v">V</span></td></tr>
+<tr><td>jina-code-embeddings-0.5b</td><td>0,5B</td><td>disp.</td><td>CoIR 73,9</td><td>CC-BY-NC</td><td>CPU; licenza non commerciale</td></tr>
+<tr><td>jina-reranker-v3</td><td>0,6B listwise</td><td>209 MB – 1,1 GB</td><td>CoIR 63,3</td><td>n.d.</td><td>CPU, <code>--reranking</code></td></tr>
+</table>
+
+<h2>Affidabilità agentica: le regole trovate</h2>
+<ul>
+<li><code>--jinja</code> obbligatorio per tutti i Qwen, più <code>--reasoning-format deepseek</code>; gpt-oss vuole <code>reasoning_effort</code> nei kwargs; Nemotron <code>--special</code> <span class="v">V</span>.</li>
+<li>Sotto i 4 bit i tool call escono con argomenti vuoti o malformati; se a Q4 si vedono argomenti vuoti, salire a Q5/Q6 <span class="v">V</span>. È un argomento contro i Q3 dei potati di Flash-Next.</li>
+<li>Speculativa + reasoning: tre guasti tipici (troncamento, loop, stallo dello stream) risolti togliendo la speculazione <span class="v">V</span>. Aethera dovrebbe mostrare l'accettazione del draft per richiesta: già la registra in telemetria.</li>
+<li>OpenCode + llama.cpp: issue #1890 aperta sul filtro Jinja <code>reject</code>; Qwen3-Coder-Next ha template rotti in alcuni GGUF <span class="v">V</span>. Le prove dei modelli vanno fatte con il client vero, non con curl.</li>
+<li>Claude Code parla direttamente con llama-server dal 19-01-2026 (Anthropic Messages API, <code>ANTHROPIC_BASE_URL</code>) <span class="v">V</span>: un client in più da mettere nella riga «per i client» delle Impostazioni.</li>
+<li>Thinking: Flash-Next e il 27B ragionano molto; su Qwen3.x la guida modelfit consiglia thinking spento «così è l'agente a guidare il ragionamento» <span class="v">V</span>. Il campionamento per modalità del catalogo Aethera è già il posto giusto per questa scelta.</li>
+</ul>
+
+<h2>Cosa consiglio di misurare, in quest'ordine</h2>
+<ol>
+<li><b>KAT-Coder-V2.5-Dev Q4</b> contro il 35B attuale: stessa riga, stessi task, un pomeriggio.</li>
+<li><b>Qwen3-Coder-Next Q4</b>: è il caso di test della memoria oltre i 48 GB, che serve a tutto il resto.</li>
+<li><b>Flash-Next REAP-256 Q3</b>: solo dopo il punto 2, con build ≥ b10982 e checkpoint attivi.</li>
+<li><b>gpt-oss-120b</b> come controllo di famiglia veloce, se il punto 2 dice che 61 GB si reggono.</li>
+</ol>
+</section>

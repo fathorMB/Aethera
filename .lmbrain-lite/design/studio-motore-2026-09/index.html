@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aethera — studio motore, NPU e modelli (settembre 2026)</title>
+<style>
+:root{
+  --bg:#f4f5f7;--bg2:#ffffff;--bg3:#e9ebef;--line:#d5d8de;--fg:#1a1c20;--fg2:#5b6270;--fg3:#8a9099;
+  --acc:#2f6fed;--ok:#1f9d55;--warn:#c77d0a;--err:#d23b3b;--busy:#8a4fd6;
+  --mono:"Cascadia Mono","JetBrains Mono",Consolas,ui-monospace,monospace;
+  --sans:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#141619;--bg2:#1c1f24;--bg3:#24282f;--line:#30353d;--fg:#e6e8eb;--fg2:#a3a9b3;--fg3:#6f7680;
+  --acc:#5b8dff;--ok:#3ec46f;--warn:#e5a23a;--err:#ef5a5a;--busy:#b287f0;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font:13px/1.5 var(--sans)}
+code,.mono{font-family:var(--mono);font-size:12px}
+code{background:var(--bg3);padding:0 4px;border-radius:3px}
+pre{background:#0e1013;color:#d7dbe0;padding:10px 12px;border-radius:4px;overflow:auto;font:12px/1.45 var(--mono);border:1px solid var(--line)}
+[data-theme="light"] pre{background:#1c1f24}
+a{color:var(--acc)}
+button{font:inherit;color:inherit}
+.app{display:grid;grid-template-rows:40px 1fr;grid-template-columns:200px 1fr;height:100vh;min-width:900px}
+.top{grid-column:1/3;display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.brand{font-weight:600;letter-spacing:.3px}
+.brand small{color:var(--fg3);font-weight:400;margin-left:6px}
+.top .spacer{flex:1}
+.top button{background:var(--bg3);border:1px solid var(--line);border-radius:3px;padding:3px 9px;cursor:pointer}
+.nav{background:var(--bg2);border-right:1px solid var(--line);padding:8px 0;display:flex;flex-direction:column;overflow:auto}
+.nav button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 12px;background:none;border:0;border-left:3px solid transparent;color:var(--fg2);cursor:pointer}
+.nav button:hover{background:var(--bg3)}
+.nav button.on{color:var(--fg);border-left-color:var(--acc);background:var(--bg3)}
+.nav .k{font-family:var(--mono);color:var(--fg3);font-size:11px;margin-left:auto}
+.nav .foot{margin-top:auto;padding:10px 12px;color:var(--fg3);font-size:11px;border-top:1px solid var(--line)}
+.main{overflow:auto;padding:16px 22px 40px}
+.page{display:none;max-width:1180px}.page.on{display:block}
+h1{font-size:17px;font-weight:600;margin:0 0 2px}
+h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--fg2);margin:22px 0 8px;padding-top:6px;border-top:1px solid var(--line)}
+h3{font-size:13px;font-weight:600;margin:14px 0 6px}
+.sub{color:var(--fg3);margin:0 0 14px}
+p{margin:6px 0}
+ul,ol{margin:6px 0;padding-left:20px}
+li{margin:2px 0}
+table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12px}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--fg2);font-weight:600;background:var(--bg2);position:sticky;top:0}
+td.n,th.n{text-align:right;font-family:var(--mono);white-space:nowrap}
+tr.hl td{background:rgba(91,141,255,.08)}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--bg3);white-space:nowrap}
+.badge i{width:7px;height:7px;border-radius:50%;background:var(--fg3);display:inline-block}
+.badge.ok i{background:var(--ok)}.badge.warn i{background:var(--warn)}.badge.err i{background:var(--err)}.badge.busy i{background:var(--busy)}.badge.acc i{background:var(--acc)}
+.badge.ok{color:var(--ok)}.badge.warn{color:var(--warn)}.badge.err{color:var(--err)}.badge.busy{color:var(--busy)}.badge.acc{color:var(--acc)}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin:8px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.kpi{background:var(--bg2);border:1px solid var(--line);border-radius:4px;padding:8px 12px}
+.kpi b{display:block;font-size:20px;font-family:var(--mono);font-weight:500}
+.kpi span{color:var(--fg3);font-size:11px}
+.note{border-left:3px solid var(--acc);background:rgba(91,141,255,.07);padding:8px 12px;margin:10px 0;border-radius:0 4px 4px 0}
+.note.warn{border-color:var(--warn);background:rgba(229,162,58,.08)}
+.note.err{border-color:var(--err);background:rgba(239,90,90,.08)}
+.note.ok{border-color:var(--ok);background:rgba(62,196,111,.08)}
+.src{color:var(--fg3);font-size:11px}
+.src a{color:var(--fg3)}
+.v{font-family:var(--mono);font-size:10px;color:var(--fg3);border:1px solid var(--line);border-radius:2px;padding:0 3px;margin-left:3px;vertical-align:middle}
+.bar{height:14px;background:var(--bg3);border-radius:2px;position:relative;overflow:hidden;margin:2px 0}
+.bar i{position:absolute;top:0;bottom:0;left:0}
+.bar i.vgm{background:var(--acc)}.bar i.win{background:var(--fg3);opacity:.6}.bar i.model{background:var(--ok)}.bar i.kv{background:var(--busy)}.bar i.over{background:var(--err)}
+.legend{font-size:11px;color:var(--fg3)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin:0 3px 0 8px;vertical-align:middle}
+.rank{display:grid;grid-template-columns:34px 1fr 120px 120px;gap:8px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}
+.rank .no{font-family:var(--mono);font-size:18px;color:var(--fg3)}
+.rank .t{font-weight:600}
+.rank .d{color:var(--fg2);font-size:12px}
+.sources{columns:2;font-size:11px;color:var(--fg2)}
+.sources a{color:var(--fg2);word-break:break-all}
+@media (max-width:900px){.app{min-width:0;grid-template-columns:1fr}.nav{display:none}.grid2,.grid3{grid-template-columns:1fr}.sources{columns:1}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><span class="brand">Aethera <small>studio motore · NPU · modelli · SSD — 16 settembre 2026</small></span><span class="spacer"></span><span class="src">MORO-AI · HX 470 · 890M · 96 GB · b10809</span><button id="theme">tema</button></div>
+  <nav class="nav">
+    <button data-p="sintesi" class="on">Sintesi e proposte<span class="k">1</span></button>
+    <button data-p="macchina">Macchina e fisica<span class="k">2</span></button>
+    <button data-p="npu">NPU XDNA 2<span class="k">3</span></button>
+    <button data-p="motore">Motore llama.cpp<span class="k">4</span></button>
+    <button data-p="qwen38">Qwen3.8-Flash-Next<span class="k">5</span></button>
+    <button data-p="ssd">Streaming da SSD<span class="k">6</span></button>
+    <button data-p="modelli">Mappa dei modelli<span class="k">7</span></button>
+    <button data-p="piano">Piano di prova<span class="k">8</span></button>
+    <button data-p="fonti">Fonti<span class="k">9</span></button>
+    <div class="foot">Studio, non decisione. <span class="v">V</span> verificato dalla fonte · <span class="v">I</span> inferito · <span class="v">M</span> misurato qui</div>
+  </nav>
+  <main class="main">
+<section class="page on" id="p-sintesi">
+<h1>Sintesi e proposte</h1>
+<p class="sub">Studio del 16 settembre 2026 su MORO-AI (Minisforum AI X1 Pro, Ryzen AI 9 HX 470). Cinque ricerche web parallele (oltre 400 fra ricerche e pagine lette), dati locali da Aethera e minis-config. È uno studio: nessuna misura nuova è stata fatta, per non toccare il motore mentre un'altra sessione lavora sui milestone.</p>
+
+<div class="grid3">
+  <div class="kpi"><b>21 → 26–28</b><span>tok/s di decode del 35B-A3B oggi, senza e con MTP <span class="v">M</span>. Il tetto fisico a questa banda è ~30 senza MTP</span></div>
+  <div class="kpi"><b>0×</b><span>accelerazione della NPU sul motore principale: nessun runtime la unisce a llama.cpp <span class="v">V</span></span></div>
+  <div class="kpi"><b>62–90 GB</b><span>Qwen3.8-Flash-Next: dai potati della community al modello intero a 3 bit <span class="v">V</span>. Entra solo oltre la VGM o con la tabella n-gram su SSD</span></div>
+</div>
+
+<h2>Sei verdetti</h2>
+<ol>
+<li><b>La banda è il muro e ci siamo già vicini.</b> 89,6 GB/s teorici, ~42 effettivi oggi; il 35B-A3B non può superare ~30 tok/s senza MTP. Ogni guadagno vero da qui in poi viene da <em>leggere meno byte per token</em> (MTP, cache del prefisso, checkpoint) o da modelli con meno parametri attivi, non da backend o driver.</li>
+<li><b>La NPU non fa correre il motore.</b> Nessun backend ggml per XDNA 2, nessun draft esterno, ibrido OGA fermo a 16K e a modelli fino a 8B, FastFlowLM sul 35B più lento di Vulkan e con TTFT fisso di 2,7 s. Ma è un <b>secondo silicio con meno di 2 W</b>: indice semantico, sotto-agente da 4B, reranker. È lì il suo valore.</li>
+<li><b>Qwen3.8-Flash-Next è fattibile solo in due forme</b>: i potati della community (REAP-256 a 61,9 GB, REAP-320 a 69 GB, senza SWE-bench pubblicati) oppure il modello intero a 2–3 bit con la tabella n-gram da 27–39 GB lasciata su SSD in <code>--lazy-mode</code>. Decode atteso 8–13 tok/s, 12–18 con MTP su codice. Le «versioni 120B/98B» non esistono con quei nomi <span class="v">V</span>.</li>
+<li><b>Il gradino da attraversare prima di tutto è «oltre i 48 GB»</b>: memoria condivisa WDDM, esperti in RAM con <code>--n-cpu-moe</code>, o VGM a 64. Nessuna fonte lo ha misurato su Strix Point con Windows. Decide Coder-Next, gpt-oss-120b, Flash-Next e tutto ciò che sta fra 48 e 70 GB.</li>
+<li><b>Lo streaming da SSD è già reale per i tensori giganti</b> (<code>--lazy-mode</code> in master dal 27-08) e ancora sperimentale per gli esperti (due PR aperte, motori esterni senza Windows+Vulkan tranne Colibri). Tetto fisico con un SSD: 7–17 tok/s; misure reali dei progetti: 2–14.</li>
+<li><b>Il motore va aggiornato per una ragione sola</b>: Flash-Next chiede una build ≥ b10982. Per il 35B le novità dopo b10809 valgono pochi punti; il guadagno grosso (int8 coopmat1, +33% prefill) è in una PR ancora aperta. E <b>il driver Adrenalin non va aggiornato</b> finché la 26.9.2 non chiude la regressione che svuota la VRAM a riposo.</li>
+</ol>
+
+<h2>Le proposte, in ordine di valore per il coding agentico</h2>
+<div class="rank"><div class="no">1</div><div><div class="t">Checkpoint dello stato ricorrente e prefisso stabile</div><div class="d">Tre flag (<code>--ctx-checkpoints</code>, <code>--checkpoint-min-step</code>, <code>--cache-ram</code>) portano il TTFT dei turni divergenti da minuti a sotto il secondo sui modelli ibridi <span class="v">V</span>. Aethera li espone come leve <code>cache</code> e rileva il client che azzera la cache.</div></div><div><span class="badge ok"><i></i>un giorno</span></div><div><span class="badge acc"><i></i>Motore §1–2</span></div></div>
+<div class="rank"><div class="no">2</div><div><div class="t">La prova «oltre i 48 GB» su Qwen3-Coder-Next</div><div class="d">Shared WDDM contro <code>--n-cpu-moe</code> contro VGM 64: la ricetta che ne esce vale per tutti i modelli 48–70 GB. Il candidato è già nel piano G3 e ha 17,6 tok/s riportati su 890M.</div></div><div><span class="badge warn"><i></i>due giorni</span></div><div><span class="badge acc"><i></i>Piano, fase 2</span></div></div>
+<div class="rank"><div class="no">3</div><div><div class="t">Motore ausiliario sulla NPU</div><div class="d">FastFlowLM 1.0.5 (Gorgon Point dichiarato) con EmbeddingGemma per l'indice del repo e Qwen3.5-4B per commit e riassunti, sulla porta 52625 accanto al 35B. Costo misurato altrove: −14% decode della iGPU durante l'uso concorrente. Per Aethera: secondo slot di motore con <code>runtime.kind = "flm"</code>.</div></div><div><span class="badge warn"><i></i>due giorni</span></div><div><span class="badge acc"><i></i>NPU</span></div></div>
+<div class="rank"><div class="no">4</div><div><div class="t">Flash-Next intero con la tabella n-gram su SSD</div><div class="d">UD-Q2/Q3 con <code>--lazy-mode auto</code> e <code>-ot "per_layer_token_embd=CPU"</code>: ~60 GB in memoria, il resto letto per hash dal disco. Tutti i 512 esperti, nessuna potatura. Rischio: il prefill lento su Windows segnalato in #28355.</div></div><div><span class="badge warn"><i></i>tre giorni</span></div><div><span class="badge acc"><i></i>SSD, Qwen3.8</span></div></div>
+<div class="rank"><div class="no">5</div><div><div class="t">MTP adattivo, KV q8_0 oltre 64k, piano energetico</div><div class="d">Leve da un'ora ciascuna sul modello attuale: +5–15% decode, +10% oltre 64k, e un possibile +36% se Windows si comporta come Linux sul piano energetico.</div></div><div><span class="badge ok"><i></i>ore</span></div><div><span class="badge acc"><i></i>Motore</span></div></div>
+<div class="rank"><div class="no">6</div><div><div class="t">KAT-Coder-V2.5-Dev come candidato a costo zero</div><div class="d">Fine-tune del 35B-A3B (Apache, luglio 2026, SWE-bench Verified 69,4): stessa riga, stessa velocità, stesso MTP. Un pomeriggio di banco.</div></div><div><span class="badge ok"><i></i>mezza giornata</span></div><div><span class="badge acc"><i></i>Modelli</span></div></div>
+<div class="rank"><div class="no">7</div><div><div class="t">Flash-Next potato (REAP-256/320) sui task veri</div><div class="d">Solo dopo il punto 2 e con build ≥ b10982. Il confronto che conta è task riusciti per ora di macchina contro il 35B, non il punteggio della card.</div></div><div><span class="badge warn"><i></i>tre giorni</span></div><div><span class="badge acc"><i></i>Qwen3.8</span></div></div>
+<div class="rank"><div class="no">8</div><div><div class="t">Secondo NVMe in stripe, build patchate RDNA, cache LRU degli esperti</div><div class="d">Da tenere in vista, non da fare ora: il secondo disco paga solo se lo streaming degli esperti diventa la via; le PR #27952 e #27861 vanno seguite fino al merge.</div></div><div><span class="badge"><i></i>più avanti</span></div><div><span class="badge acc"><i></i>Motore, SSD</span></div></div>
+
+<h2>Cosa non fare</h2>
+<ul>
+<li>Non comprare un modello draft esterno per il 35B: su MoE A3B è negativo (−3/−12%) <span class="v">V</span>; MTP interno vince.</li>
+<li>Non passare a ROCm/HIP: su gfx1150 non vede la memoria condivisa (issue aperte), e sopra i 48 GB non parte.</li>
+<li>Non aggiornare Adrenalin a 26.5.1–26.9.1; se serve il driver NPU nuovo, prenderlo da solo.</li>
+<li>Non partire dal Qwen3.8-27B denso: 16,5 GB letti per token, 2,5–5 tok/s su questa banda.</li>
+<li>Non inseguire l'ibrido OGA (16K, modelli ≤ 8B, Gorgon Point non in lista): non è il nostro problema.</li>
+</ul>
+
+<h2>Come leggere le altre pagine</h2>
+<table>
+<tr><th>Pagina</th><th>Domanda a cui risponde</th></tr>
+<tr><td>Macchina e fisica</td><td>Cosa c'è dentro, com'è divisa la memoria, e il tetto di tok/s di ogni candidato per banda</td></tr>
+<tr><td>NPU XDNA 2</td><td>Stato dei runtime, le quattro idee e il loro esito, il motore ausiliario</td></tr>
+<tr><td>Motore llama.cpp</td><td>Tredici leve ordinate, Vulkan contro ROCm, il driver da non aggiornare</td></tr>
+<tr><td>Qwen3.8-Flash-Next</td><td>Architettura, varianti reali, memoria, velocità attesa, ricetta</td></tr>
+<tr><td>Streaming da SSD</td><td>Tabella n-gram su disco, esperti su disco, strumenti, secondo NVMe</td></tr>
+<tr><td>Mappa dei modelli</td><td>Cosa entra nei 96 GB e cosa vale la pena misurare</td></tr>
+<tr><td>Piano di prova</td><td>Fasi, righe di comando, e cosa serve ad Aethera per reggerle</td></tr>
+</table>
+</section>
+<section class="page" id="p-macchina">
+<h1>Macchina e fisica</h1>
+<p class="sub">Inventario letto il 16-09-2026 su MORO-AI (è la Minisforum stessa, non Turing) e i limiti che nessuna leva software supera.</p>
+
+<div class="grid3">
+  <div class="kpi"><b>89,6 GB/s</b><span>banda DDR5-5600 dual channel, teorica <span class="v">V</span> — il tetto di tutto il decode</span></div>
+  <div class="kpi"><b>~42 GB/s</b><span>banda effettiva che il 35B-A3B usa oggi a 21 tok/s <span class="v">I</span> (≈47% del teorico)</span></div>
+  <div class="kpi"><b>73,5 GB</b><span>memoria che Vulkan dichiara: 48 GB VGM + ~25,5 GB condivisa WDDM <span class="v">M</span></span></div>
+</div>
+
+<h2>Inventario misurato</h2>
+<table>
+<tr><th>Componente</th><th>Valore letto</th><th>Nota</th></tr>
+<tr><td>CPU</td><td class="mono">AMD Ryzen AI 9 HX 470 — 12 core / 24 thread, 2,0 GHz base, L2 12 MB, L3 24 MB</td><td>Gorgon Point: 4 Zen 5 + 8 Zen 5c, boost 5,2 GHz, AVX-512 <span class="v">V</span>. Refresh di Strix Point: stesso silicio di HX 370/375 <span class="v">V</span></td></tr>
+<tr><td>iGPU</td><td class="mono">Radeon 890M, 16 CU RDNA 3.5, driver 32.0.22042.1 (pacchetto 25.20.42, 09-12-2025), Vulkan 1.4.329</td><td>Adrenalin corrente: 26.9.1. Dalla 26.5.1 alla 26.9.1 è segnalata una regressione DPM che svuota la VRAM a riposo (fix atteso in 26.9.2) <span class="v">V</span>. Il nostro driver è precedente: non aggiornare senza motivo</td></tr>
+<tr><td>NPU</td><td class="mono">"NPU Compute Accelerator Device", PCI 1022:17F0, driver AMD 32.0.203.314 (10-10-2025)</td><td>XDNA 2, 32 tile, 55 TOPS INT8 <span class="v">V</span>. Ryzen AI SW 1.8 richiede ≥ .280; FastFlowLM richiede ≥ .311: siamo sopra entrambi. Con Adrenalin 26.8/26.9 arriva un driver NPU MCDM 32.00.20102.3930 <span class="v">V</span></td></tr>
+<tr><td>RAM</td><td class="mono">2 × 48 GB SODIMM DDR5-5600 (SMBIOS tipo 34), 96 GB; Windows ne vede 47,6 GB</td><td>48 GB riservati alla iGPU (VGM). 5600 MT/s è il massimo della piattaforma su SODIMM: nessuna banda da recuperare con altri moduli <span class="v">V</span></td></tr>
+<tr><td>SSD</td><td class="mono">Kingston OM8TAP42048K1-A00, 2 TB NVMe, NTFS, 1,9 TB liberi</td><td>Un solo M.2 occupato. La X1 Pro ha tre slot M.2: due PCIe 4.0 ×4 e uno ×1 <span class="v">V</span>. Vedi «Streaming da SSD»</td></tr>
+<tr><td>Sistema</td><td class="mono">Windows 11 Pro 26200 (25H2), BIOS 1.01 del 09-04-2026, piano energetico «Bilanciato»</td><td>Il TDP dichiarato dell'X1 Pro 470 è 54 W condiviso CPU+iGPU <span class="v">V</span>; le modalità BIOS non sono documentate nelle fonti trovate</td></tr>
+<tr><td>Motore</td><td class="mono">llama-server b10809 (5266f24da, 4 settembre 2026), Vulkan, in C:\Nonio</td><td>L'ultima release il 15 settembre era b10991: 180 build di distanza <span class="v">M</span></td></tr>
+<tr><td>Pesi presenti</td><td class="mono">Qwen3.6-35B-A3B Q4_K_M (22,29 GB, 2 hard link) + MTP Q8_0 separato (1,99 GB)</td><td>Unico modello sul disco. Coder-Next, Coder-30B e gpt-oss-20b hanno un profilo ma nessun file</td></tr>
+</table>
+
+<h2>Mappa della memoria</h2>
+<p>I 96 GB fisici sono divisi da Windows in due metà rigide. Vulkan può sconfinare nella metà di Windows attraverso la memoria condivisa WDDM, ma con prestazioni e limiti che nessuna fonte ha misurato su Strix Point con Windows.</p>
+<div class="card">
+<div class="bar"><i class="vgm" style="width:50%"></i><i class="win" style="left:50%;width:50%"></i></div>
+<div class="legend"><i style="background:var(--acc)"></i>VGM dedicata 48 GB (iGPU) <i style="background:var(--fg3)"></i>Windows 47,6 GB, di cui ~25,5 GB prestabili a Vulkan come «shared» e 16 GiB tenuti come margine da machine.toml</div>
+<div style="margin-top:8px">
+<div class="bar"><i class="model" style="width:23.6%"></i><i class="kv" style="left:23.6%;width:1.4%"></i></div>
+<div class="legend"><i style="background:var(--ok)"></i>Qwen3.6-35B-A3B Q4_K_M oggi: 22,68 GiB dedicati <i style="background:var(--busy)"></i>1,15 GiB condivisi; RAM disponibile dopo il caricamento 31–32 GiB <span class="v">M</span></div>
+</div>
+</div>
+<ul>
+<li><b>Il tetto VGM è 75% della RAM</b>, quindi 72 GB, secondo la FAQ AMD <span class="v">V</span>. Si cambia solo dalla GUI Adrenalin con riavvio: nessun tool a riga di comando trovato <span class="v">V</span>.</li>
+<li><b>Sconfinare oltre i 48 GB</b> costa: su Linux (HX 370, GTT 40 GB) Qwen3-Next-80B Q8 gira a 10,9 tok/s con 85 GB occupati <span class="v">V</span>; su Windows nessuna misura pubblica. È la prova numero uno da fare in casa, perché decide tutto ciò che sta fra 48 e 70 GB.</li>
+<li><b>Ricetta alternativa a VGM alta</b>: tenere la VGM a 48 GB e mettere gli esperti eccedenti in RAM con <code>--n-cpu-moe</code>. Su UMA la banda è la stessa per CPU e iGPU: la differenza è solo di calcolo, e i 12 core Zen 5 con AVX-512 non sono lenti su matrici Q4. Nessuno l'ha misurato su HX 470 <span class="v">I</span>.</li>
+</ul>
+
+<h2>Fisica del decode: banda ÷ byte per token</h2>
+<p>Un token di decode legge tutti i pesi attivi una volta. Il tetto è banda effettiva diviso byte letti per token. Con i 42 GB/s effettivi misurati oggi <span class="v">I</span> e con un ottimistico 60 GB/s (i migliori report su Strix Point arrivano al 67–75% del teorico <span class="v">V</span>):</p>
+<table>
+<tr><th>Modello</th><th class="n">Attivi</th><th class="n">GB letti/token</th><th class="n">Tetto a 42 GB/s</th><th class="n">Tetto a 60 GB/s</th><th>Riscontri esterni</th></tr>
+<tr class="hl"><td>Qwen3.6-35B-A3B Q4_K_M</td><td class="n">3B</td><td class="n">~2,0</td><td class="n">21</td><td class="n">30</td><td>misurato 17–26, MTP fino a 28 <span class="v">M</span>; Strix Halo 77 (banda ×2,9) <span class="v">V</span></td></tr>
+<tr><td>Qwen3-Coder-Next 80B-A3B Q4_K_M</td><td class="n">3B</td><td class="n">~2,1</td><td class="n">20</td><td class="n">28</td><td>17,6 su 890M Vulkan (issue #19480) <span class="v">V</span>; 48,5 GB non entrano nella VGM</td></tr>
+<tr><td>gpt-oss-120b MXFP4</td><td class="n">5,1B</td><td class="n">~3,0</td><td class="n">14</td><td class="n">20</td><td>19,6 su 890M riportato ma non verificato; 55,6 su Strix Halo <span class="v">V</span></td></tr>
+<tr><td>Qwen3.8-Flash-Next 125B-A6B Q3</td><td class="n">6B + n-gram</td><td class="n">~3,3</td><td class="n">13</td><td class="n">18</td><td>27 su Strix Halo Vulkan IQ4_XS, 47 con MTP <span class="v">V</span>; nessun dato su 890M</td></tr>
+<tr><td>Nemotron 3 Super 120B-A12B Q3</td><td class="n">12B</td><td class="n">~5,8</td><td class="n">7</td><td class="n">10</td><td>nessun dato su APU</td></tr>
+<tr><td>Qwen3.8-27B denso Q4_K_M</td><td class="n">27B</td><td class="n">16,5</td><td class="n">2,5</td><td class="n">3,6</td><td>14B Q4 fa 9,2 su 890M <span class="v">V</span>; 27B stimato 5 base, 9–12 con MTP; Strix Halo 20 <span class="v">V</span></td></tr>
+</table>
+<div class="note">Conclusione fisica: su questa banda contano i <b>byte attivi per token</b>, non i parametri totali. Un MoE da 125B con 6B attivi è più veloce di un denso da 27B di tre o quattro volte. È il motivo per cui Flash-Next è interessante nonostante la mole, e per cui il 27B denso non lo è.</div>
+
+<h2>Prefill: calcolo, non banda</h2>
+<ul>
+<li>16 CU RDNA 3.5 a 3,1 GHz: oltre 5 TFLOPS FP32 misurati, FP16 non misurato <span class="v">V</span>. Il prefill del 35B sta a 267–366 tok/s <span class="v">M</span>; Strix Halo con 40 CU fa 1100–1300 <span class="v">V</span>, quindi il rapporto è quello dei CU.</li>
+<li>Il guadagno grosso è software e non è ancora in master: la PR #27952 (int8 coopmat1 su RDNA3/3.5) misura +33% sul prefill MoE <span class="v">V</span>. Vedi «Motore».</li>
+<li>Con la cache del prefisso al 93–99% (banco del 15-09) il prefill pesa solo sul primo turno e sui rami divergenti; per un agente conta più <b>non perdere la cache</b> che accelerare il prefill.</li>
+</ul>
+
+<h2>Consumo, temperatura, piano energetico</h2>
+<ul>
+<li>Il piano attivo è «Bilanciato». Sul Framework 13 (HX 370, Linux) passare da risparmio a prestazioni ha dato +36% decode e +120% prefill <span class="v">V</span>. Su Windows nessuna misura: è una prova da un'ora, con la stessa riga e lo stesso prompt.</li>
+<li>La NPU dichiara meno di 2 W per l'inferenza FLM <span class="v">V</span>: il suo interesse non è la velocità ma il fatto che lavora <b>senza sottrarre potenza termica</b> alla iGPU nel budget di 54 W.</li>
+</ul>
+</section>
+<section class="page" id="p-npu">
+<h1>NPU XDNA 2: cosa può fare davvero</h1>
+<p class="sub">Verdetto: non accelera il motore principale. Può però diventare un <b>secondo silicio</b> con un secondo modello, senza rubare potenza alla iGPU.</p>
+
+<div class="grid3">
+  <div class="kpi"><b>0</b><span>backend ggml per XDNA in llama.cpp: issue #21725 aperta senza risposta <span class="v">V</span></span></div>
+  <div class="kpi"><b>11–17 tok/s</b><span>Qwen3.6-35B-A3B su NPU con FastFlowLM (Ryzen AI 7 350 e Strix Halo) <span class="v">V</span>, contro i 21 di Vulkan qui</span></div>
+  <div class="kpi"><b>16K</b><span>contesto massimo del percorso ibrido OGA (prefill NPU + decode iGPU) <span class="v">V</span></span></div>
+</div>
+
+<h2>Stato dei runtime a settembre 2026</h2>
+<table>
+<tr><th>Runtime</th><th>Versione</th><th>Cosa gira sulla NPU</th><th>Modelli utili a noi</th><th>Contesto</th><th>Prestazioni note</th><th>Limiti</th></tr>
+<tr><td>Ryzen AI Software (OGA)</td><td>1.8.0 del 23-07-2026, OGA 0.14 <span class="v">V</span></td><td>NPU-only tutto; ibrido: prefill NPU, decode iGPU</td><td>Qwen3 ≤ 8B, gpt-oss-20b (NPU-only), Phi-4, Llama 3 <span class="v">V</span></td><td>16K (Token Fusion), 4K (Full Fusion)</td><td>nessun numero 2026 su Strix Point</td><td>Solo Windows; formato ONNX pre-ottimizzato, non GGUF; <b>Gorgon Point non compare</b> nella lista dei processori supportati; nessun Qwen3.5/3.6/3.8, nessun MoE 30B+</td></tr>
+<tr><td>Lemonade Server</td><td>11.9.0 del 02-09-2026 <span class="v">V</span></td><td>Dipende dal backend: OGA ibrido, FLM NPU-only; llama.cpp non usa la NPU</td><td>GGUF via llama.cpp, catalogo FLM</td><td>quello del backend</td><td>Strix Halo, FLM v10: NPU 2,3× più veloce in TTFT, iGPU 2,4× in decode <span class="v">V</span></td><td>Uno strato in più sopra llama-server; <code>/v1/slots</code> inoltrato solo per il backend llama.cpp; Gorgon Point citato nel codice, non nella FAQ</td></tr>
+<tr class="hl"><td>FastFlowLM (FLM)</td><td>1.0.5 del 09-09-2026, org ROCm <span class="v">V</span></td><td>Tutto: prefill e decode</td><td><b>Qwen3.6-35B-A3B</b> Q4_K con tool calling, gpt-oss-20b (senza tool), Qwen3.5 0.8/2/4/9B, Qwen3-4B-2507, EmbeddingGemma, Whisper <span class="v">V</span></td><td>fino a 256k</td><td>Qwen3.6-35B: 17,5 tok/s a 1k → 11,2 a 32k (AI 7 350); 16,5 su Strix Halo con <b>TTFT fisso 2,7 s</b> (issue #710) <span class="v">V</span>; &lt; 2 W</td><td><b>Gorgon Point dichiarato supportato</b>; un solo LLM caricato per volta (ma LLM + embedding + ASR coesistono); coda 10; cap allocazione 15,6 GB su Windows; cache del prefisso non documentata; nessun Qwen3-Coder</td></tr>
+<tr><td>Fork llama.cpp su NPU (Linux)</td><td>OllamaAMDNPU, llama-apu</td><td>solo MUL_MAT via XRT</td><td>1–8B</td><td>—</td><td>prefill NPU 14–20 tok/s contro 800 di Vulkan; «0,6% di utilizzo AIE» <span class="v">V</span></td><td>Solo Linux, sperimentali, conclusione degli autori: servono kernel mlir-aie</td></tr>
+<tr><td>Windows ML / Foundry Local</td><td>preview</td><td>LLM NPU-only via OGA</td><td>Phi, Mistral-7B, Qwen2.5 ≤ 7B</td><td>n.d.</td><td>—</td><td>«ibrido nella roadmap»; modelli piccoli e vecchi</td></tr>
+</table>
+
+<h2>Le quattro idee «NPU» e il loro esito</h2>
+<table>
+<tr><th>Idea</th><th>Esito</th><th>Perché</th></tr>
+<tr><td>Prefill su NPU + decode su Vulkan con lo stesso GGUF e la stessa KV</td><td><span class="badge err"><i></i>non fattibile</span></td><td>Nessun runtime lo fa: l'ibrido OGA partiziona il <em>suo</em> modello ONNX a 16K. Le KV di due motori diversi non si scambiano <span class="v">V</span></td></tr>
+<tr><td>Modello draft sulla NPU per la decodifica speculativa</td><td><span class="badge err"><i></i>non fattibile</span></td><td>llama.cpp accetta draft solo come GGUF eseguiti da un device ggml (<code>--spec-draft-device</code>); la NPU non è un device ggml e il draft via HTTP è stato chiuso senza PR (issue #23982) <span class="v">V</span>. Per di più il draft esterno su MoE A3B è negativo (−3/−12%) <span class="v">V</span>: MTP interno vince</td></tr>
+<tr><td>Motore principale su NPU (FLM Qwen3.6-35B-A3B)</td><td><span class="badge warn"><i></i>solo confronto</span></td><td>11–17 tok/s contro 21; TTFT fisso 2,7 s per il dispatch degli esperti, letale nei loop agentici; nessuna cache del prefisso documentata. Vale come banco A/B «stack completo», non come motore quotidiano</td></tr>
+<tr><td><b>Secondo modello sulla NPU in parallelo</b></td><td><span class="badge ok"><i></i>fattibile oggi</span></td><td>FLM serve un LLM piccolo (Qwen3.5-4B o Qwen3-4B-2507, 256k, tool calling) più un modello di embedding sulla porta 52625, mentre Vulkan tiene il 35B. Costo misurato su Strix Halo con NPU e iGPU insieme: −14% decode iGPU, +15–19% TTFT <span class="v">V</span>; su 90 GB/s probabilmente un po' di più <span class="v">I</span></td></tr>
+</table>
+
+<h2>Proposta: il «motore ausiliario» di Aethera</h2>
+<p>La NPU ha senso se le si dà un lavoro che oggi ruba turni al modello principale o che non si fa affatto. Tre lavori concreti, in ordine di valore per il coding agentico:</p>
+<ol>
+<li><b>Indice semantico del repository sulla NPU.</b> EmbeddingGemma (o Qwen3-Embedding-0.6B) su FLM calcola gli embedding dei file mentre la iGPU è occupata. L'agente cerca per significato invece di leggere file a caso: meno token di prompt, meno prefill, meno rami che invalidano la cache. La proposta di minis-config (05, §1) lo teneva come «solo se la ricerca lessicale fallisce»: la NPU cambia il costo, perché non toglie nulla al motore.</li>
+<li><b>Sotto-agente economico per i compiti di contorno.</b> Messaggi di commit, riassunto di un log lungo, classificazione di un errore, riscrittura di una descrizione: un 4B sulla NPU li fa a 15–25 tok/s <span class="v">I</span> senza toccare la cache del 35B. Nonio e i banchi potrebbero instradare per tipo di compito su due endpoint.</li>
+<li><b>Reranker per i risultati di ricerca</b> prima di metterli nel contesto: jina-reranker-v3 0,6B o Qwen3-Reranker-0.6B. Su NPU via FLM solo se il catalogo lo aggiunge; altrimenti su CPU con un secondo llama-server (<code>--reranking</code>), che su UMA costa banda ma poca potenza.</li>
+</ol>
+<div class="note">Per Aethera significa una cosa precisa: lo schema dei profili ha già <code>runtime.kind</code>; un secondo <b>slot di motore «ausiliario»</b> con kind <code>flm</code>, la sua porta e il suo modello, mostrato nella pagina Motore come riga secondaria, con lo stesso stato «in uso» e la stessa telemetria. La v1 dice «un motore alla volta»: qui sarebbero due motori su due silici, e la regola resta vera per silicio.</div>
+
+<h2>Prerequisiti e rischi</h2>
+<ul>
+<li><b>Driver NPU</b>: il nostro 32.0.203.314 soddisfa FLM (≥ .311) e Ryzen AI 1.8 (≥ .280). Il driver MCDM 32.00.20102.3930 arriva con Adrenalin 26.8/26.9, che porta anche la regressione DPM della VRAM: se serve il driver NPU nuovo, prenderlo <b>separatamente</b> e verificare che FLM lo accetti <span class="v">V</span>.</li>
+<li><b>Gorgon Point</b>: dichiarato da FLM, assente dalla lista Ryzen AI SW 1.8. Lo stesso silicio XDNA 2 rende probabile che OGA funzioni, ma non è scritto da nessuna parte <span class="v">I</span>.</li>
+<li><b>Contesa di banda</b>: la NPU legge dalla stessa DDR5. Un 4B a Q4 in decode a 20 tok/s consuma ~50 GB/s di picco per brevi istanti; la misura di Strix Halo dice −14% sul decode della GPU. Va misurato qui con la telemetria di Aethera, con e senza motore ausiliario attivo.</li>
+<li><b>Licenza FLM</b>: README dice MIT per l'orchestrazione e kernel «liberi anche per uso commerciale»; una wiki terza parla di soglia 10 M$ di fatturato. Leggere il file LICENSE della versione installata.</li>
+</ul>
+</section>
+<section class="page" id="p-motore">
+<h1>Motore llama.cpp: le leve sulla 890M</h1>
+<p class="sub">Cosa è cambiato dopo b10809, cosa vale davvero su Vulkan RDNA 3.5, e cosa lasciare stare.</p>
+
+<div class="grid3">
+  <div class="kpi"><b>180</b><span>build fra b10809 (4-09) e b10991 (15-09) <span class="v">M</span>; la novità Vulkan grossa (int8 coopmat1, PR #27952, +33% prefill MoE) è ancora aperta <span class="v">V</span></span></div>
+  <div class="kpi"><b>+33%</b><span>prefill già ottenuto qui con MTP e <code>-ub 4096</code> (267 → 366 tok/s) <span class="v">M</span></span></div>
+  <div class="kpi"><b>&lt; 1 s</b><span>TTFT sui turni successivi con checkpoint dello stato ricorrente, contro minuti senza (report Claude Code + llama.cpp) <span class="v">V</span></span></div>
+</div>
+
+<h2>Leve, ordinate per guadagno ÷ sforzo</h2>
+<table>
+<tr><th>#</th><th>Leva</th><th>Guadagno atteso</th><th>Evidenza</th><th>Rischio / nota per Aethera</th></tr>
+<tr class="hl"><td>1</td><td><b>Checkpoint dello stato ricorrente</b>: <code>--ctx-checkpoints 128 --checkpoint-min-step 128 --cache-ram 15000 --kv-unified</code></td><td>TTFT dei turni successivi da minuti a sotto il secondo su modelli ibridi (Qwen3.6, Qwen3-Next)</td><td>mykolaaleksandrov.dev (giugno 2026), discussion #27950 (TTFT 1,5–4 min → 0,3–0,5 s con <code>--ctx-checkpoints 8</code>) <span class="v">V</span></td><td><code>--cache-reuse</code> è inutile sui modelli ricorrenti (lo stato non è per-token) <span class="v">V</span>. Il profilo Aethera ha già la sezione <code>[cache]</code>: questi tre campi vanno esposti come leve marcate <code>cache</code></td></tr>
+<tr><td>2</td><td><b>Prefisso stabile lato client</b></td><td>Evita il ri-prefill totale a ogni turno</td><td>Caso documentato: Claude Code cambiava l'intestazione ad ogni richiesta (<code>CLAUDE_CODE_ATTRIBUTION_HEADER</code>) e azzerava la cache <span class="v">V</span></td><td>Aethera lo può <b>rilevare</b>: se <code>n_prompt_tokens_cache</code> da <code>/slots</code> è ~0 su turni consecutivi dello stesso client, mostrare «prefisso instabile» nella pagina Motore</td></tr>
+<tr><td>3</td><td><b>MTP con profondità adattiva</b>: <code>--spec-draft-adaptive</code>, n-min 2, n-max 4, p-min 0,75</td><td>+24–36% decode; fork RDNA con «adaptive depth»: +26% prosa, +35% codice <span class="v">V</span></td><td>Discussion #27950, patch stew675, banco del 15-09 qui (MTP vince su codice, perde su riassunti) <span class="v">M</span></td><td>Il draft esterno classico su MoE A3B è <b>negativo</b> (HackMD, −3/−12%) <span class="v">V</span>: non comprare draft. Profilo A/B «MTP adattivo» contro «MTP 3 fisso»</td></tr>
+<tr><td>4</td><td><b>KV cache q8_0</b> a 64k–128k: <code>-ctk q8_0 -ctv q8_0</code></td><td>Strix Halo: +15% decode e +9% prefill sul 35B a 64k; ×2,66 su Coder-30B a 64k <span class="v">V</span></td><td>Nathanw1014/strix-halo-llamacpp, stew675 <span class="v">V</span></td><td>Sul 35B la KV è solo sui 10 blocchi ad attenzione piena (0,67 GiB a 32k <span class="v">M</span>): il guadagno c'è solo oltre 64k. Qualità non misurata; gfx1150 non testato</td></tr>
+<tr><td>5</td><td><b>Aggiornare a ≥ b10982</b> come variabile di prova</td><td>Pochi %: fix Vulkan accumulati (GET_ROWS, view tensors), sparse FA (non serve al 35B)</td><td>Release page, PR #28105, #28253 <span class="v">V</span></td><td>Obbligatorio invece per Qwen3.8-Flash-Next (arch <code>qwen4exp</code>, merge 27-08, fix 1-09). Aethera scarica e verifica le build da sola: costa un click</td></tr>
+<tr><td>6</td><td><b>Piano energetico «Prestazioni»</b> e modalità BIOS</td><td>Su Framework 13 Linux: +36% decode, +120% prefill fra risparmio e prestazioni <span class="v">V</span></td><td>msf.github.io <span class="v">V</span>; su Windows nessun dato</td><td>Prova da un'ora con la telemetria di Aethera. Il manifest dovrebbe registrare il piano energetico attivo come condizione della misura</td></tr>
+<tr><td>7</td><td><b>Build patchata RDNA</b> (fork stew675, o PR #27952 quando entra)</td><td>Prefill MoE +33%, complessivo +9–17% sul 35B-A3B <span class="v">V</span></td><td>PR #27952 aperta; fork v16 del 15-09 <span class="v">V</span></td><td>Build Windows da compilare in casa; non è una release ggml-org, quindi fuori dal download verificato di Aethera. Da tenere come build «locale» dichiarata in machine.toml</td></tr>
+<tr><td>8</td><td><b><code>--fit on</code> / <code>--fit-target</code></b></td><td>Automatizza <code>-ot</code> e contesto per i modelli oltre i 48 GB: tensori densi in VRAM, esperti su CPU</td><td>Discussion #18049, README server <span class="v">V</span></td><td>Si disattiva se il profilo passa <code>-ngl</code> o <code>-ot</code>; bug di memoria noto su Qwen3-Next. Aethera oggi passa sempre <code>-ngl</code>: servirebbe una modalità «lascia decidere al motore» con la riga registrata</td></tr>
+<tr><td>9</td><td><b>Esperti oltre la VGM in RAM</b>: <code>--n-cpu-moe N</code> o <code>-ot "blk\.(3[0-9]|4[0-9])\.ffn_.*_exps=CPU"</code></td><td>Apre i modelli 48–70 GB senza toccare la VGM</td><td>HX 370 Linux: Qwen3-Next-80B Q8 10,9 tok/s; Coder-Next CPU-only 7,7 <span class="v">V</span>; issue #19480: Qwen3-Next ~5× più lento del previsto su CPU, aperta</td><td>Nessun numero su HX 470 Windows. È la <b>prova più informativa</b> del piano</td></tr>
+<tr><td>10</td><td><b>ROCm/HIP Windows</b> (build lemonade b1328, gfx1150)</td><td>+10% decode e −5% prefill contro Vulkan quando il modello sta in VGM (autore TheRock #8186)</td><td>TheRock #8186, gist Randomblock1 (Linux: ROCm +15–25% prefill, −12% decode) <span class="v">V</span></td><td>hipMalloc vede solo la VRAM dedicata: issue #19818 e lemonade #57 aperte <span class="v">V</span>. gfx1150 fuori dalla matrice ufficiale. Solo per un banco A/B, mai per modelli oltre i 48 GB</td></tr>
+<tr><td>11</td><td><b>VGM 48 → 64 GB</b></td><td>Coder-Next Q4 (48,5 GB) e i potati di Flash-Next (58–65 GB) tutti in memoria dedicata</td><td>Tetto AMD 75% = 72 GB <span class="v">V</span></td><td>Windows resta con 32 GB: fuori il margine di 16 GiB, dentro compilatori e test. Da confrontare con la leva 9 sullo stesso modello: è la decisione che pesa di più</td></tr>
+<tr><td>12</td><td>eGPU via OCuLink (PCIe 4.0 ×4)</td><td>3× se il modello sta nella VRAM della dGPU; split iGPU+dGPU su 122B: 37–38 tok/s (Strix Halo + RTX 5080/Pro 6000) <span class="v">V</span></td><td>MindStudio <span class="v">V</span></td><td>Crollo a 1,6 tok/s se sfora la VRAM; nessuna prova pubblica di «attenzione su dGPU, esperti in UMA». La RTX 2080 SUPER di Turing (8 GB) è troppo piccola per il 35B: non vale il dock</td></tr>
+<tr><td>13</td><td>HAGS, Hardware-accelerated GPU scheduling</td><td>—</td><td>nessuna evidenza llama.cpp trovata</td><td>Non toccare</td></tr>
+</table>
+
+<h2>Vulkan contro ROCm su questa iGPU: chiuso, per ora</h2>
+<table>
+<tr><th>Fonte</th><th>Hardware</th><th>Backend</th><th class="n">Prefill</th><th class="n">Decode</th><th>Nota</th></tr>
+<tr><td>gist Randomblock1, marzo 2026</td><td>HX 370 / 890M, Fedora</td><td>Vulkan / ROCm</td><td class="n">303 / 402</td><td class="n">18,2 / 16,0</td><td>Llama2-7B Q4_0; «stesso pattern su Qwen3.5-35B Q4_K»</td></tr>
+<tr><td>lemonade #57, febbraio 2026, aperta</td><td>HX 370 / 890M, 96 GB, modello oltre la VRAM</td><td>Vulkan / ROCm</td><td class="n">370 / 150</td><td class="n">23 / 18</td><td>ROCm: 94 split di grafo, traffico GPU↔CPU continuo</td></tr>
+<tr><td>soothill, 27-08-2026</td><td>Strix Halo, Flash-Next 104 GB</td><td>Vulkan / ROCm</td><td class="n">17,9 / 17,0</td><td class="n">11,5 / 1,8</td><td>ROCm 6,4× più lento sul modello grande</td></tr>
+<tr><td>TheRock #8186, 13-09-2026</td><td>890M</td><td>ROCm vs Vulkan</td><td class="n">−5%</td><td class="n">+10%</td><td>gfx1150 «wheel esistono ma non supportate»</td></tr>
+</table>
+<p>Con 22 GB dentro 48 GB di VGM ROCm potrebbe dare qualche punto sul prefill; sopra i 48 GB non parte. Per un motore che deve reggere modelli da 48 a 70 GB, Vulkan resta l'unico backend sensato <span class="v">I</span>.</p>
+
+<h2>Driver: quando non aggiornare è la leva</h2>
+<ul>
+<li>Il driver installato (32.0.22042.1, pacchetto 25.20.42) è precedente ad Adrenalin 26.5.1. Dalla 26.5.1 alla 26.9.1 la discussion #23443 documenta la VRAM scaricata in RAM dopo 15 s di inattività (meccanismo WDDM D3); fix annunciato per 26.9.2 <span class="v">V</span>. Per un motore che aspetta un agente fra un tool e l'altro sarebbe un disastro silenzioso: ogni turno ricomincerebbe da RAM.</li>
+<li>Aethera potrebbe accorgersene: <code>GPU Process Memory\Dedicated Usage</code> del processo che scende a riposo e risale al turno successivo è esattamente la firma. È un buon controllo in più per la pagina Motore.</li>
+<li>Con VGM «Auto» Vulkan su Windows 11 dichiara 0 byte: tenere sempre un valore fisso <span class="v">V</span> (già così: 48 GB).</li>
+</ul>
+
+<h2>Cosa registrare in più nel manifest</h2>
+<p>Ogni prova qui sopra è una variabile in più che oggi il manifest non conosce. Per confrontare gli avvii servono: piano energetico attivo, versione del driver GPU e NPU, VGM letta, presenza del motore ausiliario, e i tre campi di checkpoint della cache. Sono letture di sistema che <code>system.rs</code> sa già fare per la VGM.</p>
+</section>
+<section class="page" id="p-qwen38">
+<h1>Studio di fattibilità: Qwen3.8-Flash-Next</h1>
+<p class="sub">Cos'è, quanto pesa davvero, quali varianti ridotte esistono e cosa ci si può aspettare su questa macchina. Rilasciato il 26 agosto 2026 <span class="v">V</span>.</p>
+
+<div class="grid3">
+  <div class="kpi"><b>125B + 51B + 4B</b><span>modello principale (6B attivi, 512 esperti, 10+1 attivi) + tabella n-gram + testa MTP: ~180B nel checkpoint <span class="v">V</span></span></div>
+  <div class="kpi"><b>72,5–120 GB</b><span>GGUF del modello intero, da IQ1_S a Q4_K_M <span class="v">V</span>. Nessuna entra nei 73,5 GB di Vulkan con margine</span></div>
+  <div class="kpi"><b>57–69 GB</b><span>varianti potate dalla community (REAP-256, REAP-320, 131B-A6B) <span class="v">V</span>: le uniche che lasciano spazio al contesto</span></div>
+</div>
+
+<h2>Cos'è</h2>
+<table>
+<tr><th>Dato</th><th>Valore</th></tr>
+<tr><td>Posizionamento</td><td>«Anteprima sperimentale dell'architettura Qwen4»; Qwen3.8-Flash (API) è la versione di produzione <span class="v">V</span></td></tr>
+<tr><td>Architettura</td><td>48 layer, hidden 2560. Ibrida: Gated DeltaNet in 36 layer, Qwen Sparse Attention a micro-blocchi in 12 layer (budget 2048, ratio 4), Gated Residual, embedding n-gram al layer 2 (hash degli ultimi 3 token, 16 teste × 160 valori) <span class="v">V</span></td></tr>
+<tr><td>Parametri</td><td>125B totali, 6B attivi; 512 esperti, 10 routed + 1 shared; tabella n-gram 51B; MTP 1 layer da 4B addestrato multi-step <span class="v">V</span></td></tr>
+<tr><td>Contesto</td><td>262.144 nativo, 1M con YaRN; multimodale (mmproj nei GGUF) <span class="v">V</span></td></tr>
+<tr><td>Licenza</td><td>qwen-community-1.0 (non Apache) <span class="v">V</span></td></tr>
+<tr><td>llama.cpp</td><td>arch <code>qwen4exp</code>, merge in master il 27-08-2026 (PR #27742, ≈ b10660); correzioni di coerenza il 1-09 (PR #27941). <b>b10809 è dopo il merge ma ha bisogno della #27941: usare ≥ b10982</b> <span class="v">V</span></td></tr>
+<tr><td>MTP in llama.cpp</td><td>Non nel merge iniziale. PR #28243 (Unsloth, <code>--spec-type draft-mtp</code>) ancora draft a metà settembre; funziona nel fork Unsloth e in build patchate; accettazione 0,7–0,95 su codice, collasso a 0,32–0,38 riportato con UD-Q3_K_XL <span class="v">V</span></td></tr>
+<tr><td>Benchmark ufficiali</td><td>SWE-bench Pro 62,5 · SWE-bench Multilingual 81,0 · DeepSWE 1.1 58,7 · LiveCodeBench v6 91,9 · Toolathlon Verified 73,5 <span class="v">V</span>. <b>Non pubblicati</b>: SWE-bench Verified, Terminal-Bench, Aider. Per confronto Qwen3.6-35B-A3B: SWE-bench Verified 73,4, Terminal-Bench 2.0 51,5 <span class="v">V</span></td></tr>
+<tr><td>Campionamento (card)</td><td>Thinking: 1,0 / 0,95 / 20 / 0 / presence 0. Non-thinking: 0,7 / 0,8 / 20 / 0 / presence 1,5. <code>reasoning_effort</code> ∈ {low, medium, xhigh}, default xhigh; «high» <b>non</b> è accettato dal template <span class="v">V</span>. Nessuna terna «coding» separata</td></tr>
+<tr><td>Verbosità</td><td>240M token di output contro una mediana di 140M nell'indice Artificial Analysis <span class="v">V</span>: ragiona molto. Utili <code>--reasoning-budget</code> e <code>reasoning_effort medium</code></td></tr>
+</table>
+
+<h2>Le versioni «a meno parametri»</h2>
+<div class="note warn">Le varianti «120B» e «98B» citate non esistono con quei nomi su Hugging Face, e Qwen non ha pubblicato taglie ridotte di Flash-Next <span class="v">V</span>. Quello che esiste è lavoro della community: potatura degli esperti (REAP) o taglio della tabella n-gram. Le cifre in GB cambiano da quant a quant e da fonte a fonte: qui sono in GB decimali come sulle pagine HF.</div>
+<table>
+<tr><th>Variante</th><th>Metodo</th><th>Esperti</th><th>Quant</th><th class="n">GB</th><th>Qualità dichiarata</th><th>Nota</th></tr>
+<tr><td>Qwen/Qwen3.8-Flash-Next (intero)</td><td>—</td><td>512</td><td>UD-IQ1_S / UD-IQ1_M</td><td class="n">72,5 / 74,5</td><td>top-1 77–80%, KLD 0,32–0,40 <span class="v">V</span></td><td>Entra solo in mmap con n-gram su CPU; qualità inadeguata al coding <span class="v">I</span></td></tr>
+<tr><td>idem</td><td>—</td><td>512</td><td>UD-Q2_K_XL / UD-IQ3_XXS / UD-Q3_K_XL</td><td class="n">78,9 / 82 / 90</td><td>—</td><td>Oltre i 73,5 GB di Vulkan; solo con esperti su CPU e Windows sotto i 12 GB</td></tr>
+<tr><td>idem</td><td>—</td><td>512</td><td>UD-IQ4_XS / UD-Q4_K_XL</td><td class="n">93,7 / 111</td><td>top-1 92,3%, KLD 0,047 a Q4_K_XL</td><td>Non entrano nei 96 GB fisici senza streaming da SSD</td></tr>
+<tr class="hl"><td>AnonimousA/…-REAP-320</td><td>REAP (Cerebras) su calibrazione multi-dominio, fatto sulla UD-Q3_K_XL</td><td>512 → 320</td><td>UD-Q3_K_XL / UD-Q2_K_XL</td><td class="n">69 / 61,5</td><td>HumanEval 96,3%; fabbricazione di nomi 25% (base 0%) <span class="v">V</span></td><td>132B totali. La tabella n-gram (26,8 GiB in questa quant) non è potata ed è letta via mmap. Consiglia <code>--n-cpu-moe 4</code> oltre 98k</td></tr>
+<tr><td>AnonimousA/…-REAP-256-duo</td><td>REAP su codice + orchestrazione agenti</td><td>512 → 256</td><td>UD-Q3_K_XL</td><td class="n">61,9</td><td>12–13/13 su batteria di 6 task; HumanEval 89,6% <span class="v">V</span></td><td>117B totali; «a volte si blocca nel reasoning» a contesti lunghi; superato da REAP-320</td></tr>
+<tr><td>Cyronius/…-131B-A6B</td><td>Rimozione di 14 teste su 16 della tabella n-gram, transformer intatto, nessun retraining</td><td>512</td><td>Q3_K_XL / Q4_0</td><td class="n">64,8 / 75,4</td><td>PPL wikitext 4,66 contro 2,40 del base; tool calling «allineato» <span class="v">V</span></td><td>Approccio complementare al REAP: nessuno ha pubblicato i due tagli insieme</td></tr>
+<tr><td>dzannotti/…-MTP-GGUF</td><td>testa MTP separata</td><td>—</td><td>Q4_K_M / Q8_0</td><td class="n">~1,5 / 2,8</td><td>—</td><td>Serve per <code>--spec-type draft-mtp</code> con build patchata</td></tr>
+</table>
+
+<h2>Dove sta la memoria: quattro configurazioni</h2>
+<div class="card">
+<p class="legend" style="margin:0 0 6px">Scala: 96 GB fisici. <i style="background:var(--ok)"></i>pesi <i style="background:var(--busy)"></i>KV + buffer stimati <i style="background:var(--fg3)"></i>Windows + margine <i style="background:var(--err)"></i>fuori dai 96 GB</p>
+<p style="margin:4px 0"><b>A · intero UD-Q3_K_XL 90 GB</b> — non entra: 90 + 8 + 12 = 110 GB</p>
+<div class="bar"><i class="model" style="width:93.7%"></i><i class="over" style="left:93.7%;width:6.3%"></i></div>
+<p style="margin:4px 0"><b>B · intero UD-IQ1_M 74,5 GB</b> — entra a filo con n-gram su CPU; qualità top-1 80%</p>
+<div class="bar"><i class="model" style="width:77.6%"></i><i class="kv" style="left:77.6%;width:6%"></i><i class="win" style="left:83.6%;width:12.5%"></i></div>
+<p style="margin:4px 0"><b>C · REAP-320 UD-Q3_K_XL 69 GB</b> — 48 in VGM + 21 in RAM (esperti via <code>--n-cpu-moe</code> o VGM a 64) + KV ~6 + Windows 16: 91 GB</p>
+<div class="bar"><i class="model" style="width:71.9%"></i><i class="kv" style="left:71.9%;width:6.2%"></i><i class="win" style="left:78.1%;width:16.7%"></i></div>
+<p style="margin:4px 0"><b>D · REAP-256 UD-Q3_K_XL 61,9 GB</b> — il più comodo: 84 GB, margine 12</p>
+<div class="bar"><i class="model" style="width:64.5%"></i><i class="kv" style="left:64.5%;width:6.2%"></i><i class="win" style="left:70.7%;width:16.7%"></i></div>
+</div>
+<p>La KV di <code>qwen4exp</code> è piccola perché solo 12 layer su 48 hanno attenzione, e sparsa: nessuna fonte ne dà la misura esatta; i ~6 GB sopra sono una stima prudente <span class="v">I</span> a 64k. La tabella n-gram va <b>obbligatoriamente su CPU</b> con <code>-ot "per_layer_token_embd=CPU"</code>: l'operazione non è supportata su Vulkan <span class="v">V</span>. Accesso per hash dei 3 token precedenti: lettura sparsa, pochi MB per token, il candidato ideale per il mmap da SSD (vedi «Streaming da SSD»).</p>
+
+<h2>Cosa aspettarsi in velocità</h2>
+<table>
+<tr><th>Hardware</th><th>Configurazione</th><th class="n">Prefill</th><th class="n">Decode</th><th>Fonte</th></tr>
+<tr><td>Strix Halo 8060S, 256 GB/s</td><td>UD-Q4_K_XL, Vulkan, n-gram su CPU, 2 slot con cache</td><td class="n">110</td><td class="n">15,6 (24,3 su 2 slot)</td><td>soothill.io <span class="v">V</span></td></tr>
+<tr><td>Strix Halo</td><td>UD-IQ4_XS, Vulkan RADV</td><td class="n">395</td><td class="n">27,2</td><td>strix-halo-guide <span class="v">V</span></td></tr>
+<tr><td>Strix Halo</td><td>UD-Q4_K_XL + MTP (fork), Vulkan</td><td class="n">—</td><td class="n">37,2 codice / 30,3 prosa</td><td>dzannotti <span class="v">V</span></td></tr>
+<tr><td>Strix Halo, <b>Windows</b>, HIP</td><td>UD-IQ4_XS + MTP, ctx 262k, 74 GB occupati</td><td class="n">—</td><td class="n">38</td><td>discussion #27950 <span class="v">V</span></td></tr>
+<tr><td>Strix Halo, HIP master</td><td>UD-IQ4_XS senza patch</td><td class="n">—</td><td class="n">19 → 5,5 oltre 1k di contesto</td><td>issue #27856 aperta, specifica HIP <span class="v">V</span></td></tr>
+<tr class="hl"><td><b>HX 470 / 890M, 90 GB/s (qui)</b></td><td>REAP-320 o REAP-256 Q3, Vulkan, esperti parziali in RAM</td><td class="n">40–100</td><td class="n">8–13 senza MTP; 12–18 con MTP su codice</td><td>stima per rapporto di banda e CU <span class="v">I</span>; <b>nessuna misura pubblica</b></td></tr>
+</table>
+<div class="note err">Il decode con Gated DeltaNet rallenta col contesto: issue #28734 (CUDA) mostra il top-k della QSA eseguito come scansione densa, con patch che portano 250k da 11 a 41,8 tok/s. Non è chiaro se Vulkan sia colpito allo stesso modo. E il <b>prefix caching su GDN</b> è un problema aperto (issue #19794, #18497, #20225 su Qwen3-Next): senza checkpoint dello stato ricorrente ogni turno rifà tutto. Un prefill da 40–100 tok/s su 32k senza cache è <b>5–13 minuti</b>: su questa macchina Flash-Next vive o muore con i checkpoint.</div>
+
+<h2>Verdetto</h2>
+<ol>
+<li><b>Il modello intero non è un candidato</b> su 96 GB: le quantizzazioni che entrano (IQ1/Q2) hanno qualità da scartare, quelle decenti (IQ4_XS 93,7 GB) chiedono lo streaming da SSD o 128 GB.</li>
+<li><b>I potati sono l'unica via</b>, e sono esperimenti di terzi: REAP-320 Q3 (69 GB) o REAP-256 Q3 (61,9 GB), nessuno con SWE-bench o Terminal-Bench pubblicati, fabbricazione di nomi al 25% sul REAP-320. Da trattare come «un solo potato, motivato, con provenienza verificata» (proposta 05, §3).</li>
+<li><b>Il guadagno di qualità sull'attuale non è dimostrato</b> per il nostro uso: Flash-Next batte il 35B su SWE-bench Pro (62,5 contro n.d.) e LiveCodeBench, ma il 35B ha 73,4 su SWE-bench Verified e nessuno dei due è confrontabile direttamente. In cambio il decode scende da 21 a una cifra sotto i 15.</li>
+<li><b>La prova ha comunque senso</b>, per due motivi che non riguardano il punteggio: è l'anteprima dell'architettura Qwen4 (il prossimo 35B sarà così), e obbliga a risolvere ora tre cose che Aethera dovrà sapere fare: build ≥ b10982, <code>-ot</code> per tensori specifici, esperti in RAM o VGM alta, checkpoint dello stato ricorrente.</li>
+</ol>
+
+<h2>Ricetta di prova (da adattare, non da copiare)</h2>
+<pre>llama-server.exe --model Qwen3.8-Flash-Next-REAP-320-UD-Q3_K_XL.gguf ^
+  --host 127.0.0.1 --port 8080 --alias qwen3.8-flash-next-reap320.q3_k_xl.vulkan ^
+  --ctx-size 65536 --parallel 1 --kv-unified ^
+  --n-gpu-layers 999 -ot "per_layer_token_embd=CPU" --n-cpu-moe 8 ^
+  --flash-attn on --ubatch-size 1024 --batch-size 4096 ^
+  --ctx-checkpoints 128 --checkpoint-min-step 128 --cache-ram 15000 ^
+  --jinja --reasoning-format deepseek ^
+  --chat-template-kwargs "{\"reasoning_effort\":\"medium\"}" ^
+  --metrics --slot-save-path C:\AetheraData\slots</pre>
+<p>Variabili da esplorare una alla volta: <code>--n-cpu-moe</code> 0/4/8/16 contro VGM 64 GB; KV q8_0 solo dopo una prova di coerenza (un report la dà per instabile su qwen4exp, un altro la usa senza problemi <span class="v">V</span>); MTP con build patchata e la testa dzannotti; <code>reasoning_effort</code> low/medium. Mai <code>GGML_CUDA_ENABLE_UNIFIED_MEMORY</code> (output corrotto su APU) <span class="v">V</span>.</p>
+</section>
+<section class="page" id="p-ssd">
+<h1>Streaming da SSD: i modelli più grandi della memoria</h1>
+<p class="sub">1,9 TB liberi su NVMe PCIe 4.0 ×4 e due slot M.2 vuoti. Cosa si può streammare, con quali strumenti su Windows + Vulkan, e quanti tok/s lascia la fisica.</p>
+
+<div class="grid3">
+  <div class="kpi"><b>5,7 GB/s</b><span>lettura sequenziale del Kingston OM8TAP42048K1 (PassMark, 143 campioni) <span class="v">V</span>; ~3,3 GB/s su random 32K QD20</span></div>
+  <div class="kpi"><b>0</b><span>streaming di esperti da SSD in llama.cpp master: PR #25294 e #27861 aperte <span class="v">V</span>. C'è solo <code>--lazy-mode</code> per i tensori giganti</span></div>
+  <div class="kpi"><b>7–17 tok/s</b><span>tetto del solo I/O per Flash-Next con hit degli esperti 53–80% su un SSD <span class="v">I</span>; misure reali dei progetti: 2–14</span></div>
+</div>
+
+<h2>Due cose diverse che si chiamano «streaming»</h2>
+<table>
+<tr><th>Caso</th><th>Cosa sta su SSD</th><th>Accesso per token</th><th>Stato in llama.cpp</th><th>Adatto qui?</th></tr>
+<tr class="hl"><td><b>A · Tensori giganti a lettura sparsa</b></td><td>La tabella n-gram di Qwen3.8-Flash-Next (<code>per_layer_token_embd</code>: 51B parametri, 27–39 GB quantizzata, 95 GiB in BF16) <span class="v">V</span></td><td>Poche righe da 160 valori per token, scelte dall'hash dei 3 token precedenti: latenza, non banda</td><td><b>In master</b>: <code>--lazy-mode auto</code> (PR #27794, 27-08-2026) mappa con MADV_RANDOM i tensori oltre 4 GiB senza popolarli <span class="v">V</span></td><td><span class="badge ok"><i></i>sì</span> M1 Max 64 GB: pesi 45,8 GB in RAM + tabella 39 GB su SSD, 17,6 tok/s, +0,3 GB di RAM in 30 minuti <span class="v">V</span></td></tr>
+<tr><td><b>B · Esperti MoE</b></td><td>Gli esperti che non entrano in memoria (o tutti)</td><td>480 lookup per token su Flash-Next (48 layer × 10): 0,9–1,9 GB per token secondo la quant <span class="v">V/I</span></td><td><b>Non in master</b>: PR #25294 (<code>--moe-stream</code>, CUDA/Metal, output che diverge), PR #27861 (cache LRU in VRAM con esperti in RAM, Vulkan confermato su RDNA3, ma non legge da SSD) <span class="v">V</span></td><td><span class="badge warn"><i></i>solo con fork o motori esterni</span></td></tr>
+</table>
+
+<h2>Il caso A è già un regalo: Flash-Next con la tabella su disco</h2>
+<p>Con la tabella n-gram lasciata su SSD, la memoria che serve a Flash-Next è quella del solo transformer: UD-IQ1_M scende da 84,9 GB a 45,8 GB in RAM (misura M1 Max <span class="v">V</span>); per una UD-Q3_K_XL da 90 GB restano <b>~60 GB</b> di esperti e attenzione <span class="v">I</span>, cioè lo stesso ordine dei potati REAP ma con <b>tutti i 512 esperti</b>. È la via per provare il modello intero senza potature.</p>
+<div class="note warn">Trappola Windows: issue #28355 (Windows, 160 GB, build ≥ 10665) segnala il prefill «estremamente lento» dopo il lazy-mode automatico: ogni lookup della tabella paga un page fault senza readahead <span class="v">V</span>. Un prefill da 32k fa decine di migliaia di lookup casuali. Da verificare qui: se succede, <code>--lazy-mode off</code> con la tabella in RAM (27–39 GB entrano nei 47,6 GB solo con la quant più piccola della tabella e nient'altro in RAM), oppure aspettare il readahead a lotti citato fra i follow-up della PR #27794.</div>
+
+<h2>Il caso B: la fisica prima degli strumenti</h2>
+<p>Tetto del solo I/O, senza calcolo né sincronizzazione (formula del doc 05 §4.5: tok/s ≤ B ÷ [W × (1 − h)]). Byte per esperto: 1,8 MiB sulla quant ~2 bit misurata in ddvnguyen #130, ~3,8 MiB stimati su Q4_K_XL <span class="v">V/I</span>.</p>
+<table>
+<tr><th>Scenario Flash-Next</th><th class="n">GB mancanti per token</th><th class="n">1 SSD, random ~3 GB/s</th><th class="n">1 SSD, seq 5,7 GB/s</th><th class="n">2 SSD in stripe, 6–7 GB/s</th></tr>
+<tr><td>Quant ~2 bit, hit 53% (cache 42 slot/layer, misurato) </td><td class="n">0,40</td><td class="n">7,5</td><td class="n">14</td><td class="n">~16</td></tr>
+<tr><td>Quant ~2 bit, hit 80%</td><td class="n">0,17</td><td class="n">17</td><td class="n">33</td><td class="n">~38</td></tr>
+<tr><td>Q4_K_XL, hit 53%</td><td class="n">0,86</td><td class="n">3,5</td><td class="n">6,6</td><td class="n">~7,5</td></tr>
+<tr><td>Q4_K_XL, hit 80%</td><td class="n">0,37</td><td class="n">8</td><td class="n">15</td><td class="n">~17</td></tr>
+<tr><td>Q4_K_XL, hit 90% (LRU-128, PR #27861)</td><td class="n">0,18</td><td class="n">16</td><td class="n">31</td><td class="n">~35</td></tr>
+</table>
+<ul>
+<li>Le misure reali stanno sotto i tetti: RTX 3060 + PCIe 4.0 ×4 (6,1 GB/s), Flash-Next 46 GB, cache 3,5 GiB: <b>10,8 tok/s</b> con hit 53% e 403 MiB per token; l'ottimo teorico di Belady 14,2; il pavimento «ogni esperto letto una volta» 21 <span class="v">V</span>. pulsar (Linux/CUDA, 30 GB di RAM): DeepSeek V4-Flash 87 GB a 8,2 tok/s, GLM-5.2 211 GB a 2,7 <span class="v">V</span>. DwarfStar: GLM 5.3 Flash 178 GiB su M5 Max 128 GB a 11,9–14,9 <span class="v">V</span>.</li>
+<li>La località degli esperti è meno concentrata di quanto si dica: su qwen4exp il working set è ~278 esperti distinti per layer su 512 <span class="v">V</span>; l'ICLR 2026 dice che la cache ottimale è 2× gli esperti attivi e che gli shared expert riducono la località <span class="v">V</span>; FlashMoE (gennaio 2026) guadagna +51% di hit con una policy appresa su recency + frequency <span class="v">V</span>. Codice e matematica sono i domini con la località migliore <span class="v">V parziale</span>.</li>
+<li>Su questa macchina l'SSD non è mai l'unico collo: la RAM di sistema e la iGPU condividono i 90 GB/s, quindi ogni byte streammato viene letto due volte (SSD → RAM → calcolo). I tetti sopra vanno letti come <b>ottimistici</b>.</li>
+</ul>
+
+<h2>Gli strumenti, e quali parlano Windows + Vulkan</h2>
+<table>
+<tr><th>Progetto</th><th>Stato</th><th>Windows</th><th>Vulkan</th><th>Modelli</th><th>Risultati</th><th>Nota</th></tr>
+<tr><td>llama.cpp <code>--lazy-mode</code></td><td>master</td><td>sì (non testato dagli autori)</td><td>sì</td><td>tutti quelli con tensori &gt; 4 GiB</td><td>vedi caso A</td><td>La via a costo zero</td></tr>
+<tr><td>llama.cpp PR #27861 (cache LRU esperti in VRAM)</td><td>draft, in attesa di review (14-09)</td><td>—</td><td><b>confermato su RX 7600/6950XT</b> con <code>GGML_VK_DISABLE_GRAPH_OPTIMIZE=1</code></td><td>Flash-Next, Qwen3.6-35B, Gemma4</td><td>Flash-Next Q4_K_XL: 18,4 → 24,2 tok/s (+31%), hit 67–90% <span class="v">V</span></td><td>Esperti in RAM, non su SSD. Su UMA la «VRAM» è la stessa DDR5: il guadagno qui è dubbio, salvo evitare il giro CPU↔GPU <span class="v">I</span></td></tr>
+<tr><td>llama.cpp PR #25294 <code>--moe-stream</code></td><td>aperta, «Large PR», output diverge sulle generazioni lunghe</td><td>citato in una PR collegata</td><td>non testato</td><td>GLM-5.2 254 GB</td><td>1,8–2,2 tok/s su 128 GB + NVMe, 2,4× rispetto a mmap+cpu-moe <span class="v">V</span></td><td>Da seguire, non da usare</td></tr>
+<tr><td>antirez/ds4 «DwarfStar»</td><td>beta, molto attivo</td><td>non citato</td><td>no (Metal, CUDA, ROCm)</td><td>DeepSeek V4, GLM 5.2/5.3, Flash-Next</td><td>11,9–14,9 tok/s su M5 Max <span class="v">V</span></td><td>Già nel doc 05 §4.5; il riferimento ROCm è gfx1151, e ROCm su gfx1150 non vede la memoria condivisa (pagina Motore). Fuori portata su Windows</td></tr>
+<tr><td>giannisanni/pulsar (ds4 in Rust)</td><td>attivo</td><td>no</td><td>no (CUDA)</td><td>11 architetture</td><td>6–8 tok/s con modelli 80–90 GB su 30 GB RAM <span class="v">V</span></td><td>Linux only</td></tr>
+<tr class="hl"><td>JustVugg/colibri</td><td>attivo, v1.11</td><td><b>sì, nativo</b></td><td><b>sì, 1.2</b></td><td>GLM-5.x, Kimi K3, DeepSeek V4, <b>Flash-Next</b>, Qwen3.6</td><td>GLM-5.2 744B: 0,05–0,1 tok/s a freddo su 25 GB, ~1,8 a caldo su 128 GB CPU <span class="v">V</span></td><td>L'unico motore Windows+Vulkan con gerarchia VRAM/RAM/SSD; supporta 2 SSD con copia doppia e hashing pesato per banda. Numeri bassissimi sui giganti; su Flash-Next nessun dato</td></tr>
+<tr><td>TinyGiant / discussion #27149</td><td>prototipo CPU</td><td>roadmap</td><td>no</td><td>Qwen3-30B-A3B</td><td>4,7 tok/s con 2 GB di RAM; re-layout contiguo −36× page fault <span class="v">V</span></td><td>Idea da rubare: riordinare gli esperti per co-attivazione nel file</td></tr>
+</table>
+
+<h2>Il secondo SSD</h2>
+<ul>
+<li>Uno slot PCIe 4.0 ×4 libero (6,7–7,3 GB/s) e uno ×1 (1,5–1,9 GB/s): il secondo disco va nello slot ×4 <span class="v">V</span>. In stripe con Disk Management (RAID 0 software) la lettura scala quasi linearmente su NVMe <span class="v">V</span>; Storage Spaces «simple» equivale.</li>
+<li>Raddoppia il tetto <b>solo</b> quando l'SSD è il collo (caso B con hit basso). Nel caso A (tabella n-gram) conta la latenza 4K QD1 (~50 µs) e il secondo disco non aiuta.</li>
+<li>Uso alternativo più sicuro: separare i pesi dal disco di sistema, così la page cache dei GGUF non compete con Windows, e tenere lì una copia dei modelli da 60–120 GB che oggi non si scaricano per mancanza di spazio logico.</li>
+</ul>
+
+<h2>Cosa provare, in ordine</h2>
+<ol>
+<li><b>Misurare l'SSD sul file vero</b>: DiskSpd (<code>-Sh</code>, blocchi 4K e 2 MiB, QD 1/8/32) sul GGUF, non su un file di test; da questo dipende quale colonna della tabella dei tetti vale. Un'ora.</li>
+<li><b>Flash-Next intero, quant piccola, tabella su SSD</b>: UD-IQ1_M (74,5 GB) o UD-Q2_K_XL (78,9) con <code>--lazy-mode auto -ot "per_layer_token_embd=CPU"</code>, esperti oltre la VGM in RAM, contesto 32k. Replica del setup M1 Max. Osservare il prefill: è la prova della trappola #28355 su Windows.</li>
+<li><b>Se il prefill regge</b>: UD-Q3_K_XL (90 GB): ~60 GB in memoria + tabella su SSD. È il primo modo per avere Flash-Next «vero» su questa macchina.</li>
+<li><b>Colibri</b> con Flash-Next come confronto «stack completo», sapendo che i numeri pubblicati sui giganti sono a una cifra bassa.</li>
+<li><b>Solo dopo</b>: secondo NVMe in stripe, se lo step 2–3 mostra che il tempo per token è I/O.</li>
+</ol>
+<div class="note">Per Aethera: <code>--load-mode</code> è già un campo del profilo; mancano <code>lazy_mode</code> e la mappa <code>-ot</code> per tensore, e la memoria misurata dovrebbe distinguere «pagine mappate da file» (RAMMap: <em>Mapped file</em>) dal working set, altrimenti la doppia copia dei pesi e lo streaming voluto si confondono. Il manifest dovrebbe registrare anche il disco su cui stanno i pesi e la sua lettura sequenziale misurata.</div>
+</section>
+<section class="page" id="p-modelli">
+<h1>Mappa dei modelli per il coding agentico</h1>
+<p class="sub">Cosa esiste a settembre 2026 fra i pesi aperti, cosa entra nei 96 GB, e cosa conviene misurare. Punteggi auto-dichiarati dai rispettivi autori, non confrontabili fra loro alla lettera.</p>
+
+<h2>La famiglia Qwen3.8, senza equivoci</h2>
+<p>Open-weight sono <b>tre</b> modelli: Qwen3.8-27B (denso, Apache 2.0), Qwen3.8-Flash-Next (125B-A6B, qwen-community) e Qwen3.8-2.4T-A95B. Non esistono Qwen3.8-35B-A3B, 80B-A3B, 122B-A10B, 235B-A22B né un Qwen3.8-Coder; Qwen3.8-Plus/Max e Qwen3.6-Plus sono solo API <span class="v">V</span>. Il 27B denso è fuori gioco su questa banda: 2,5–5 tok/s senza MTP <span class="v">I</span>.</p>
+
+<h2>Candidati che entrano (≤ ~70 GB), ordinati per interesse</h2>
+<table>
+<tr><th>Modello</th><th>Totali / attivi</th><th class="n">GGUF Q4</th><th class="n">~Q3</th><th>SWE-bench V</th><th>Terminal-Bench</th><th>Altro</th><th>Decode stimato qui</th><th>Licenza · data</th><th>Perché sì / perché no</th></tr>
+<tr class="hl"><td><b>Qwen3.6-35B-A3B</b> (attuale)</td><td>35B / 3B, 256 esp.</td><td class="n">22,3</td><td class="n">~16</td><td>73,4</td><td>51,5 (2.0)</td><td>Aider 62,2 (Q8, terzi)</td><td class="n">21, MTP 26–28 <span class="v">M</span></td><td>Apache · apr 2026</td><td>Il punteggio più alto fra quelli che stanno tutti in VGM. Resta la baseline</td></tr>
+<tr class="hl"><td><b>KAT-Coder-V2.5-Dev</b></td><td>35B / 3B (fine-tune del 3.6-35B-A3B, solo testo)</td><td class="n">~20</td><td class="n">n.d.</td><td>69,4</td><td>41,0 (2.1)</td><td>—</td><td class="n">~21 <span class="v">I</span></td><td>Apache · lug 2026</td><td>Stessa architettura, stessa velocità, stesso MTP: costo di prova quasi zero. Punteggi sotto al base ma su versioni diverse dei banchi</td></tr>
+<tr><td><b>Qwen3-Coder-Next</b></td><td>80B / 3B, 512 esp., non-thinking</td><td class="n">48,5</td><td class="n">38,3 (Q3_K_M) · 26,8 (UD-Q2)</td><td>70,6</td><td>34,2 (2.0)</td><td>Aider 66,2</td><td class="n">16–20 <span class="v">I</span> (17,6 riportato su 890M)</td><td>Apache · feb 2026</td><td>Già nel piano (G3). Sfora la VGM di poco: è il caso di test perfetto per «esperti in RAM» contro «VGM 64». Senza thinking: meno token</td></tr>
+<tr><td>gpt-oss-120b</td><td>117B / 5,1B, MXFP4 nativo</td><td class="n">~61</td><td class="n">—</td><td>52,6 (73,5 con tool)</td><td>n.d.</td><td>Aider 44,4; τ-bench retail 67,8</td><td class="n">14–20 <span class="v">I</span></td><td>Apache · ago 2025</td><td>Formato nativo, nessuna riquantizzazione, MoE veloce; ma punteggi sotto al 35B e risposte in <code>reasoning_content</code></td></tr>
+<tr><td>Qwen3.8-Flash-Next REAP-256 / REAP-320</td><td>117B / 132B, 6B attivi</td><td class="n">—</td><td class="n">61,9 / 69 (UD-Q3_K_XL)</td><td>n.d.</td><td>n.d.</td><td>base: SWE-bench Pro 62,5, LCB 91,9</td><td class="n">8–13, MTP 12–18 <span class="v">I</span></td><td>qwen-community · set 2026</td><td>Vedi pagina dedicata. Il più forte sulla carta, il meno misurato, il più lento</td></tr>
+<tr><td>Nemotron 3 Super</td><td>120B / 12B, Mamba-2 + MoE</td><td class="n">82,5</td><td class="n">62,6 (Q3_K_XL) · 54,7 (Q2)</td><td>60,5 (OpenHands)</td><td>25,8 (hard)</td><td>τ2 61,2</td><td class="n">7–10 <span class="v">I</span></td><td>NVIDIA Open · mar 2026</td><td>12B attivi: il doppio dei byte per token del Flash-Next, con punteggi più bassi</td></tr>
+<tr><td>Devstral 2</td><td>123B denso</td><td class="n">~67</td><td class="n">n.d.</td><td>72,2</td><td>n.d.</td><td>—</td><td class="n">&lt; 2 <span class="v">I</span></td><td>Modified MIT · dic 2025</td><td>Denso: impraticabile su 90 GB/s</td></tr>
+<tr><td>Devstral Small 2</td><td>24B denso</td><td class="n">~14</td><td class="n">n.d.</td><td>68,0</td><td>n.d.</td><td>—</td><td class="n">~4 <span class="v">I</span></td><td>Apache · dic 2025</td><td>Denso: troppo lento</td></tr>
+<tr><td>GLM-4.7-Flash</td><td>30B / 3,6B</td><td class="n">~18</td><td class="n">disp.</td><td>59,2</td><td>n.d.</td><td>τ2 79,5</td><td class="n">~20 <span class="v">I</span></td><td>Z.ai · gen 2026</td><td>Tool use ottimo; MTP 10× più lento, sconsigliato. Licenza proprietaria</td></tr>
+<tr><td>Gemma 4 26B-A4B</td><td>26B / 3,8B, VL</td><td class="n">16–18</td><td class="n">n.d.</td><td>n.d.</td><td>n.d.</td><td>LCB 77,1; «tool call puliti» (tier SS OpenCode)</td><td class="n">~22 <span class="v">I</span></td><td>Apache · apr 2026</td><td>Da tenere come controllo di famiglia sull'affidabilità dei tool</td></tr>
+<tr><td>Mistral Small 4</td><td>119B / 6B</td><td class="n">n.d.</td><td class="n">n.d.</td><td>n.d.</td><td>n.d.</td><td>—</td><td class="n">~13 <span class="v">I</span></td><td>Apache · mar 2026</td><td>GGUF e supporto llama.cpp non verificati in questa ricerca</td></tr>
+</table>
+
+<h2>Fuori dai 96 GB (per non tornarci)</h2>
+<p>GLM-5.3-Flash 320B-A18B (Q4 186 GB, non ancora in llama.cpp master), GLM-5 744B, MiniMax M2.5 229B (UD-Q2 85,9 GB) e M3 428B, DeepSeek V4-Flash 284B-A13B (IQ1_S 82,5 GB), Kimi K2.6 1T, MiMo-V2.5 310B <span class="v">V</span>. «GLM-5-Air» non esiste: c'è solo GLM-4.5-Air 106B-A12B del 2025 <span class="v">V</span>. Ognuno di questi torna in gioco solo con lo streaming da SSD (pagina 6), dove DwarfStar cita proprio GLM 5.3 Flash e DeepSeek V4.</p>
+
+<h2>Decodifica speculativa: cosa comprare e cosa no</h2>
+<ul>
+<li><b>MTP interno</b> (<code>--spec-type nextn</code> / <code>draft-mtp</code>): in master dal 16-05-2026 (PR #22673) <span class="v">V</span>; +22% sul 35B-A3B a RTX 3090 con accettazione 78%; qui +33% sul prefill e fino a 28 tok/s sul codice <span class="v">M</span>.</li>
+<li><b>Draft esterno</b> (Qwen3.5-0.8B su Qwen3.6-35B): −3 ÷ −12%, fino a −73% con n=8 <span class="v">V</span>. Il tokenizer Qwen3.8 è lo stesso di 3.5/3.6, ma non ci sono draft «3.8». Su Strix Point con un denso 8B il draft dava +40–82% <span class="v">V</span>: paga solo dove la banda è il muro e il target è denso, non sui MoE A3B.</li>
+<li><b>DFlash</b> (+26% sul 35B) e <code>ngram-mod</code> (53 tok/s ma «buggy») <span class="v">V</span>: da tenere d'occhio, non da mettere in un profilo.</li>
+</ul>
+
+<h2>Embedding e reranker (per la NPU o per la CPU)</h2>
+<table>
+<tr><th>Modello</th><th>Parametri</th><th>GGUF</th><th>Punteggi</th><th>Licenza</th><th>Dove girarlo</th></tr>
+<tr><td>Qwen3-Embedding-0.6B</td><td>0,6B</td><td>Q8 639 MB</td><td>MTEB codice incluso</td><td>Apache</td><td>CPU, secondo llama-server <code>--embedding</code></td></tr>
+<tr><td>Qwen3-Embedding-4B</td><td>4B</td><td>Q4_K_M 2,5 GB</td><td>MTEB EN 74,6</td><td>Apache</td><td>CPU o iGPU a riposo</td></tr>
+<tr><td>EmbeddingGemma-300m</td><td>0,3B</td><td>catalogo FLM</td><td>—</td><td>Gemma</td><td><b>NPU via FastFlowLM</b>, in parallelo al 35B <span class="v">V</span></td></tr>
+<tr><td>jina-code-embeddings-0.5b</td><td>0,5B</td><td>disp.</td><td>CoIR 73,9</td><td>CC-BY-NC</td><td>CPU; licenza non commerciale</td></tr>
+<tr><td>jina-reranker-v3</td><td>0,6B listwise</td><td>209 MB – 1,1 GB</td><td>CoIR 63,3</td><td>n.d.</td><td>CPU, <code>--reranking</code></td></tr>
+</table>
+
+<h2>Affidabilità agentica: le regole trovate</h2>
+<ul>
+<li><code>--jinja</code> obbligatorio per tutti i Qwen, più <code>--reasoning-format deepseek</code>; gpt-oss vuole <code>reasoning_effort</code> nei kwargs; Nemotron <code>--special</code> <span class="v">V</span>.</li>
+<li>Sotto i 4 bit i tool call escono con argomenti vuoti o malformati; se a Q4 si vedono argomenti vuoti, salire a Q5/Q6 <span class="v">V</span>. È un argomento contro i Q3 dei potati di Flash-Next.</li>
+<li>Speculativa + reasoning: tre guasti tipici (troncamento, loop, stallo dello stream) risolti togliendo la speculazione <span class="v">V</span>. Aethera dovrebbe mostrare l'accettazione del draft per richiesta: già la registra in telemetria.</li>
+<li>OpenCode + llama.cpp: issue #1890 aperta sul filtro Jinja <code>reject</code>; Qwen3-Coder-Next ha template rotti in alcuni GGUF <span class="v">V</span>. Le prove dei modelli vanno fatte con il client vero, non con curl.</li>
+<li>Claude Code parla direttamente con llama-server dal 19-01-2026 (Anthropic Messages API, <code>ANTHROPIC_BASE_URL</code>) <span class="v">V</span>: un client in più da mettere nella riga «per i client» delle Impostazioni.</li>
+<li>Thinking: Flash-Next e il 27B ragionano molto; su Qwen3.x la guida modelfit consiglia thinking spento «così è l'agente a guidare il ragionamento» <span class="v">V</span>. Il campionamento per modalità del catalogo Aethera è già il posto giusto per questa scelta.</li>
+</ul>
+
+<h2>Cosa consiglio di misurare, in quest'ordine</h2>
+<ol>
+<li><b>KAT-Coder-V2.5-Dev Q4</b> contro il 35B attuale: stessa riga, stessi task, un pomeriggio.</li>
+<li><b>Qwen3-Coder-Next Q4</b>: è il caso di test della memoria oltre i 48 GB, che serve a tutto il resto.</li>
+<li><b>Flash-Next REAP-256 Q3</b>: solo dopo il punto 2, con build ≥ b10982 e checkpoint attivi.</li>
+<li><b>gpt-oss-120b</b> come controllo di famiglia veloce, se il punto 2 dice che 61 GB si reggono.</li>
+</ol>
+</section>
+<section class="page" id="p-piano">
+<h1>Piano di prova</h1>
+<p class="sub">Esperimenti ordinati per informazione ottenuta ÷ ore spese. Una variabile alla volta, stessa riga, stesso prompt di codice vero, telemetria di Aethera come unica fonte. Ogni prova è un profilo, non una modifica a mano.</p>
+
+<h2>Fase 0 · condizioni della misura (mezza giornata)</h2>
+<table>
+<tr><th>#</th><th>Prova</th><th>Come</th><th>Cosa decide</th></tr>
+<tr><td>0.1</td><td>Piano energetico «Prestazioni» contro «Bilanciato»</td><td>Stesso profilo G1, 5 giri, prefill e decode</td><td>Se vale il +36% visto su Linux, tutte le misure future vanno rifatte in quel piano</td></tr>
+<tr><td>0.2</td><td>Banda dell'SSD sul GGUF</td><td>DiskSpd 4K/2 MiB, QD 1/8/32, unbuffered</td><td>La colonna giusta della tabella dei tetti di streaming</td></tr>
+<tr><td>0.3</td><td>Manifest arricchito</td><td>Piano energetico, versione driver GPU/NPU, VGM, disco dei pesi</td><td>Confrontabilità di tutto ciò che segue</td></tr>
+</table>
+
+<h2>Fase 1 · leve gratuite sul modello attuale (un giorno)</h2>
+<table>
+<tr><th>#</th><th>Prova</th><th>Riga</th><th>Esito atteso</th></tr>
+<tr><td>1.1</td><td>Checkpoint dello stato ricorrente</td><td><code>--ctx-checkpoints 128 --checkpoint-min-step 128 --cache-ram 15000 --kv-unified</code></td><td>TTFT dei turni con prefisso divergente: da decine di secondi a meno di uno. La misura è <code>n_prompt_tokens_cache</code> per turno da <code>/slots</code></td></tr>
+<tr><td>1.2</td><td>MTP adattivo contro MTP 3 fisso</td><td><code>--spec-draft-adaptive --spec-draft-n-min 2 --spec-draft-n-max 4 --spec-draft-p-min 0.75</code></td><td>Decode +5–15% sul codice senza perdere sui riassunti</td></tr>
+<tr><td>1.3</td><td>Build ≥ b10982 come variabile</td><td>Download verificato da Aethera, stesso profilo</td><td>Pochi punti; serve comunque per la fase 3</td></tr>
+<tr><td>1.4</td><td>KV q8_0 a 64k e 128k</td><td><code>-ctk q8_0 -ctv q8_0 -c 131072</code></td><td>Nessun guadagno sotto 64k (KV di 0,67 GiB a 32k); da +10% oltre. Controllare la coerenza dell'output a temperatura 0</td></tr>
+<tr><td>1.5</td><td>Stabilità del prefisso dei client</td><td>Nonio, OpenCode, Claude Code contro lo stesso motore</td><td>Scoprire quale client azzera la cache (caso <code>CLAUDE_CODE_ATTRIBUTION_HEADER</code>)</td></tr>
+</table>
+
+<h2>Fase 2 · la memoria oltre i 48 GB (due giorni)</h2>
+<p>È la prova che sblocca tutto ciò che sta fra 48 e 70 GB. Modello di test: Qwen3-Coder-Next Q4_K_M (48,5 GB), già nel piano G3.</p>
+<table>
+<tr><th>#</th><th>Configurazione</th><th>Cosa misura</th></tr>
+<tr><td>2.1</td><td>VGM 48 GB, <code>-ngl 999</code>, esperti eccedenti in memoria condivisa WDDM (Vulkan lo fa da solo)</td><td>Quanto costa la memoria «shared» su Windows: nessuna fonte lo sa</td></tr>
+<tr><td>2.2</td><td>VGM 48 GB, <code>--n-cpu-moe 8 / 16</code></td><td>Gli esperti su Zen 5 AVX-512 contro la iGPU: su UMA la banda è la stessa</td></tr>
+<tr><td>2.3</td><td>VGM 64 GB (riavvio), tutto dedicato</td><td>Il costo per Windows (32 GB) e se il decode torna al tetto</td></tr>
+<tr><td>2.4</td><td><code>--fit on</code> senza <code>-ngl</code></td><td>Se il motore decide meglio di noi</td></tr>
+<tr><td>2.5</td><td><code>--load-mode mmap</code> contro <code>none</code> con RAMMap aperto</td><td>Doppia copia contro pagine mappate: la telemetria deve distinguerle</td></tr>
+</table>
+<p>Criterio: la configurazione che regge ≥ 15 tok/s con la cache del prefisso intatta diventa la ricetta standard per i modelli 48–70 GB.</p>
+
+<h2>Fase 3 · Qwen3.8-Flash-Next (tre giorni, dopo la fase 2)</h2>
+<table>
+<tr><th>#</th><th>Configurazione</th><th>Cosa misura</th></tr>
+<tr><td>3.1</td><td>REAP-256 UD-Q3_K_XL (61,9 GB), build ≥ b10982, ricetta della fase 2, <code>-ot "per_layer_token_embd=CPU"</code>, checkpoint attivi</td><td>Prefill e decode a 32k; se il decode degrada col contesto (issue #28734) anche su Vulkan</td></tr>
+<tr><td>3.2</td><td>Intero UD-Q2_K_XL (78,9 GB) con tabella n-gram su SSD (<code>--lazy-mode auto</code>)</td><td>La trappola del prefill su Windows (#28355). Se regge, salire a UD-Q3_K_XL</td></tr>
+<tr><td>3.3</td><td>MTP con build patchata + testa dzannotti</td><td>Accettazione su codice: sopra 0,8 vale, sotto 0,5 no</td></tr>
+<tr><td>3.4</td><td>Task veri (i 12 del doc 05, fase C) contro il 35B</td><td>Task riusciti per ora di macchina: l'unico numero che conta</td></tr>
+</table>
+
+<h2>Fase 4 · la NPU come secondo motore (due giorni, indipendente dalle altre)</h2>
+<table>
+<tr><th>#</th><th>Configurazione</th><th>Cosa misura</th></tr>
+<tr><td>4.1</td><td>FastFlowLM 1.0.5, EmbeddingGemma sulla NPU, Vulkan 35B acceso</td><td>Decode e TTFT del 35B con e senza NPU al lavoro (contesa di banda)</td></tr>
+<tr><td>4.2</td><td>FLM Qwen3.5-4B come sotto-agente (commit, riassunti)</td><td>tok/s del 4B e degrado del 35B durante l'uso concorrente</td></tr>
+<tr><td>4.3</td><td>FLM Qwen3.6-35B-A3B come stack completo</td><td>Confronto di famiglia; il TTFT fisso di 2,7 s nei loop agentici</td></tr>
+<tr><td>4.4</td><td>Driver NPU 32.00.20102.3930 preso da solo (senza Adrenalin 26.9.1)</td><td>Se FLM lo accetta e se cambia qualcosa</td></tr>
+</table>
+
+<h2>Fase 5 · i candidati alternativi (un giorno ciascuno)</h2>
+<ol>
+<li>KAT-Coder-V2.5-Dev Q4 contro il 35B: stessa architettura, costo zero.</li>
+<li>gpt-oss-120b MXFP4 (61 GB) con la ricetta della fase 2.</li>
+<li>Gemma 4 26B-A4B come controllo dell'affidabilità dei tool call.</li>
+</ol>
+
+<h2>Cosa serve ad Aethera per reggere il piano</h2>
+<table>
+<tr><th>Bisogno</th><th>Dove</th><th>Milestone naturale</th></tr>
+<tr><td>Campi profilo: <code>ctx_checkpoints</code>, <code>checkpoint_min_step</code>, <code>cache_ram</code>, <code>kv_unified</code> (marcati <code>cache</code>); <code>spec_draft_adaptive</code>, <code>n_min/n_max/p_min</code>; <code>n_cpu_moe</code>; <code>tensor_overrides</code> (<code>-ot</code>); <code>lazy_mode</code>; <code>fit</code></td><td>profile.rs, cmdline.rs, pagina Avvio</td><td>Dopo M-05 (profilo da zero): «leve avanzate del motore»</td></tr>
+<tr><td>Manifest: piano energetico, driver GPU/NPU, VGM, disco dei pesi, motore ausiliario acceso</td><td>system.rs, manifest.rs</td><td>Stessa milestone</td></tr>
+<tr><td>Telemetria: pagine mappate da file distinte dal working set; VRAM del processo che scende a riposo (firma della regressione DPM)</td><td>memory.rs, telemetry.rs</td><td>Stessa milestone</td></tr>
+<tr><td>Rilevazione «prefisso instabile» per client</td><td>telemetry.rs, pagina Motore</td><td>M-06 (quando qualcosa va storto)</td></tr>
+<tr><td>Motore ausiliario: <code>runtime.kind = "flm"</code>, porta propria, stato e telemetria in seconda riga; blocco env per i client con due endpoint</td><td>engine.rs, clients.rs, tray</td><td>Nuova milestone «due silici»</td></tr>
+<tr><td>Build locali non ggml-org (fork patchati) dichiarate in machine.toml con hash proprio</td><td>machine.rs, builds.rs</td><td>Nuova milestone o M-07</td></tr>
+<tr><td>Catalogo: varianti potate con provenienza esplicita («community, REAP, base X»), e i file MTP separati come pesi collegati</td><td>catalog.rs, modelcard.rs</td><td>M-05 o successiva</td></tr>
+</table>
+
+<h2>Le idee più azzardate, dichiarate come tali</h2>
+<ul>
+<li><b>Riordinare gli esperti nel GGUF per co-attivazione</b> (TinyGiant: −36× page fault). Uno strumento offline che legge i log del router su un carico di codice e riscrive il file: serve solo se lo streaming da SSD diventa la via.</li>
+<li><b>Cache degli esperti calibrata sul codice</b>: la PR #27861 con una policy appresa (FlashMoE, +51% hit) e un warm-up dagli ultimi task. Su UMA il guadagno è dubbio, ma il log delle attivazioni sarebbe comunque una telemetria nuova e utile.</li>
+<li><b>Turing come rpc-server</b> (RTX 2080 SUPER, 8 GB) sulla LAN: llama.cpp lo vede come device ggml, quindi potrebbe ospitare il draft o l'attenzione. La latenza di rete per token lo rende quasi certamente perdente: da provare in un pomeriggio solo per chiudere la domanda.</li>
+<li><b>eGPU via OCuLink</b>: ha senso solo con una scheda da 24–32 GB che tenga tutto il 35B; a quel punto la iGPU non serve più e questo studio cambia macchina.</li>
+</ul>
+</section>
+<section class="page" id="p-fonti">
+<h1>Fonti</h1>
+<p class="sub">Raccolte dalle cinque ricerche del 16-09-2026. Le pagine AMD (amd.com) sono andate in timeout più volte: i dati che le riguardano vengono da riassunti di ricerca o da fonti terze, ed è segnalato nel testo.</p>
+
+<h2>Dati locali</h2>
+<ul>
+<li>Inventario hardware e driver: letture WMI/PnP/registro su MORO-AI, 16-09-2026.</li>
+<li>Misure del motore: <code>C:\AetheraData\runs\r-20260916-*</code> (manifest e telemetry.jsonl), banco del 15-09 in <code>minis-config/docs/13-launcher.md</code> §7.</li>
+<li>Ricerche precedenti di minis-config: docs 01, 02, 04, 05, 06 (settembre 2026).</li>
+<li>Release llama.cpp: API GitHub, tag b10809 (2026-09-04) e b10991 (2026-09-15).</li>
+</ul>
+
+<h2>Qwen3.8-Flash-Next</h2>
+<div class="sources">
+<a href="https://huggingface.co/Qwen/Qwen3.8-Flash-Next">huggingface.co/Qwen/Qwen3.8-Flash-Next</a><br>
+<a href="https://github.com/QwenLM/Qwen3.8-Flash-Next">github.com/QwenLM/Qwen3.8-Flash-Next</a><br>
+<a href="https://huggingface.co/unsloth/Qwen3.8-Flash-Next-GGUF">unsloth/Qwen3.8-Flash-Next-GGUF</a><br>
+<a href="https://unsloth.ai/docs/models/qwen3.8-next">unsloth.ai/docs/models/qwen3.8-next</a><br>
+<a href="https://huggingface.co/bartowski/Qwen3.8-Flash-Next-GGUF">bartowski/Qwen3.8-Flash-Next-GGUF</a><br>
+<a href="https://huggingface.co/AnonimousA/Qwen3.8-Flash-Next-REAP-320-GGUF">AnonimousA/…-REAP-320-GGUF</a><br>
+<a href="https://huggingface.co/AnonimousA/Qwen3.8-Flash-Next-REAP-256-duo-GGUF">AnonimousA/…-REAP-256-duo-GGUF</a><br>
+<a href="https://huggingface.co/Cyronius/Qwen3.8-Flash-Next-131B-A6B-GGUF">Cyronius/…-131B-A6B-GGUF</a><br>
+<a href="https://huggingface.co/dzannotti/Qwen3.8-Flash-Next-MTP-GGUF">dzannotti/…-MTP-GGUF</a><br>
+<a href="https://huggingface.co/kingjones777/Qwen3.8-Flash-Next-ROCmFP4-STRIX_LEAN-GGUF">kingjones777/…-ROCmFP4-STRIX_LEAN</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/pull/27742">llama.cpp PR #27742 (qwen4exp)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/pull/27941">PR #27941 (fix coerenza)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/pull/28243">PR #28243 (draft-mtp Unsloth)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/pull/27836">PR #27836 (MTP)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/issues/28734">issue #28734 (decode e contesto)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/issues/27856">issue #27856 (HIP oltre 1k)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/discussions/27950">discussion #27950 (Strix Halo, MTP)</a><br>
+<a href="https://www.soothill.io/blog/2026/08/27/qwen38-flash-next-rocm-vulkan-strix-halo/">soothill.io 27-08</a><br>
+<a href="https://huggingface.co/unsloth/Qwen3.8-Flash-Next-GGUF/discussions/52">unsloth GGUF discussion #52</a><br>
+<a href="https://huggingface.co/unsloth/Qwen3.8-Flash-Next-GGUF/discussions/23">discussion #23 (tabella su NVMe)</a><br>
+<a href="https://lilting.ch/en/articles/qwen38-flash-next-llamacpp-m1max-test">lilting.ch (M1 Max, tabella su SSD)</a><br>
+<a href="https://www.hospedales.com/notes/qwen4exp-qwen3-8-flash-next-llama-cpp-master">hospedales.com</a><br>
+<a href="https://zolotukhin.ai/blog/2026-05-07-why-qwen3-next-gated-deltanet-breaks-the-prefix-cache-local-engines-just-built/">zolotukhin.ai (GDN e prefix cache)</a><br>
+<a href="https://gist.github.com/ryan4yin/48617bbddacc7067f10799770b7cc33f">gist ryan4yin</a><br>
+<a href="https://www.datacamp.com/tutorial/run-qwen3-8-flash-next-locally">datacamp tutorial</a><br>
+<a href="https://digitalspaceport.com/qwen3-8-flash-next-notes/">digitalspaceport</a><br>
+<a href="https://featherless.ai/blog/glm-5-3-flash-vs-qwen-3-8-flash-next-vs-qwen-3-8-27b">featherless.ai confronto</a><br>
+<a href="https://artificialanalysis.ai/models/qwen3-8-flash-next">artificialanalysis.ai</a><br>
+<a href="https://github.com/QwenLM/Qwen3.8/issues/217">QwenLM/Qwen3.8 #217 (reasoning_effort)</a>
+</div>
+
+<h2>NPU, Ryzen AI, Lemonade, FastFlowLM</h2>
+<div class="sources">
+<a href="https://ryzenai.docs.amd.com/en/latest/relnotes.html">Ryzen AI SW 1.8 release notes</a><br>
+<a href="https://ryzenai.docs.amd.com/en/latest/inst.html">Ryzen AI SW installazione</a><br>
+<a href="https://ryzenai.docs.amd.com/en/latest/hybrid_oga.html">Ryzen AI hybrid OGA</a><br>
+<a href="https://ryzenai.docs.amd.com/en/latest/llm/overview.html">Ryzen AI LLM overview</a><br>
+<a href="https://www.phoronix.com/news/Ryzen-AI-Software-1.8">Phoronix, Ryzen AI 1.8</a><br>
+<a href="https://github.com/lemonade-sdk/lemonade/releases">Lemonade releases</a><br>
+<a href="https://lemonade-server.ai/docs/guide/faq/">Lemonade FAQ</a><br>
+<a href="https://lemonade-server.ai/docs/api/llamacpp/">Lemonade endpoint llama.cpp</a><br>
+<a href="https://deepwiki.com/lemonade-sdk/lemonade/7.4-npu-support">Lemonade NPU support (DeepWiki)</a><br>
+<a href="https://sleepingrobots.com/dreams/lemonade-server-npu-strix-halo/">sleepingrobots (contesa NPU+GPU)</a><br>
+<a href="https://github.com/ROCm/FastFlowLM">FastFlowLM README</a><br>
+<a href="https://github.com/ROCm/FastFlowLM/releases">FastFlowLM releases</a><br>
+<a href="https://fastflowlm.com/docs/benchmarks/qwen3.6_results/">FLM benchmark Qwen3.6</a><br>
+<a href="https://fastflowlm.com/docs/models/qwen/">FLM modelli Qwen</a><br>
+<a href="https://fastflowlm.com/docs/models/gpt-oss/">FLM gpt-oss</a><br>
+<a href="https://github.com/ROCm/FastFlowLM/issues/710">FLM issue #710 (TTFT 2,7 s)</a><br>
+<a href="https://huggingface.co/FastFlowLM/Qwen3.6-35B-A3B-NPU2">FLM Qwen3.6-35B-A3B-NPU2</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/issues/21725">llama.cpp issue #21725 (backend XDNA)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/issues/23982">issue #23982 (draft remoto)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/blob/master/docs/speculative.md">docs/speculative.md</a><br>
+<a href="https://github.com/BrandedTamarasu-glitch/OllamaAMDNPU">OllamaAMDNPU</a><br>
+<a href="https://github.com/fencerJP/llama-apu">llama-apu</a><br>
+<a href="https://github.com/amd/RyzenAI-SW/tree/main/WinML/LLM">RyzenAI-SW WinML/LLM</a><br>
+<a href="https://www.ntcompatible.com/story/amd-adrenalin-2691-driver-rx-9000-crash-fixes-new-game-support-and-rx-9050-vram-warning">Adrenalin 26.9.1 e driver NPU MCDM</a><br>
+<a href="https://www.amd.com/en/blogs/2025/faqs-amd-variable-graphics-memory-vram-ai-model-sizes-quantization-mcp-more.html">AMD FAQ VGM (75%)</a><br>
+<a href="https://www.techpowerup.com/344730/amd-announces-ryzen-ai-400-series-gorgon-point-mobile-processors">Gorgon Point annuncio</a><br>
+<a href="https://chipsandcheese.com/p/amds-strix-point-zen-5-hits-mobile">Chips and Cheese, Strix Point</a>
+</div>
+
+<h2>Motore llama.cpp, Vulkan, ROCm, memoria</h2>
+<div class="sources">
+<a href="https://github.com/ggml-org/llama.cpp/releases">llama.cpp releases</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/pull/27952">PR #27952 (int8 coopmat1 RDNA3/3.5)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/pull/28105">PR #28105 (sparse FA Vulkan)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/pull/22673">PR #22673 (MTP mainline)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md">server README</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/discussions/18049">discussion #18049 (--fit)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/discussions/22354">discussion #22354 (cache)</a><br>
+<a href="https://www.mykolaaleksandrov.dev/posts/2026/06/claude-code-llamacpp-prompt-cache-fix/">mykolaaleksandrov.dev (Claude Code e cache)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/issues/19818">issue #19818 (ROCm e GTT)</a><br>
+<a href="https://github.com/lemonade-sdk/llamacpp-rocm/issues/57">llamacpp-rocm #57</a><br>
+<a href="https://github.com/ROCm/TheRock/issues/8186">TheRock #8186 (gfx1150)</a><br>
+<a href="https://gist.github.com/Randomblock1/bf9b15926d7f6e96defb839f63c175a3">gist Randomblock1 (890M Vulkan vs ROCm)</a><br>
+<a href="https://www.soothill.io/blog/2026/08/03/llamacpp-vulkan-vs-rocm-strix-halo/">soothill.io 03-08</a><br>
+<a href="https://msbs.com/writing/tuning-llama-cpp-strix-halo/">msbs.com tuning Strix Halo</a><br>
+<a href="https://github.com/hogeheer499-commits/strix-halo-guide">strix-halo-guide (BENCHMARKS.md)</a><br>
+<a href="https://github.com/stew675/llama-cpp-rdna-boosts">stew675/llama-cpp-rdna-boosts</a><br>
+<a href="https://github.com/Nathanw1014/strix-halo-llamacpp">Nathanw1014 (KV q8_0)</a><br>
+<a href="https://hackmd.io/ODXuOQNzSiyUITz7g9mtBw">HackMD (draft esterno negativo)</a><br>
+<a href="https://msf.github.io/blogpost/local-llm-performance-framework13.html">msf.github.io Framework 13</a><br>
+<a href="https://notes.alelec.net/posts/running-local-llms-on-amd-apu-laptop/">alelec (HX PRO 370 Windows)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/issues/19396">issue #19396 (HX 370, Qwen3-Next Q8)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/issues/19480">issue #19480 (Coder-Next su 890M)</a><br>
+<a href="https://zenn.dev/omohikane/articles/llama-cpp-vulkan-bench">zenn.dev (890M bench)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/discussions/23443">discussion #23443 (regressione DPM Adrenalin)</a><br>
+<a href="https://chipsandcheese.com/p/amds-radeon-890m-strix-points-bigger-igpu">Chips and Cheese, 890M</a><br>
+<a href="https://www.mindstudio.ai/blog/nvidia-egpu-amd-strix-halo-mini-pc">MindStudio (eGPU OCuLink)</a><br>
+<a href="https://huggingface.co/blog/Doctor-Shotgun/llamacpp-moe-offload-guide">Doctor-Shotgun MoE offload guide</a><br>
+<a href="https://www.notebookcheck.net/Now-with-AMD-Gorgon-Point-Minisforum-releases-new-X1-Pro-470-mini-PC-globally.1210735.0.html">Notebookcheck X1 Pro 470</a>
+</div>
+
+<h2>Streaming da SSD</h2>
+<div class="sources">
+<a href="https://github.com/ggml-org/llama.cpp/pull/27794">PR #27794 (--lazy-mode)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/pull/25294">PR #25294 (--moe-stream)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/pull/27861">PR #27861 (cache LRU esperti)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/pull/26014">PR #26014 (unbuffered Windows)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/issues/28355">issue #28355 (prefill lento Windows)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/issues/26110">issue #26110 (load-mode)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/discussions/18758">discussion #18758 (mmap vs dio)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/discussions/24528">RFC #24528 (expert cache)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/discussions/27149">discussion #27149 (SSD streaming)</a><br>
+<a href="https://github.com/ddvnguyen/llama.cpp/issues/130">ddvnguyen #130 (misure hit/tok/s)</a><br>
+<a href="https://github.com/markldn/llama.cpp-qwen4exp-rdnaport-latest">markldn rdnaport</a><br>
+<a href="https://github.com/antirez/ds4">antirez/ds4 DwarfStar</a><br>
+<a href="https://github.com/giannisanni/pulsar">pulsar</a><br>
+<a href="https://github.com/JustVugg/colibri">colibri</a><br>
+<a href="https://github.com/jerryjokesalot/tinygiant">tinygiant</a><br>
+<a href="https://insiderllm.com/guides/ssd-streaming-moe-engines/">insiderllm (motori SSD)</a><br>
+<a href="https://arxiv.org/abs/2601.17063">FlashMoE (arXiv 2601.17063)</a><br>
+<a href="https://arxiv.org/html/2602.03495v1">DALI (arXiv 2602.03495)</a><br>
+<a href="https://en.papernotes.org/ICLR2026/llm_efficiency/not_all_models_suit_expert_offloading_on_local_routing_consistency_of_mixture-of/">Not All Models Suit Expert Offloading (ICLR 2026)</a><br>
+<a href="https://www.harddrivebenchmark.net/hdd.php?hdd=KINGSTON+OM8TAP42048K1-A00&amp;id=44290">PassMark Kingston OM8TAP42048K1</a><br>
+<a href="https://www.pugetsystems.com/labs/articles/nvme-raid-0-performance-in-windows-10-pro-1369/">Puget NVMe RAID 0 Windows</a><br>
+<a href="https://github.com/microsoft/diskspd">DiskSpd</a>
+</div>
+
+<h2>Modelli e affidabilità agentica</h2>
+<div class="sources">
+<a href="https://huggingface.co/Qwen/Qwen3.8-27B">Qwen/Qwen3.8-27B</a><br>
+<a href="https://huggingface.co/Qwen/Qwen3.6-35B-A3B">Qwen/Qwen3.6-35B-A3B</a><br>
+<a href="https://huggingface.co/Kwaipilot/KAT-Coder-V2.5-Dev">Kwaipilot/KAT-Coder-V2.5-Dev</a><br>
+<a href="https://huggingface.co/unsloth/Qwen3-Coder-Next-GGUF">unsloth/Qwen3-Coder-Next-GGUF</a><br>
+<a href="https://huggingface.co/openai/gpt-oss-120b">openai/gpt-oss-120b</a><br>
+<a href="https://arxiv.org/pdf/2508.10925">gpt-oss model card</a><br>
+<a href="https://huggingface.co/unsloth/NVIDIA-Nemotron-3-Super-120B-A12B-GGUF">Nemotron 3 Super GGUF</a><br>
+<a href="https://unsloth.ai/docs/models/tutorials/glm-4.7-flash">GLM-4.7-Flash (Unsloth)</a><br>
+<a href="https://unsloth.ai/docs/models/glm-5.3">GLM-5.3 (Unsloth)</a><br>
+<a href="https://huggingface.co/unsloth/DeepSeek-V4-Flash-GGUF">DeepSeek V4-Flash GGUF</a><br>
+<a href="https://unsloth.ai/docs/models/tutorials/devstral-2">Devstral 2 (Unsloth)</a><br>
+<a href="https://unsloth.ai/docs/models/gemma-4">Gemma 4 (Unsloth)</a><br>
+<a href="https://codersera.com/blog/qwen-3-5-complete-guide-2026/">codersera (lineup Qwen)</a><br>
+<a href="https://huggingface.co/Qwen/Qwen3-Embedding-4B-GGUF">Qwen3-Embedding-4B-GGUF</a><br>
+<a href="https://huggingface.co/jinaai/jina-reranker-v3-GGUF">jina-reranker-v3-GGUF</a><br>
+<a href="https://netclaw.dev/troubleshooting/llama-cpp/">netclaw (tool calling e quant)</a><br>
+<a href="https://github.com/anomalyco/opencode/issues/1890">OpenCode #1890</a><br>
+<a href="https://huggingface.co/blog/ggml-org/anthropic-messages-api-in-llamacpp">Anthropic Messages API in llama.cpp</a><br>
+<a href="https://modelfit.io/tools/opencode/">modelfit tier list</a><br>
+<a href="https://github.com/thc1006/qwen3.6-speculative-decoding-rtx3090">thc1006 (MTP e DFlash)</a><br>
+<a href="https://github.com/ggml-org/llama.cpp/discussions/22473">discussion #22473 (draft su 3.6-27B)</a>
+</div>
+
+<h2>Dati cercati e non trovati</h2>
+<ul>
+<li>Varianti «120B» e «98B» di Qwen3.8-Flash-Next con quei nomi; REAP ufficiali Cerebras; SWE-bench Verified e Terminal-Bench per Flash-Next e per i potati.</li>
+<li>Qualsiasi tok/s di Flash-Next, Qwen3.8-27B o del 35B con MTP su 890M Windows oltre alle nostre misure.</li>
+<li>Gorgon Point nelle release notes di Ryzen AI SW; banda della NPU in GB/s; tool CLI per la VGM.</li>
+<li>Prestazioni della memoria condivisa WDDM oltre la VGM su Strix Point con Windows; effetto di HAGS; valori BIOS «Performance» dell'X1 Pro 470.</li>
+<li>Controller e presenza di DRAM del Kingston OM8TAP4 (datasheet non leggibile); esperienze Windows con <code>--lazy-mode</code> oltre l'issue #28355.</li>
+</ul>
+</section>
+  </main>
+</div>
+<script>
+(function(){
+  var buttons=document.querySelectorAll('.nav button[data-p]');
+  var pages=document.querySelectorAll('.page');
+  function show(id){
+    pages.forEach(function(p){p.classList.toggle('on',p.id==='p-'+id)});
+    buttons.forEach(function(b){b.classList.toggle('on',b.dataset.p===id)});
+    document.querySelector('.main').scrollTop=0;
+    try{history.replaceState(null,'','#'+id)}catch(e){}
+  }
+  buttons.forEach(function(b){b.addEventListener('click',function(){show(b.dataset.p)})});
+  var keys=['sintesi','macchina','npu','motore','qwen38','ssd','modelli','piano','fonti'];
+  document.addEventListener('keydown',function(e){
+    if(e.target.tagName==='INPUT')return;
+    var n=parseInt(e.key,10);
+    if(n>=1&&n<=keys.length)show(keys[n-1]);
+  });
+  var h=location.hash.replace('#','');
+  if(keys.indexOf(h)>=0)show(h);
+  var root=document.documentElement;
+  document.getElementById('theme').addEventListener('click',function(){
+    root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';
+  });
+})();
+</script>
+</body>
+</html>

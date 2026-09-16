@@ -136,6 +136,25 @@ impl Tasks {
         Ok(())
     }
 
+    /// I lavori ancora in corso: chiudere Aethera mentre ce n'è uno è una scelta, non un incidente.
+    pub fn running(&self) -> Vec<TaskView> {
+        let mut v: Vec<TaskView> =
+            self.lock().values().filter(|t| t.view.state == State::Running).map(|t| t.view.clone()).collect();
+        v.sort_by(|a, b| a.id.cmp(&b.id));
+        v
+    }
+
+    /// Alza la bandiera su tutti quelli in corso. Ritorna quanti ne ha toccati.
+    pub fn cancel_all(&self) -> usize {
+        let g = self.lock();
+        let mut n = 0;
+        for t in g.values().filter(|t| t.view.state == State::Running) {
+            t.cancel.store(true, Ordering::Relaxed);
+            n += 1;
+        }
+        n
+    }
+
     pub fn running_on(&self, target: &str) -> bool {
         self.lock().values().any(|t| t.view.target == target && t.view.state == State::Running)
     }
@@ -172,6 +191,23 @@ mod tests {
         assert_eq!(v.state, State::Done);
         assert_eq!(v.message.as_deref(), Some("sha256 verificato"));
         assert!(v.ended.is_some());
+    }
+
+    #[test]
+    fn running_work_can_be_listed_and_stopped_all_at_once() {
+        let tasks = Tasks::default();
+        let (a, ca) = tasks.start(Kind::Download, "pesi-grandi").unwrap();
+        let (_b, cb) = tasks.start(Kind::Verify, "pesi-piccoli").unwrap();
+        tasks.finish(&a, Ok("fatto".into()));
+        // Chi ha finito non trattiene l'uscita: solo quelli ancora in corso contano.
+        assert_eq!(tasks.running().len(), 1);
+        assert_eq!(tasks.running()[0].target, "pesi-piccoli");
+
+        assert_eq!(tasks.cancel_all(), 1, "un lavoro già finito non si annulla una seconda volta");
+        assert!(cb.load(Ordering::Relaxed), "il lavoro in corso vede la bandiera");
+        assert!(!ca.load(Ordering::Relaxed), "quello finito no");
+        // La bandiera non chiude il lavoro da sola: lo fa il lavoro, quando se ne accorge.
+        assert_eq!(tasks.running().len(), 1);
     }
 
     #[test]

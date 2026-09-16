@@ -142,6 +142,10 @@ pub struct ModelRow {
     pub part_bytes: Option<u64>,
     pub profiles: Vec<String>,
     pub sampling_by_mode: BTreeMap<String, Sampling>,
+    /// Quando il file di questa voce non c'è più: i file presenti che potrebbero essere lui
+    /// rinominato, perché misurano quanto diceva il publisher. È un sospetto, non una certezza:
+    /// solo lo SHA-256 lo trasforma in una risposta.
+    pub renamed_candidates: Vec<String>,
 }
 
 pub fn path(root: &DataRoot) -> PathBuf {
@@ -252,6 +256,9 @@ pub fn scan(catalog: &mut Catalog, input: &ScanInput) -> Vec<ModelRow> {
         }
     }
 
+    // I file presenti, per misurare i candidati al ricollegamento di una voce sparita.
+    let present: BTreeMap<String, u64> = files.iter().map(|(name, md)| (name.clone(), md.len())).collect();
+
     let mut rows: Vec<ModelRow> = Vec::with_capacity(catalog.models.len());
     for entry in catalog.models.iter_mut() {
         let md = files.get(&entry.file).or_else(|| files.iter().find(|(k, _)| k.eq_ignore_ascii_case(&entry.file)).map(|(_, v)| v));
@@ -271,8 +278,13 @@ pub fn scan(catalog: &mut Catalog, input: &ScanInput) -> Vec<ModelRow> {
             est_profile = Some(p.name.clone());
         }
 
+        let state = state_of(entry, md.is_some(), parts.contains_key(&entry.file));
         rows.push(ModelRow {
-            state: state_of(entry, md.is_some(), parts.contains_key(&entry.file)),
+            renamed_candidates: match state {
+                State::Downloadable | State::Missing => renamed_candidates(entry.size_gb, &present),
+                _ => Vec::new(),
+            },
+            state,
             id: entry.id.clone(),
             repo: entry.repo.clone(),
             quant: entry.quant.clone(),
@@ -295,6 +307,17 @@ pub fn scan(catalog: &mut Catalog, input: &ScanInput) -> Vec<ModelRow> {
     }
     rows.sort_by(|a, b| a.id.cmp(&b.id));
     rows
+}
+
+/// I file presenti che pesano quanto la voce dichiara: candidati a essere lo stesso modello
+/// rinominato. Tolleranza dello 0,5 %, perché `size_gb` del publisher è arrotondato.
+fn renamed_candidates(declared_gb: Option<f64>, present: &BTreeMap<String, u64>) -> Vec<String> {
+    let Some(gb) = declared_gb.filter(|g| *g > 0.0) else { return Vec::new() };
+    present
+        .iter()
+        .filter(|(_, bytes)| ((**bytes as f64 / 1e9) - gb).abs() / gb <= 0.005)
+        .map(|(name, _)| name.clone())
+        .collect()
 }
 
 /// Chiave di confrontabilità del buffer di calcolo: stesso ubatch e stesso backend.
@@ -344,6 +367,44 @@ fn compute_for(map: &BTreeMap<String, MeasuredCompute>, s: &Server, backend: &st
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_unreadable_catalog_says_which_file_and_why() {
+        let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let root = DataRoot::new(std::env::temp_dir().join(format!("aethera-catalogo-rotto-{n}")));
+        fs::create_dir_all(&root.path).unwrap();
+        let file = path(&root);
+        let garbage = "questo non e' TOML [[[\n";
+        fs::write(&file, garbage).unwrap();
+
+        let e = load(&root).unwrap_err();
+        assert!(e.contains(CATALOG_FILE), "il messaggio dice quale file: {e}");
+        assert!(e.len() > CATALOG_FILE.len() + 10, "e perché: {e}");
+        // Leggerlo non lo cambia: correggerlo resta possibile.
+        assert_eq!(fs::read_to_string(&file).unwrap(), garbage);
+
+        // Uno schema che questa Aethera non conosce è un rifiuto, non un catalogo vuoto.
+        fs::write(&file, "schema_version = 99\n").unwrap();
+        assert!(load(&root).unwrap_err().contains("schema_version"));
+        let _ = fs::remove_dir_all(&root.path);
+    }
+
+    #[test]
+    fn a_file_that_weighs_what_a_lost_entry_declared_is_a_candidate_not_an_answer() {
+        let present: BTreeMap<String, u64> = [
+            ("rinominato.gguf".to_string(), 22_285_080_192u64),
+            ("un-altro.gguf".to_string(), 1_989_597_056u64),
+        ]
+        .into_iter()
+        .collect();
+        // 22.285.080.192 byte sono 22,29 GB decimali: il publisher li arrotonda così.
+        assert_eq!(renamed_candidates(Some(22.29), &present), vec!["rinominato.gguf"]);
+        // Nessuna dimensione dichiarata, nessun candidato: non si tira a indovinare.
+        assert!(renamed_candidates(None, &present).is_empty());
+        assert!(renamed_candidates(Some(0.0), &present).is_empty());
+        // Una differenza oltre lo 0,5 % è un altro file.
+        assert!(renamed_candidates(Some(22.0), &present).is_empty());
+    }
     use crate::machine::MachineConfig;
     use crate::system::UnknownProbe;
 

@@ -73,51 +73,155 @@ function Welcome(props: { onDone: (o: Overview) => void }) {
   );
 }
 
-function ExitDialog(props: { status: EngineStatus | null; onClose: () => void }) {
-  const [remember, setRemember] = createSignal(false);
+/**
+  * Dialogo dell'uscita. Due cose possono trattenere Aethera: un motore acceso e un lavoro lungo in
+  * corso. Sono decisioni diverse e si prendono separatamente — un hash o un download a metà non si
+  * troncano in silenzio, e fermarli vuol dire lasciare il `.part` dov'è, non buttarlo.
+  */
+/**
+ * La radice dati c'è nelle impostazioni ma non si può usare: disco esterno staccato, cartella di
+ * rete caduta, percorso rinominato, sola lettura. Finché è così Aethera non può fare niente di
+ * sensato, e insistere sarebbe peggio: si dice che cos'è successo e si offre l'unica mossa utile.
+ */
+function Unreachable(props: { overview: Overview; onDone: (o: Overview) => void }) {
   const [error, setError] = createSignal<string | null>(null);
-  const exit = async (stop: boolean) => {
+  const pick = async () => {
+    setError(null);
     try {
-      await api.appExit(stop, remember());
+      const picked = await open({ directory: true });
+      if (typeof picked === "string") props.onDone(await api.setDataRoot(picked));
     } catch (e) {
       setError(String(e));
     }
   };
+  const retry = async () => {
+    setError(null);
+    try {
+      props.onDone(await api.overview());
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+  return (
+    <div class="welcome card">
+      <h1>La radice dati non risponde</h1>
+      <div class="note err mb">{props.overview.data_root_error}</div>
+      <p class="sub">
+        Aethera cerca i suoi dati in <code>{props.overview.data_root}</code>. Finché quella cartella non è raggiungibile
+        e scrivibile non può leggere i profili né avviare niente. Nessun dato è stato toccato: se il disco era esterno o
+        di rete, ricollegalo e riprova.
+      </p>
+      <Show when={error()}>
+        <div class="note err mb">{error()}</div>
+      </Show>
+      <div class="row">
+        <button class="btn primary" onClick={retry}>
+          Riprova
+        </button>
+        <button class="btn" onClick={pick}>
+          Scegli un'altra cartella…
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ExitDialog(props: { status: EngineStatus | null; onClose: () => void }) {
+  const [remember, setRemember] = createSignal(false);
+  const [error, setError] = createSignal<string | null>(null);
+  const [tasks, setTasks] = createSignal<api.TaskView[]>([]);
+  const [stopping, setStopping] = createSignal(false);
+
+  onMount(async () => {
+    setTasks((await api.tasksList().catch(() => [])).filter((t) => t.state === "running"));
+  });
+
+  const exit = async (stop: boolean) => {
+    setError(null);
+    setStopping(tasks().length > 0);
+    try {
+      await api.appExit(stop, remember(), tasks().length > 0);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setStopping(false);
+    }
+  };
   const usage = () => api.usageOf(props.status);
+  const engineOn = () => api.isEngineOn(props.status);
+  const label = (t: api.TaskView) =>
+    t.kind === "verify" ? "verifica SHA-256" : t.kind === "download" ? "download" : t.kind === "copy" ? "copia" : "installazione";
   return (
     <div class="overlay">
       <div class="card dialog">
         <h2>Esci</h2>
-        <p style={{ margin: "0 0 8px" }}>
-          Il motore <span class="mono">{api.runOf(props.status)?.profile}</span> è acceso
-          <Show when={usage()?.in_use}>
-            {" "}
-            e risulta <b>in uso</b> ({usage()!.reasons.join(", ")})
-          </Show>
-          .
-        </p>
-        <p style={{ margin: "0 0 10px", color: "var(--fg2)" }}>
-          Se lo lasci acceso resta orfano: Aethera al prossimo avvio lo mostrerà come tale e potrà solo leggerlo o
-          terminarlo.
-        </p>
+        <Show when={engineOn()}>
+          <p style={{ margin: "0 0 8px" }}>
+            Il motore <span class="mono">{api.runOf(props.status)?.profile}</span> è acceso
+            <Show when={usage()?.in_use}>
+              {" "}
+              e risulta <b>in uso</b> ({usage()!.reasons.join(", ")})
+            </Show>
+            .
+          </p>
+          <p style={{ margin: "0 0 10px", color: "var(--fg2)" }}>
+            Se lo lasci acceso resta orfano: Aethera al prossimo avvio lo mostrerà come tale e potrà solo leggerlo o
+            terminarlo.
+          </p>
+        </Show>
+        <Show when={tasks().length}>
+          <p style={{ margin: "0 0 6px" }}>
+            {tasks().length === 1 ? "C'è un lavoro in corso" : `Ci sono ${tasks().length} lavori in corso`}:
+          </p>
+          <ul class="errors" style={{ margin: "0 0 8px" }}>
+            <For each={tasks()}>
+              {(t) => (
+                <li>
+                  <span class="mono">{t.target}</span> · {label(t)}
+                  <Show when={t.total}>
+                    <span class="cond">
+                      {" "}
+                      {((t.done / t.total!) * 100).toFixed(0)} %
+                    </span>
+                  </Show>
+                </li>
+              )}
+            </For>
+          </ul>
+          <p style={{ margin: "0 0 10px", color: "var(--fg2)" }}>
+            Uscendo li fermo e aspetto che chiudano i loro file. Un download fermato lascia il suo <code>.part</code>: la
+            prossima volta «Riprendi» riparte da lì. Un hash fermato non scrive niente e si rifà da capo.
+          </p>
+        </Show>
         <Show when={error()}>
           <div class="note err mb">{error()}</div>
         </Show>
+        <Show when={stopping()}>
+          <div class="note mb">Fermo i lavori e aspetto che chiudano i file…</div>
+        </Show>
         <div class="row">
-          <button class="btn danger" disabled={usage()?.in_use} title={usage()?.in_use ? "in uso" : ""} onClick={() => exit(true)}>
-            Ferma ed esci
-          </button>
-          <button class="btn" onClick={() => exit(false)}>
-            Lascia acceso ed esci
-          </button>
+          <Show when={engineOn()} fallback={
+            <button class="btn danger" disabled={stopping()} onClick={() => exit(false)}>
+              {tasks().length ? "Ferma i lavori ed esci" : "Esci"}
+            </button>
+          }>
+            <button class="btn danger" disabled={usage()?.in_use || stopping()} title={usage()?.in_use ? "in uso" : ""} onClick={() => exit(true)}>
+              Ferma ed esci
+            </button>
+            <button class="btn" disabled={stopping()} onClick={() => exit(false)}>
+              Lascia acceso ed esci
+            </button>
+          </Show>
           <button class="btn primary" onClick={props.onClose}>
             Annulla
           </button>
         </div>
-        <label class="cond" style={{ display: "block", "margin-top": "8px" }}>
-          <input type="checkbox" checked={remember()} onChange={(e) => setRemember(e.currentTarget.checked)} /> Ricorda la
-          scelta
-        </label>
+        <Show when={engineOn()}>
+          <label class="cond" style={{ display: "block", "margin-top": "8px" }}>
+            <input type="checkbox" checked={remember()} onChange={(e) => setRemember(e.currentTarget.checked)} /> Ricorda
+            la scelta <span class="cond">(vale per il motore, non per i lavori in corso)</span>
+          </label>
+        </Show>
       </div>
     </div>
   );
@@ -254,6 +358,7 @@ export default function App() {
         </Show>
         <Show when={overview()}>
           {(o) => (
+            <Show when={!o().data_root_error} fallback={<Unreachable overview={o()} onDone={setOverview} />}>
             <Show when={o().data_root} fallback={<Welcome onDone={setOverview} />}>
               <Switch>
                 <Match when={page() === "motore"}>
@@ -283,6 +388,7 @@ export default function App() {
                   <Impostazioni overview={o()} status={status()} onChange={setOverview} />
                 </Match>
               </Switch>
+            </Show>
             </Show>
           )}
         </Show>
