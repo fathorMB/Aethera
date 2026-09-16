@@ -46,13 +46,30 @@ tutti con lo stesso responsabile:
 Il primo 141 in assoluto è delle 12:49:51, alla prima richiesta di embedding mai mandata alla NPU; prima di
 FastFlowLM la macchina non ne aveva.
 
+## Dove sta il problema: negli embedding
+
+Prove col driver nuovo, tutte con `--pmode performance`, ognuna fermata al primo blocco:
+
+| carico | modelli caricati | NPU (Task Manager) | richieste | blocchi |
+|---|---|---|---|---|
+| embedding continui | EmbeddingGemma + Qwen3.5-4B | ~25% | 199 (tre prove) | **3** |
+| generazione lunga, 256 token | Qwen3.5-4B | 100% | 14 | 0 |
+| generazione da un token | Qwen3.5-4B | — | 130 | 0 |
+| generazione da un token | EmbeddingGemma (fermo) + Qwen3.5-4B | — | 218 | 0 |
+
+Al ritmo degli embedding, zero blocchi su 362 richieste di generazione per caso ha probabilità ~0,4%. Quindi
+non contano il carico (la NPU al 100% regge), né il numero di lavori brevi, né la presenza di due modelli:
+il blocco scatta sul percorso degli embedding (`gemma_embedding.dll` di FastFlowLM, o quello che chiede al
+driver). Qwen3.5-4B sulla NPU: prefill 383–419 tok/s su 401 token, TTFT ~1 s, decode 16,0 tok/s.
+
 ## Cosa non è stato provato
 
 - `--pmode balanced` o `powersaver` al posto di `performance`
-- solo generazione (Qwen3.5-4B) senza embedding, per più di pochi secondi
-- un altro runtime sulla NPU (per esempio ONNX Runtime con il provider VitisAI dell'AI bundle), per separare
-  il driver dai kernel di FastFlowLM
+- embedding con altri modelli o con testi più corti
+- un altro runtime sulla NPU (per esempio quello dell'AI bundle), per separare il driver dai kernel di
+  FastFlowLM
 
 ## Per Aethera
 
-Oggi questa NPU non è un secondo motore affidabile per un carico continuo. T-11 di M-08 resta bloccato.
+La generazione con Qwen3.5-4B sulla NPU regge; gli embedding su NPU no, e col driver vecchio hanno portato a una
+schermata blu. T-11 di M-08 si può rifare con la condizione C (NPU che genera), non con la B (embedding).
