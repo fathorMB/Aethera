@@ -7,7 +7,7 @@ riscrive l'inizio (un'intestazione con l'ora, un identificativo nuovo a ogni tur
 riordinati) lo azzera, e il motore deve rielaborare tutto.
 
     python prefix_proxy.py --port 8081 --upstream http://127.0.0.1:8080 --label opencode \
-        --out C:/AetheraData/m08/T-10-prefissi.jsonl
+        --out <radice>/m08/T-10-prefissi.jsonl
 
 Il client va puntato su http://127.0.0.1:8081. Non si misura il client a parole: si misura
 il byte in cui la sua richiesta smette di assomigliare alla precedente.

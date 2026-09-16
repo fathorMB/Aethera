@@ -19,7 +19,10 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 const G1: &str = "qwen3.6-35b-a3b.q4_k_m.vulkan";
-const NONIO: &str = r"C:\Git\Nonio\target\release\nonio.exe";
+/// Eseguibile di Nonio: `AETHERA_NONIO_EXE`, altrimenti `nonio.exe` dal PATH.
+fn nonio() -> String {
+    std::env::var("AETHERA_NONIO_EXE").unwrap_or_else(|_| "nonio.exe".into())
+}
 
 fn agent() -> ureq::Agent {
     ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(30))).http_status_as_error(false).build().into()
@@ -206,7 +209,7 @@ fn main() -> Result<(), String> {
                     m.server.ctx_served.unwrap_or(65536)
                 );
                 std::fs::write(&prof, toml).map_err(|e| e.to_string())?;
-                let mut cmd = Command::new(NONIO);
+                let mut cmd = Command::new(nonio());
                 cmd.args(["run", "--max-turns", "6", "--budget-wallclock", "600", "-p"]).arg(&prof).arg("-w").arg(&ws).arg(task);
                 run_client("Nonio", cmd)?
             }

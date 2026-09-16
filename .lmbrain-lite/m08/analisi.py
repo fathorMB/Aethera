@@ -5,7 +5,7 @@ Legge `<radice>/m08/T-NN.jsonl` (una riga per richiesta, numeri del motore così
 
 Mediana e scarto tipo sui soli giri buoni: i riscaldamenti restano nel file ma non nel conto.
 
-    python analisi.py C:/AetheraData/m08 T-04 T-05 …
+    python analisi.py <radice>/m08 T-04 T-05 …
 """
 import io
 import json

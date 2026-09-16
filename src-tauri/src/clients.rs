@@ -369,14 +369,14 @@ mod tests {
         assert!(!s.claude_code_ready);
         assert!(s.claude_code_powershell.contains("errore 500"), "{}", s.claude_code_powershell);
         f.chat_template = Some("qwen3.6-tollerante.jinja");
-        f.claude_config_dir = Some(r"C:\AetheraData\clients\claude-code".into());
+        f.claude_config_dir = Some(r"X:\radice\clients\claude-code".into());
         let s = snippets(&f);
         assert!(s.claude_code_ready);
         assert!(!s.claude_code_powershell.contains("errore 500"));
         assert!(s.claude_code_powershell.starts_with("$env:ANTHROPIC_BASE_URL = \"http://127.0.0.1:8080\"\n"));
         assert!(s.claude_code_powershell.contains("$env:CLAUDE_CODE_MAX_OUTPUT_TOKENS = \"4096\""));
         assert!(s.claude_code_powershell.ends_with("\nclaude"));
-        assert!(s.claude_code_bash.contains("# export CLAUDE_CONFIG_DIR=\"C:/AetheraData/clients/claude-code\""), "{}", s.claude_code_bash);
+        assert!(s.claude_code_bash.contains("# export CLAUDE_CONFIG_DIR=\"X:/radice/clients/claude-code\""), "{}", s.claude_code_bash);
         let oc: serde_json::Value = serde_json::from_str(&s.opencode).unwrap();
         let model = &oc["provider"]["aethera"]["models"]["qwen3.6-35b-a3b.q4_k_m.vulkan"];
         assert_eq!((model["limit"]["context"].as_u64(), model["limit"]["output"].as_u64()), (Some(32768), Some(4096)));

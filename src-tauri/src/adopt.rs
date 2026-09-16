@@ -258,7 +258,7 @@ mod tests {
 
     #[test]
     fn volumes_are_compared_without_caring_about_case_or_slashes() {
-        assert_eq!(volume_of(Path::new(r"C:\Git\pesi\x.gguf")).as_deref(), Some("c:"));
+        assert_eq!(volume_of(Path::new(r"X:\pesi\x.gguf")).as_deref(), Some("x:"));
         assert_eq!(volume_of(Path::new("D:/pesi")).as_deref(), Some("d:"));
         assert_eq!(volume_of(Path::new(r"\\NAS\Modelli\x.gguf")).as_deref(), Some(r"\\nas\modelli"));
         assert_eq!(volume_of(Path::new("relativo/x.gguf")), None);

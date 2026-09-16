@@ -73,13 +73,13 @@ App alla radice del repo: `src/` (SolidJS), `src-tauri/` (Rust, crate `aethera_l
 
 - Sviluppo: `npm.cmd run tauri dev` (sulla PowerShell dell'operatore `npm.ps1` è bloccato).
 - Test: `cargo test --manifest-path src-tauri/Cargo.toml` (fixture in `src-tauri/tests/fixtures/minis-config/`), `npm.cmd test`, `npm.cmd run build`.
-- Prova reale M-03: `cargo run --manifest-path src-tauri/Cargo.toml --example e2e_m03 -- C:\AetheraData` (memoria, telemetria, cache, lock che rifiuta lo stop) ed `--example e2e_orphan -- C:\AetheraData` (orfano riconosciuto e terminato). Richiedono la porta 8080 e 8090 libere: non con `tauri dev` acceso (8090).
-- Prova reale M-09: `cargo run --manifest-path src-tauri/Cargo.toml --example e2e_m09 -- C:\AetheraData <cartella di lavoro> [nonio opencode claude]`: G1 con le proposte e il template tollerante, i tre client con le righe di Aethera e un lock ciascuno. `--example m09_replay -- C:\AetheraData <id avvio>` rilegge il log di un avvio con il parser nuovo e lo confronta con `/slots`; `--example conditions` stampa le condizioni della macchina.
-- Prova reale M-04: `cargo run --manifest-path src-tauri/Cargo.toml --example e2e_m04 -- C:\AetheraData`
+- Prova reale M-03: `cargo run --manifest-path src-tauri/Cargo.toml --example e2e_m03 -- <radice>` (memoria, telemetria, cache, lock che rifiuta lo stop) ed `--example e2e_orphan -- <radice>` (orfano riconosciuto e terminato). Richiedono la porta 8080 e 8090 libere: non con `tauri dev` acceso (8090).
+- Prova reale M-09: `cargo run --manifest-path src-tauri/Cargo.toml --example e2e_m09 -- <radice> <cartella di lavoro> [nonio opencode claude]`: G1 con le proposte e il template tollerante, i tre client con le righe di Aethera e un lock ciascuno. `--example m09_replay -- <radice> <id avvio>` rilegge il log di un avvio con il parser nuovo e lo confronta con `/slots`; `--example conditions` stampa le condizioni della macchina.
+- Prova reale M-04: `cargo run --manifest-path src-tauri/Cargo.toml --example e2e_m04 -- <radice>`
   (metadati, stima contro la misura, catalogo, oid LFS, ripresa del download sul file vero, release e digest).
   `--hash` aggiunge il ricalcolo completo dei 22 GB; `--install` installa davvero una build in `%TEMP%`
   (non nella radice dati). `--example gguf_dump -- <file.gguf>` stampa tutte le chiavi di un GGUF.
-- Prova reale M-02: `cargo run --manifest-path src-tauri/Cargo.toml --example e2e_g1 -- <radice> C:\Git\minis-config\models C:\Nonio\llama-b10809-vulkan`; resta acceso finché non si crea `<radice>/stop-e2e`. Preflight: `node tasks/run.mjs --preflight nonio` in minis-config con `BENCH_MODEL=qwen3.6-35b-a3b BENCH_CONTEXT=32768 BENCH_CONVERSATION=24000` e i percorsi di Nonio in `C:\Git\Nonio`.
+- Prova reale M-02: `cargo run --manifest-path src-tauri/Cargo.toml --example e2e_g1 -- <radice> <pesi> <nonio>\llama-b10809-vulkan`; resta acceso finché non si crea `<radice>/stop-e2e`. Preflight: `node tasks/run.mjs --preflight nonio` in minis-config con `BENCH_MODEL=qwen3.6-35b-a3b BENCH_CONTEXT=32768 BENCH_CONVERSATION=24000` e i percorsi di Nonio in `<nonio>`.
 
 ## Misure di riferimento (15-09, E2E M-02)
 

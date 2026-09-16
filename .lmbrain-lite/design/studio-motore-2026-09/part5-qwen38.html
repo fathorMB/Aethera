@@ -79,6 +79,6 @@
   --ctx-checkpoints 128 --checkpoint-min-step 128 --cache-ram 15000 ^
   --jinja --reasoning-format deepseek ^
   --chat-template-kwargs "{\"reasoning_effort\":\"medium\"}" ^
-  --metrics --slot-save-path C:\AetheraData\slots</pre>
+  --metrics --slot-save-path D:\AetheraDati\slots</pre>
 <p>Variabili da esplorare una alla volta: <code>--n-cpu-moe</code> 0/4/8/16 contro VGM 64 GB; KV q8_0 solo dopo una prova di coerenza (un report la dà per instabile su qwen4exp, un altro la usa senza problemi <span class="v">V</span>); MTP con build patchata e la testa dzannotti; <code>reasoning_effort</code> low/medium. Mai <code>GGML_CUDA_ENABLE_UNIFIED_MEMORY</code> (output corrotto su APU) <span class="v">V</span>.</p>
 </section>

@@ -7,7 +7,7 @@ updated: 2026-09-15
 
 ## What it is
 
-Aethera è un launcher desktop per l'inferenza locale con `llama-server` (llama.cpp), pensato per l'agentic coding con modelli Qwen su hardware a memoria unificata (Minisforum AI X1 Pro, Radeon 890M, 96 GB di cui 48 riservati alla iGPU). Gestisce il ciclo di vita del motore, il catalogo di pesi e build, i profili di avvio, la memoria misurata e la telemetria delle prestazioni. Nasce dai requisiti raccolti in `C:\Git\minis-config\docs\13-launcher.md` (2026-09-15).
+Aethera è un launcher desktop per l'inferenza locale con `llama-server` (llama.cpp), pensato per l'agentic coding con modelli Qwen su hardware a memoria unificata (Minisforum AI X1 Pro, Radeon 890M, 96 GB di cui 48 riservati alla iGPU). Gestisce il ciclo di vita del motore, il catalogo di pesi e build, i profili di avvio, la memoria misurata e la telemetria delle prestazioni. Nasce dai requisiti raccolti in `<minis-config>\docs\13-launcher.md` (2026-09-15).
 
 ## Who uses it and why
 

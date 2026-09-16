@@ -5,7 +5,7 @@ updated: 2026-09-15
 
 # Decisioni di progetto (analisi del 2026-09-15)
 
-Fonte dei requisiti: `C:\Git\minis-config\docs\13-launcher.md`. Ogni voce risponde a una domanda posta all'operatore.
+Fonte dei requisiti: `<minis-config>\docs\13-launcher.md`. Ogni voce risponde a una domanda posta all'operatore.
 
 | # | Domanda | Decisione |
 |---|---|---|

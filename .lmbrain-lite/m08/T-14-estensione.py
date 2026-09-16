@@ -8,7 +8,7 @@ Quindi il costo fisso non e' una proprieta' del motore: e' il prezzo di un clien
 il prompt senza la risposta che il modello ha appena dato. Questa misura mette i due modi uno
 accanto all'altro sullo stesso motore acceso, con lo stesso prompt congelato.
 
-    python T-14-estensione.py http://127.0.0.1:8080 C:/AetheraData/m08/T-14.jsonl
+    python T-14-estensione.py http://127.0.0.1:8080 <radice>/m08/T-14.jsonl
 """
 import json
 import os

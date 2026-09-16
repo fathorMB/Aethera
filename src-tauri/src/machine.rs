@@ -248,9 +248,9 @@ mod tests {
         let m = MachineConfig {
             schema_version: 1,
             name: "moro-ai".into(),
-            models_dir: Some(PathBuf::from(r"C:\Git\minis-config\models")),
+            models_dir: Some(PathBuf::from(r"X:\pesi")),
             ram_margin_gib: 16.0,
-            builds: vec![BuildEntry { id: "b10809-vulkan".into(), path: PathBuf::from(r"C:\Nonio\llama-b10809-vulkan") }],
+            builds: vec![BuildEntry { id: "b10809-vulkan".into(), path: PathBuf::from(r"X:\llama\b10809-vulkan") }],
         };
         let text = toml::to_string_pretty(&m).unwrap();
         assert_eq!(toml::from_str::<MachineConfig>(&text).unwrap(), m);

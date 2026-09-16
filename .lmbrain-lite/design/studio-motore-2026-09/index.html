@@ -170,7 +170,7 @@ tr.hl td{background:rgba(91,141,255,.08)}
 <tr><td>RAM</td><td class="mono">2 × 48 GB SODIMM DDR5-5600 (SMBIOS tipo 34), 96 GB; Windows ne vede 47,6 GB</td><td>48 GB riservati alla iGPU (VGM). 5600 MT/s è il massimo della piattaforma su SODIMM: nessuna banda da recuperare con altri moduli <span class="v">V</span></td></tr>
 <tr><td>SSD</td><td class="mono">Kingston OM8TAP42048K1-A00, 2 TB NVMe, NTFS, 1,9 TB liberi</td><td>Un solo M.2 occupato. La X1 Pro ha tre slot M.2: due PCIe 4.0 ×4 e uno ×1 <span class="v">V</span>. Vedi «Streaming da SSD»</td></tr>
 <tr><td>Sistema</td><td class="mono">Windows 11 Pro 26200 (25H2), BIOS 1.01 del 09-04-2026, modalità alimentazione «Massime prestazioni» (overlay ded574b5 sopra lo schema Bilanciato)</td><td>Il TDP dichiarato dell'X1 Pro 470 è 54 W condiviso CPU+iGPU <span class="v">V</span>; le modalità BIOS non sono documentate nelle fonti trovate</td></tr>
-<tr><td>Motore</td><td class="mono">llama-server b10809 (5266f24da, 4 settembre 2026), Vulkan, in C:\Nonio</td><td>L'ultima release il 15 settembre era b10991: 180 build di distanza <span class="v">M</span></td></tr>
+<tr><td>Motore</td><td class="mono">llama-server b10809 (5266f24da, 4 settembre 2026), Vulkan, in D:\llama</td><td>L'ultima release il 15 settembre era b10991: 180 build di distanza <span class="v">M</span></td></tr>
 <tr><td>Pesi presenti</td><td class="mono">Qwen3.6-35B-A3B Q4_K_M (22,29 GB, 2 hard link) + MTP Q8_0 separato (1,99 GB)</td><td>Alla stesura era l'unico modello. Dopo M-08 ci sono anche Qwen3-Coder-Next Q4_K_M (48,53 GB), Qwen3-8B Q4_K_M e la build b10991</td></tr>
 </table>
 
@@ -394,7 +394,7 @@ tr.hl td{background:rgba(91,141,255,.08)}
   --ctx-checkpoints 128 --checkpoint-min-step 128 --cache-ram 15000 ^
   --jinja --reasoning-format deepseek ^
   --chat-template-kwargs "{\"reasoning_effort\":\"medium\"}" ^
-  --metrics --slot-save-path C:\AetheraData\slots</pre>
+  --metrics --slot-save-path D:\AetheraDati\slots</pre>
 <p>Variabili da esplorare una alla volta: <code>--n-cpu-moe</code> 0/4/8/16 contro VGM 64 GB; KV q8_0 solo dopo una prova di coerenza (un report la dà per instabile su qwen4exp, un altro la usa senza problemi <span class="v">V</span>); MTP con build patchata e la testa dzannotti; <code>reasoning_effort</code> low/medium. Mai <code>GGML_CUDA_ENABLE_UNIFIED_MEMORY</code> (output corrotto su APU) <span class="v">V</span>.</p>
 </section>
 <section class="page" id="p-ssd">
@@ -611,10 +611,10 @@ tr.hl td{background:rgba(91,141,255,.08)}
 <h2>Dati locali</h2>
 <ul>
 <li>Inventario hardware e driver: letture WMI/PnP/registro su MORO-AI, 16-09-2026.</li>
-<li>Misure del motore: <code>C:\AetheraData\runs\r-20260916-*</code> (manifest e telemetry.jsonl), banco del 15-09 in <code>minis-config/docs/13-launcher.md</code> §7.</li>
+<li>Misure del motore: <code>D:\AetheraDati\runs\r-20260916-*</code> (manifest e telemetry.jsonl), banco del 15-09 in <code>minis-config/docs/13-launcher.md</code> §7.</li>
 <li>Ricerche precedenti di minis-config: docs 01, 02, 04, 05, 06 (settembre 2026).</li>
 <li>Release llama.cpp: API GitHub, tag b10809 (2026-09-04) e b10991 (2026-09-15).</li>
-<li>Misure di M-08 (aggiornamento del 16-09): <code>.lmbrain-lite/reports/misure-motore-2026-09.md</code>, righe grezze in <code>C:\AetheraData\m08\</code> (col driver nuovo in <code>driver31041\</code>).</li>
+<li>Misure di M-08 (aggiornamento del 16-09): <code>.lmbrain-lite/reports/misure-motore-2026-09.md</code>, righe grezze in <code>D:\AetheraDati\m08\</code> (col driver nuovo in <code>driver31041\</code>).</li>
 <li>Blocco della NPU: <code>.lmbrain-lite/reports/npu-blocco-2026-09-16.md</code>; dodici minidump WATCHDOG analizzati con WinDbg 1.2606.</li>
 <li>Prova della regressione DPM: VRAM dedicata del motore letta da PDH ogni 10 s per 100 s di riposo, 16-09.</li>
 </ul>

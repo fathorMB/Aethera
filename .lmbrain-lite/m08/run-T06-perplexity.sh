@@ -10,10 +10,11 @@
 # la misura parla del carico che questa macchina vive davvero.
 
 set -u
-BUILD="${BUILD:-C:/Nonio/llama-b10809-vulkan}"
-MODEL="${MODEL:-C:/Git/minis-config/models/Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf}"
+. "$(dirname "$0")/../percorsi.sh"
+BUILD="${BUILD:-${AETHERA_BUILD:?imposta AETHERA_BUILD}}"
+MODEL="${MODEL:-${AETHERA_PESI:?imposta AETHERA_PESI}/Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-OUT="${1:-C:/AetheraData/m08}"
+OUT="${1:-$AETHERA_RADICE/m08}"
 mkdir -p "$OUT"
 RES="$OUT/T-06-perplexity.txt"
 : > "$RES"

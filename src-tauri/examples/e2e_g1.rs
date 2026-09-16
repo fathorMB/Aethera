@@ -12,7 +12,11 @@ use aethera_lib::{import, launch, system};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-const G1_JSON: &str = r"C:\Git\minis-config\profiles\qwen3.6-35b-a3b.q4_k_m.vulkan.json";
+/// Profilo G1 di minis-config, dalla variabile `AETHERA_G1_JSON`
+/// (per esempio `<minis-config>\profiles\qwen3.6-35b-a3b.q4_k_m.vulkan.json`).
+fn g1_json() -> Result<String, String> {
+    std::env::var("AETHERA_G1_JSON").map_err(|_| "imposta AETHERA_G1_JSON con il profilo G1 di minis-config".to_string())
+}
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -30,7 +34,8 @@ fn main() -> Result<(), String> {
     };
     root.save_machine(&machine)?;
 
-    let text = std::fs::read_to_string(G1_JSON).map_err(|e| format!("{G1_JSON}: {e}"))?;
+    let g1_json = g1_json()?;
+    let text = std::fs::read_to_string(&g1_json).map_err(|e| format!("{g1_json}: {e}"))?;
     let imported = import::import_minis_json(&text, "qwen3.6-35b-a3b.q4_k_m.vulkan.json", "b10809")?;
     let profile = imported.profile;
     let profile_file = root.profiles().join(format!("{}.toml", profile.name));

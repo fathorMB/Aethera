@@ -10,9 +10,10 @@
 # il divario è nei kernel; se restano vicini, è la piattaforma.
 
 set -u
-BUILD="${BUILD:-C:/Nonio/llama-b10809-vulkan}"
-MODELS="${MODELS:-C:/Git/minis-config/models}"
-OUT="${1:-C:/AetheraData/m08}"
+. "$(dirname "$0")/../percorsi.sh"
+BUILD="${BUILD:-${AETHERA_BUILD:?imposta AETHERA_BUILD}}"
+MODELS="${MODELS:-${AETHERA_PESI:?imposta AETHERA_PESI}}"
+OUT="${1:-$AETHERA_RADICE/m08}"
 mkdir -p "$OUT"
 
 BENCH="$BUILD/llama-bench.exe"
