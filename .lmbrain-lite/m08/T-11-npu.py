@@ -56,7 +56,7 @@ def npu_loop(kind, stop, rows):
                 row = {"kind": kind, "n": len(v.get("data", [])), "dim": len(v["data"][0]["embedding"]) if v.get("data") else 0}
             else:
                 v = post(f"{FLM}/v1/chat/completions", {
-                    "model": "qwen3.5:4b", "max_tokens": 256, "temperature": 0.7, "stream": False,
+                    "model": "qwen3.5:4b", "max_tokens": 1 if kind == "breve" else 256, "temperature": 0.7, "stream": False,
                     "messages": [{"role": "user", "content": f"({i}) Spiega in dieci righe che cosa fa questo codice:\n{NPU_TEXT[:1200]}"}]})
                 row = {"kind": kind, "usage": v.get("usage"), "extra": {k: v[k] for k in v if k not in ("choices", "usage")}}
         except Exception as e:  # la NPU che fallisce va scritta, non nascosta

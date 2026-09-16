@@ -2,7 +2,7 @@
 driver NPU o dalla contesa con la iGPU? Stessi carichi del driver T-11-npu.py, riga per riga su
 disco, così un crash non si porta via niente.
 
-Uso: python T-11-npu-sola.py [minuti-embedding] [minuti-chat]
+Uso: python T-11-npu-sola.py [minuti-embedding] [minuti-chat] [minuti-chat-da-un-token]
 """
 import importlib.util
 import json
@@ -34,9 +34,12 @@ class Rows(list):
 
 
 for fase, minuti in (("embedding", float(sys.argv[1]) if len(sys.argv) > 1 else 10),
-                     ("chat", float(sys.argv[2]) if len(sys.argv) > 2 else 5)):
+                     ("chat", float(sys.argv[2]) if len(sys.argv) > 2 else 5),
+                     ("breve", float(sys.argv[3]) if len(sys.argv) > 3 else 0)):
+    if minuti <= 0:
+        continue
     stop, rows = threading.Event(), Rows(fase)
-    th = threading.Thread(target=t11.npu_loop, args=(fase if fase == "embedding" else "genera", stop, rows), daemon=True)
+    th = threading.Thread(target=t11.npu_loop, args=(fase if fase != "chat" else "genera", stop, rows), daemon=True)
     th.start()
     time.sleep(minuti * 60)
     stop.set()
