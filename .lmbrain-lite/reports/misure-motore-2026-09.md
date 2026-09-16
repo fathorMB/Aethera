@@ -1,8 +1,10 @@
 # Misure del motore sulla Minisforum — settembre 2026
 
-> **Stato: in scrittura.** Le tabelle si riempiono man mano che le misure finiscono, nella notte fra
-> il 16 e il 17 settembre 2026. Ogni riga viene da un avvio registrato da Aethera: il `run id` nella
-> colonna di destra è il manifest, il log e la telemetria di quell'avvio, in `C:\AetheraData\runs\`.
+> **Stato: chiuso la notte fra il 16 e il 17 settembre 2026**, per le misure che si potevano fare
+> da qui. Restano fuori tre cose e sono dichiarate dove cadono: la VGM a 64 GB (chiede la GUI di
+> Adrenalin e un riavvio), due client su tre in T-10, e la NPU di T-11. Ogni riga viene da un avvio
+> registrato da Aethera: il `run id` nelle condizioni di ogni misura è il manifest, il log e la
+> telemetria di quell'avvio, in `C:\AetheraData\runs\`.
 
 Questo rapporto sostituisce con misure fatte su **questa** macchina i numeri di altre macchine che
 lo studio `design/studio-motore-2026-09/` citava da fonti esterne. Dove una misura contraddice lo
@@ -263,3 +265,262 @@ tipo sotto i 2 tok/s: è molto più del rumore, e su questa macchina **il prefil
 bottiglia**. Il decode non si muove: la differenza sul codice (26,52 contro 25,25) ha uno scarto tipo
 di oltre 2 e non si separa, e sul contesto lungo va semmai un filo peggio. La memoria è identica.
 Il profilo G1 gira sulla build nuova senza toccare una leva.
+
+**Secondo giro, quattro ore dopo, a disco fermo** (il primo era stato preso poco dopo aver scritto
+53 GB di download, e il sospetto era che il disco stesse ancora lavorando per conto suo):
+
+| prova | primo giro MB/s | secondo giro MB/s |
+|---|---:|---:|
+| 4 KiB casuale QD1 | 27 | 27 |
+| 4 KiB casuale QD8 | 171 | 208 |
+| 4 KiB casuale QD32 | 296 | 223 |
+| 2 MiB casuale QD1 | 1.952 | 1.883 |
+| 2 MiB casuale QD8 | 771 | 1.537 |
+| 2 MiB casuale QD32 | 1.057 | 3.393 |
+| 2 MiB sequenziale QD8 | 4.378 | 1.180 |
+| 2 MiB sequenziale QD32 | 2.321 | 3.355 |
+| 1 MiB sequenziale QD32, 4 thread | 4.321 | 3.034 |
+
+**Verdetto: su questo disco un numero solo non esiste, e non serve.** Le uniche colonne ripetibili
+sono quelle a 4 KiB (27 MB/s a QD1, 200-300 a code alte) e il 2 MiB a QD1 (~1,9 GB/s). Tutto il
+resto oscilla fino a **3,7 volte** fra due giri identici presi a quattro ore di distanza: 2 MiB
+sequenziale QD8 fa 4.378 e poi 1.180; 2 MiB casuale QD32 fa 1.057 e poi 3.393. I 5.700 MB/s
+dichiarati non li ha visti nessuno dei due giri.
+
+**Che cosa decide, che era la domanda del task.** Non serve scegliere la colonna giusta, perche'
+tutte le colonne dicono la stessa cosa: fra **27 MB/s e 4,4 GB/s**, contro i **49 GB/s** che la
+memoria consegna al motore (T-02), il rapporto va da 11x a 1.800x. **Leggere i pesi dal disco a ogni
+token non e' una via su questa macchina**, e non lo diventa scegliendo un blocco o una profondita' di
+coda migliori. Le idee di streaming degli esperti da SSD si valutano sapendo questo.
+
+Righe grezze: `m08/T-03-diskspd.txt` (secondo giro) e `m08/T-03-diskspd-giro1.txt` (primo).
+
+---
+
+## T-08 - Oltre i 48 GB: Qwen3-Coder-Next Q4_K_M dentro una VGM da 48
+
+48,53 GB di pesi (48 blocchi, 10 esperti su 512, **2,453 GB letti per token**) in una VGM da 48 GB.
+Tre giri piu' un riscaldamento, contesto 32.768.
+
+| variante | prefill tok/s | **decode tok/s** | VRAM dedicata | VRAM condivisa | RAM per Windows | caricamento |
+|---|---:|---:|---:|---:|---:|---:|
+| `-ngl 999` | 144,2 ± 0,7 | **17,75 ± 0,02** | 46,10 GiB | **0,37 GiB** | 33,12 GiB | 27,2 s |
+| `--n-cpu-moe 8` | 141,9 ± 0,1 | 15,17 ± 0,05 (−15%) | 39,44 GiB | 7,78 GiB | 25,94 GiB | 24,7 s |
+| `--n-cpu-moe 16` | 134,6 ± 0,8 | 13,80 ± 0,14 (−22%) | 32,30 GiB | 14,91 GiB | 18,80 GiB | 25,2 s |
+
+**Verdetto: ci sta, e senza soffrire.** Il modello entra in 46,10 GiB di VRAM dedicata con **0,37 GiB**
+di memoria condivisa: praticamente niente finisce in WDDM. Si carica in 27 secondi, non c'e' doppia
+copia, e a Windows restano 33 GiB. Il decode e' 17,75 tok/s, cioe' **43,5 GB/s** di banda utile —
+l'88% di quello che raggiunge il 35B (T-02), e lo stesso numero della sola testimonianza esterna che
+esisteva (17,6 tok/s). **La configurazione regge il criterio del piano** (>= 15 tok/s con la cache
+intatta) e diventa la ricetta per i modelli 48-70 GB.
+
+**`--n-cpu-moe` e' da scartare**, e in modo monotono: piu' esperti si spostano, peggio va. Su una
+macchina UMA la memoria e' **una sola**: spostare gli esperti sulla CPU non guadagna banda, aggiunge
+lavoro e toglie RAM a Windows. La riga 2.2 del piano si chiude in negativo.
+
+**Non misurato: la VGM a 64 GB** (riga 2.3). Si cambia solo dalla GUI di Adrenalin e chiede un
+riavvio: non e' una cosa da fare da soli di notte, e va rimessa a 48 dopo. Resta all'operatore. Vale
+la pena dirlo: serve a sapere se si guadagna **ancora**, non a far funzionare il modello, perche' a
+48 GB funziona gia'.
+
+### T-08b - Quanto batch ci sta ancora, e se serve
+
+Il profilo G3 porta `-ub 512 / -b 2048`, valori prudenti scritti prima che la macchina arrivasse.
+Con 1,9 GiB di margine la domanda e' se un ubatch piu' grande entra.
+
+| variante | prefill tok/s | decode tok/s | VRAM dedicata | VRAM condivisa |
+|---|---:|---:|---:|---:|
+| `-ub 512 -b 2048` (G3 di oggi) | 140,8 ± 1,0 | 17,45 ± 0,07 | 46,10 GiB | 0,37 GiB |
+| **`-ub 2048 -b 2048`** | **169,7 ± 0,3** (+21%) | **17,84 ± 0,01** | 46,55 GiB | 0,40 GiB |
+| `-ub 4096 -b 4096` | 148,1 ± 0,5 | 17,52 ± 0,05 | 46,62 GiB | 0,93 GiB |
+
+**`-ub 2048` entra e vale il 21% di prefill**, senza costare decode ne' memoria condivisa. `-ub 4096`
+entra anche lui ma va peggio di 2048: la non monotonia gia' vista in T-13 e in `minis-config` par. 7
+vale anche qui. **Da portare nel profilo G3** al posto di `-ub 512`.
+
+---
+
+## T-09 - `--load-mode mmap` contro `none`: e' mmap a fare la doppia copia
+
+Due avvii dello stesso Coder-Next, identici tranne la modalita' di caricamento.
+
+| variante | caricamento | working set del processo | RAM per Windows | doppia copia | prefill | decode |
+|---|---:|---:|---:|---|---:|---:|
+| `mmap` | 69,9 s | **39,22 GiB** | **0,40 GiB** | **si'** | 140,5 | 17,55 |
+| `none` | 23,2 s | 0,51 GiB | 39,15 GiB | no | 139,7 | 17,50 |
+| `auto` (T-08) | 27,2 s | 0,71 GiB | 33,12 GiB | no | 144,2 | 17,75 |
+
+**Verdetto: il contrario di quello che suggerisce il nome della leva.** Con `mmap` il processo tiene
+39,22 GiB di pagine del file mappate **in piu'** rispetto ai 46,10 GiB che la GPU ha gia' preso: e' la
+doppia copia, la telemetria di Aethera la dichiara correttamente, e la macchina resta con **0,40 GiB**
+di RAM libera — sull'orlo dello swap. Il caricamento dura tre volte tanto. La velocita' e' identica,
+quindi non si compra niente in cambio. **`auto` si comporta gia' come `none`: il default va bene, e
+`mmap` e' da evitare su un modello che riempie la VGM.**
+
+Quello che **non** e' stato fatto come chiedeva il task: RAMMap e' una finestra e non si guida da qui.
+I fatti vengono dai contatori di sistema e dal manifest; `campiona-memoria.ps1` resta per chi vuole
+la traccia campione per campione.
+
+---
+
+## T-10 - Chi rompe la cache del prefisso
+
+Fra client e motore e' stato messo un ponte (`prefix_proxy.py`) che inoltra tutto senza toccarlo e
+per ogni richiesta scrive **quanto del prompt precedente e' sopravvissuto**. Non si misura il client a
+parole: si misura il byte in cui la sua richiesta smette di assomigliare alla precedente.
+
+**Nonio**, guidato headless su un compito vero (aggiungere una funzione a un sorgente Rust e
+chiamarla), cinque richieste:
+
+| richiesta | caratteri | precedente | prefisso comune | **quota conservata** |
+|---:|---:|---:|---:|---:|
+| 1 | 7.948 | — | — | prima |
+| 2 | 8.163 | 7.948 | 7.948 | **100,0%** |
+| 3 | 8.274 | 8.163 | 8.163 | **100,0%** |
+| 4 | 8.879 | 8.274 | 8.274 | **100,0%** |
+| 5 | 9.385 | 8.879 | 8.879 | **100,0%** |
+
+**Nonio non rompe mai la cache.** Rimanda indietro tutto — risposta del modello compresa — e la
+conversazione cresce solo in coda. E' il comportamento che il motore premia, e la sua telemetria lo
+conferma: 3.044 token di prompt di cui 2.945 dalla cache.
+
+**Gli altri due client non sono stati misurati**, e i motivi vanno detti:
+
+- **OpenCode** non e' installato su questa macchina. Installarlo di notte al posto dell'operatore non
+  era una decisione da prendere da soli. La procedura e' pronta: `run-T10-client.sh`.
+- **Claude Code parla solo con l'API Anthropic**, non con un endpoint compatibile OpenAI. Contro
+  questo motore **non ci si punta affatto**. **[correzione]** Lo studio (riga 1.5 del piano) lo
+  elenca fra i client da mettere contro lo stesso motore, e cita il caso
+  `CLAUDE_CODE_ATTRIBUTION_HEADER`: quella verifica va fatta in un altro modo, non qui.
+
+---
+
+## T-14 - Turno che estende contro turno che riscrive
+
+Nata da T-10, ed e' la misura che **corregge come si legge T-13**. Stesso motore acceso, stesso
+prompt congelato da 7k, quattro turni per modo.
+
+| modo | token nuovi elaborati | riusati | prefill | **turno** |
+|---|---:|---:|---:|---:|
+| **estende** — il client rimanda indietro anche la risposta appena ricevuta | 37-38 | 7.169-7.410 | 2,0 s | **6,0-7,2 s** |
+| **riscrive** — il client ricostruisce il prompt dalla sola domanda | **4.096**, esattamente un ubatch | 2.997 | 12,7 s | **16,4-17,5 s** |
+
+**Il costo fisso di un ubatch per turno non e' una proprieta' del motore: e' il prezzo di un client che
+perde la risposta precedente.** 2,7 volte il tempo, per niente. Con un client che estende — come fa
+Nonio — il turno costa quasi solo decode, e la regola «riuso fino a prompt meno un ubatch» trovata in
+T-13 **non si applica affatto**: si applica solo quando il prompt nuovo diverge da quello che lo slot
+ha gia', e dimenticare la risposta del modello e' esattamente una divergenza.
+
+**Nota onesta sul banco:** il carico «turni» di T-13 ricostruiva il prompt senza la risposta, quindi
+misurava senza saperlo un client mal fatto. I numeri di T-13 restano validi **per quel caso** — ed e'
+un caso reale, perche' un client puo' benissimo comportarsi cosi' — ma non sono il costo di un turno
+in generale. La tabella di T-13 va letta con questa riga accanto.
+
+---
+
+# Il verdetto, leva per leva
+
+| leva | verdetto | numero che lo dice |
+|---|---|---|
+| **build b10991** | **entra nei profili standard** | prefill +6,7% sul codice, +5,7% a 21k; decode e memoria invariati |
+| **`-ub 2048` sul Coder-Next (G3)** | **entra**, al posto di `-ub 512` | prefill 169,7 contro 140,8 tok/s; ci sta ancora (46,55 GiB) |
+| **`-ub 4096` sul 35B (G1)** | **confermata** | 19,4 s a turno sul mix, contro 23,4 di 2048 |
+| **MTP adattivo (n-min 2 / n-max 4 / p-min 0,75)** | **entra solo se il profilo e' uno** | sul contesto lungo 17,57 contro 16,29; sul codice 27,39 contro 28,00 |
+| **MTP 3 fisso** | **resta**, se i profili sono due | sul codice 28,00 contro 20,55 senza speculazione (+36%) |
+| **`-ngl 999` sul Coder-Next** | **entra**: e' la ricetta 48-70 GB | 17,75 tok/s, 46,10 GiB dedicati, 0,37 condivisi |
+| **`--load-mode auto` / `none`** | **confermata** (auto va bene) | working set 0,51-0,71 GiB contro 39,22 di mmap |
+| **checkpoint dello stato ricorrente** | **scartata** | token riusati identici all'unita' |
+| **`--cache-reuse 256`** | **scartata** | 19,15 contro 19,44 s a turno, dentro il rumore |
+| **KV `q8_0`** | **scartata** | decode −7,6% a 32k, −5,5% a 64k, −3,4% a 128k |
+| **`--n-cpu-moe`** | **scartata** | −15% a 8 blocchi, −22% a 16 |
+| **`--load-mode mmap`** | **scartata**, e da evitare | 0,40 GiB di RAM libera, caricamento 3x, nessun guadagno |
+| **streaming dei pesi da SSD** | **non e' una via** | 27 MB/s - 4,4 GB/s contro i 49 GB/s della memoria |
+| **VGM a 64 GB** | **da fare** (serve la GUI Adrenalin e un riavvio) | a 48 GB il Coder-Next ci sta gia' |
+| **OpenCode e Claude Code come client** | **da fare** / **non applicabile** | Nonio conserva il 100% del prefisso |
+
+## La cosa che conta piu' di tutte
+
+Non e' una leva del motore: e' **come il client costruisce il prompt**. Un client che rimanda indietro
+la risposta appena ricevuta paga **6 secondi** a turno; uno che ricostruisce il prompt senza quella
+risposta ne paga **16,4** (T-14). Nessuna leva misurata in questo rapporto sposta i tempi quanto
+questa differenza: la build nuova vale il 6%, MTP il 36% sul solo decode, e questa vale il **170%**
+sul turno intero. Nonio fa la cosa giusta (T-10); per gli altri client va verificato.
+
+---
+
+# Correzioni da riportare nello studio `design/studio-motore-2026-09/`
+
+| dove | cosa dice oggi | cosa dicono le misure |
+|---|---|---|
+| pagina «Motore» | il MoE fa «~42 GB/s» | **49,4 GB/s**; il denso arriva a 62,7, quindi il limite non e' la piattaforma |
+| «Piano di prova», riga 1.1 | i checkpoint portano il TTFT «da decine di secondi a meno di uno» | non cambiano **niente**: token riusati identici |
+| «Piano di prova», riga 1.2 | la riga e' `--spec-draft-adaptive …` | **quel flag non esiste** in b10809; sono `--spec-draft-n-min/n-max/p-min` |
+| «Piano di prova», riga 1.2 | MTP adattivo: «decode +5-15% sul codice» | sul codice **−2%**; il guadagno e' sul contesto lungo (+7,9%) |
+| «Piano di prova», riga 1.4 | KV q8_0: «da +10% oltre i 64k» | **nessun guadagno**, decode sempre peggiore |
+| «Piano di prova», riga 1.5 | Claude Code fra i client da provare contro questo motore | **non ci si punta**: parla solo con l'API Anthropic |
+| «Piano di prova», riga 2.1 | «quanto costa la memoria condivisa: nessuna fonte lo sa» | **non costa**, perche' a 48 GB quasi nulla ci finisce (0,37 GiB) |
+| «Piano di prova», riga 2.2 | `--n-cpu-moe`: «su UMA la banda e' la stessa» | vero, e per questo **peggiora**: aggiunge lavoro senza guadagnare banda |
+| «Piano di prova», riga 2.5 | «doppia copia contro pagine mappate» | e' **mmap** a fare la doppia copia, non `none` |
+| «Streaming da SSD» | tetti calcolati sulla banda sequenziale dichiarata | **5.700 MB/s non li ha visti nessun giro**; e la banda del disco varia 3,7x fra due giri identici |
+| pagina «Macchina» | Qwen3-Coder-Next sorvegliato come rischio di memoria | **ci sta**: 46,10 GiB dedicati su 48 di VGM |
+
+---
+
+# Che cosa serve ad Aethera, a valle di queste misure
+
+Il milestone chiedeva di segnare quali campi mancano allo schema del profilo. Le misure hanno usato
+`extra_args`, che c'e' e funziona, ma un campo dichiarato e' un'altra cosa: si valida, si confronta
+fra avvii, e la pagina Avvio lo sa mostrare.
+
+**Campi da aggiungere allo schema del profilo** (in ordine di quanto sono serviti davvero):
+
+1. `server.n_cpu_moe` — misurato in T-08. Anche se il verdetto e' «non usarlo», va dichiarabile:
+   serve a scriverlo nel manifest quando qualcuno lo prova.
+2. `cache.cache_ram`, `cache.checkpoint_min_step`, `cache.kv_unified` — misurati in T-04. Stesso
+   ragionamento: il verdetto e' negativo, ma sono leve che esistono e che un profilo deve poter
+   nominare invece di nasconderle in `extra_args`.
+3. `server.fit` e `server.fit_target` — **non misurabili oggi**: `--fit` aggiusta gli argomenti
+   *non impostati*, e lo schema impone sempre `--n-gpu-layers`. Per provare la riga 2.4 del piano
+   servirebbe poter lasciare `n_gpu_layers` non impostato. E' il vero buco dello schema.
+4. `server.tensor_overrides` (`-ot`) e `server.lazy_mode` — non serviti in questo milestone, serviranno
+   al successivo (Qwen3.8-Flash-Next).
+
+**Campi da aggiungere al manifest** (oggi non li registra, e sono condizioni che cambiano i numeri):
+
+- overlay di alimentazione (`ActiveOverlayAcPowerScheme`: `powercfg` da solo **mente**, mostra lo
+  schema sotto e non l'overlay);
+- versione dei driver GPU e NPU;
+- VGM assegnata alla iGPU;
+- volume su cui stanno i pesi.
+
+**Telemetria** — due cose che sarebbero servite e che ho dovuto ricavare a mano:
+
+- `timings.cache_n` della risposta e' la fonte diretta dei token riusati, ed e' piu' semplice e piu'
+  affidabile del polling di `/slots`: la telemetria dovrebbe leggerlo da li'.
+- **quanto prefisso ogni client conserva fra un turno e l'altro** e' la misura che conta di piu'
+  (T-14), e oggi Aethera non la vede. Il ponte di T-10 mostra che basta poco: confrontare il prompt
+  di una richiesta con quello della precedente. Sarebbe la diagnosi «questo client ti sta costando
+  il triplo», sulla pagina Motore.
+
+---
+
+# Come rifare queste misure
+
+Tutto e' in `.lmbrain-lite/m08/`, versionato:
+
+| cosa | dove |
+|---|---|
+| scenari delle misure | `T-0*.toml`, `T-13-ubatch.toml` |
+| prompt congelati | `prompt-7k.txt` (7.015 token), `prompt-21k.txt` (20.618), e `mkprompts.py` che li rifa |
+| banco | `src-tauri/examples/m08_bench.rs` (`cargo run --release --example m08_bench -- <radice> <scenario>`) |
+| byte per token dal GGUF | `src-tauri/examples/m08_bytes.rs` |
+| pesi e build verificati | `src-tauri/examples/m08_fetch.rs` |
+| motore acceso e fermo | `src-tauri/examples/m08_hold.rs` |
+| banda e disco | `run-T02-banda.sh`, `run-T03-ssd.sh` |
+| prefisso dei client | `prefix_proxy.py`, `run-T10-client.sh` |
+| estende contro riscrive | `T-14-estensione.py` |
+| tabelle da queste righe | `analisi.py` |
+
+Le righe grezze stanno in `C:\AetheraData\m08\`, e ogni variante ha il suo `runs/<id>` con manifest,
+riga di comando, log e memoria misurata.

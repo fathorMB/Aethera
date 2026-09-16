@@ -13,10 +13,10 @@ generated: true
 | 2 | M-02 | Scheletro Tauri, schema dei profili e ciclo di vita del motore | done | 10/10 | 100% |
 | 3 | M-03 | Memoria misurata, telemetria, stato «in uso» ed endpoint Aethera | done | 11/11 | 100% |
 | 4 | M-04 | Catalogo: metadati GGUF, stima di memoria, verifica e download di pesi e build | done | 10/10 | 100% |
-| 5 | M-05 | Uso quotidiano senza toccare i file a mano | active | 7/8 (1 blocked) | 88% |
+| 5 | M-05 | Uso quotidiano senza toccare i file a mano | done | 8/8 | 100% |
 | 6 | M-06 | Comportamento quando qualcosa va storto | active | 8/9 (1 blocked) | 89% |
 | 7 | M-07 | Confezionamento, prima esecuzione e documentazione | active | 5/7 (2 blocked) | 71% |
-| 8 | M-08 | Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU | active | 9/14 (1 blocked) | 64% |
+| 8 | M-08 | Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU | active | 12/14 (2 blocked) | 86% |
 
 ## M-01 — Mockup di design della v1
 
@@ -48,7 +48,7 @@ generated: true
 
 ## M-05 — Uso quotidiano senza toccare i file a mano
 
-- `status`: active
+- `status`: done
 - `priority`: 5
 - `file`: milestones/M-05.md
 - `outcome`: Partendo da una radice dati vuota l'operatore arriva a un motore acceso senza scrivere a mano nessun file: crea un profilo da zero, lo duplica, lo rinomina e lo cancella dalla finestra; registra pesi che stanno fuori dalla cartella dichiarata riconoscendoli per hash; apre l'Avvio direttamente dal Catalogo; il campionamento consigliato dalla model card arriva fino ai frammenti per i client.
