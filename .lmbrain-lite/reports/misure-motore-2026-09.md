@@ -464,7 +464,7 @@ sul turno intero. Nonio fa la cosa giusta (T-10); per gli altri client va verifi
 | «Piano di prova», riga 1.2 | la riga e' `--spec-draft-adaptive …` | **quel flag non esiste** in b10809; sono `--spec-draft-n-min/n-max/p-min` |
 | «Piano di prova», riga 1.2 | MTP adattivo: «decode +5-15% sul codice» | sul codice **−2%**; il guadagno e' sul contesto lungo (+7,9%) |
 | «Piano di prova», riga 1.4 | KV q8_0: «da +10% oltre i 64k» | **nessun guadagno**, decode sempre peggiore |
-| «Piano di prova», riga 1.5 | Claude Code fra i client da provare contro questo motore | **non ci si punta**: parla solo con l'API Anthropic |
+| «Piano di prova», riga 1.5 | Claude Code fra i client da provare contro questo motore | **resta**: b10809 risponde anche su `/v1/messages` (API Anthropic), si collega con `ANTHROPIC_BASE_URL` (corretto il 16-09; la prima versione di questa riga diceva il contrario) |
 | «Piano di prova», riga 2.1 | «quanto costa la memoria condivisa: nessuna fonte lo sa» | **non costa**, perche' a 48 GB quasi nulla ci finisce (0,37 GiB) |
 | «Piano di prova», riga 2.2 | `--n-cpu-moe`: «su UMA la banda e' la stessa» | vero, e per questo **peggiora**: aggiunge lavoro senza guadagnare banda |
 | «Piano di prova», riga 2.5 | «doppia copia contro pagine mappate» | e' **mmap** a fare la doppia copia, non `none` |
