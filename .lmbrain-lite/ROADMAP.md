@@ -16,7 +16,7 @@ generated: true
 | 5 | M-05 | Uso quotidiano senza toccare i file a mano | active | 7/8 (1 blocked) | 88% |
 | 6 | M-06 | Comportamento quando qualcosa va storto | active | 8/9 (1 blocked) | 89% |
 | 7 | M-07 | Confezionamento, prima esecuzione e documentazione | active | 5/7 (2 blocked) | 71% |
-| 8 | M-08 | Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU | active | 3/13 | 23% |
+| 8 | M-08 | Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU | active | 7/13 | 54% |
 
 ## M-01 — Mockup di design della v1
 

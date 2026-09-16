@@ -128,3 +128,138 @@ secondi**, pagati sempre. Per un agente che fa decine di turni sullo stesso cont
 costo dominante, molto più del decode: da qui nasce la misura T-13.
 
 Righe grezze: `m08/T-04.jsonl`. Condizioni e run id: `m08/T-04.meta.json`.
+
+---
+
+## T-05 — MTP adattivo contro MTP 3 fisso, e contro nessuna speculazione
+
+Tre avvii, cinque giri più un riscaldamento, campionamento della model card
+(0,7 / 0,8 / 20 / 0 / presence 1,5), 384 token generati.
+
+| variante | codice 7k: prefill | codice 7k: **decode** | riassunto 21k: prefill | riassunto 21k: **decode** | VRAM dedicata |
+|---|---:|---:|---:|---:|---:|
+| senza speculazione | 338,7 ± 1,2 | **20,55 ± 0,04** | 316,3 ± 0,3 | **19,22 ± 0,02** | 21,24 GiB |
+| MTP 3 fisso (oggi) | 353,8 ± 3,6 | **28,00 ± 1,52** (+36%) | 302,9 ± 0,7 | **16,29 ± 0,30** (−15%) | 22,68 GiB |
+| MTP adattivo 2/4/0,75 | 365,6 ± 0,9 | **27,39 ± 0,63** (+33%) | 307,6 ± 0,5 | **17,57 ± 0,51** (−8,6%) | 22,68 GiB |
+
+**Verdetto: da tenere, ma non per il motivo che diceva il piano.** L'adattivo non porta il «+5-15%
+sul codice» atteso: sul codice **toglie** due punti percentuali rispetto a MTP 3 fisso. Quello che fa
+è **dimezzare il danno sul contesto lungo**, da −15% a −8,6%: il prezzo noto del profilo G1. Quindi:
+con un profilo solo per i due usi, l'adattivo è la scelta migliore; con due profili separati, sul
+codice resta meglio MTP 3 fisso.
+
+Da notare, perché non era scritto da nessuna parte: **MTP costa 1,44 GiB di VRAM dedicata**
+(22,68 contro 21,24 senza speculazione). Il prefill non c'entra con la speculazione, e le differenze
+fra le tre righe (339 / 354 / 366) sono rumore fra avvii, non un effetto della leva.
+
+**[correzione]** `--spec-draft-adaptive`, che il piano cita come riga di comando, **non esiste** in
+b10809: la speculazione adattiva si ottiene con `--spec-draft-n-min` / `--spec-draft-n-max` /
+`--spec-draft-p-min`, ed è così che è stata misurata. (`--adaptive-target` esiste ma riguarda il
+campionamento, non la speculazione.) Va corretto nello studio, pagina «Piano di prova», riga 1.2.
+
+---
+
+## T-13 — Perché ogni turno costa, e quanto: il punto di ripresa sta a «prompt meno un ubatch»
+
+Misura nata da T-04. Quattro turni per giro sullo stesso prompt da 7k: turno 0 a freddo, turno 1 che
+cambia **solo in coda**, turni 2 e 3 con **una riga cambiata al 42% del prompt**. Quattro giri più un
+riscaldamento. `-b` resta 4096 ovunque: l'unica variabile è `-ub`.
+
+| variante | turno | token rielaborati | riusati | prefill s | decode s | **turno s** |
+|---|---:|---:|---:|---:|---:|---:|
+| ub-512 | 1 (coda) | 526 | 6.584 | 3,71 | 6,98 | **10,70** |
+| ub-512 | 2-3 (riga cambiata) | 7.134 | **0** | 27,1 | 6,4 | **33,5** |
+| ub-1024 | 1 (coda) | 1.038 | 6.073 | 6,67 | 6,89 | **13,57** |
+| ub-1024 | 2-3 | 7.135 | **0** | 33,8 | 6,4 | **40,2** |
+| ub-2048 | 1 (coda) | 2.062 | 5.049 | 7,76 | 6,95 | **14,72** |
+| ub-2048 | 2-3 | 7.135 | **0** | 21,3 | 6,4 | **27,7** |
+| ub-4096 (oggi) | 1 (coda) | 4.106 | 3.005 | 12,83 | 6,91 | **19,74** |
+| ub-4096 | 2-3 | 4.108 | 3.027 | 12,8 | 6,5 | **19,3** |
+| ub-4096 + cache-reuse 256 | 1 (coda) | 4.106 | 3.012 | 12,80 | 6,78 | **19,58** |
+| ub-4096 + cache-reuse 256 | 2-3 | 4.108 | 3.034 | 12,7 | 6,2 | **18,9** |
+
+**La regola.** Il motore tiene **un solo punto di ripresa**, e sta a `lunghezza del prompt − ubatch`.
+Da lì discende tutto:
+
+1. se il turno cambia **solo in coda**, rielabora esattamente un ubatch — 526 token (3,7 s) con
+   `-ub 512`, 4.106 (12,8 s) con `-ub 4096`: **tre volte e mezzo di differenza**;
+2. se il turno cambia **prima** di quel punto, non riusa **niente** e rielabora tutto il prompt. È
+   quello che succede a `-ub` 512, 1024 e 2048 nei turni 2 e 3;
+3. `-ub 4096` se la cava in entrambi i casi solo perché il suo punto di ripresa cade al 42% del
+   prompt, **appena prima** della modifica. È una fortuna che dipende da dove cade la modifica, non
+   una proprietà del valore.
+
+| variante | media dei turni 1-3 |
+|---|---:|
+| ub-4096 + cache-reuse 256 | **19,15 s** |
+| ub-4096 (la riga di oggi) | **19,44 s** |
+| ub-2048 | 23,39 s |
+| ub-512 | 25,91 s |
+| ub-1024 | 31,31 s |
+
+**Verdetto: `-ub 4096` resta, e adesso si sa perché.** Non per il prefill a freddo (dove il vantaggio
+su 2048 è del 5%: 26,6 s contro 27,5), ma perché tiene il punto di ripresa abbastanza indietro da
+sopravvivere a una modifica a metà prompt. Su una conversazione che cresce **solo in coda** — il caso
+più comune di un agente — `-ub 512` sarebbe invece tre volte e mezzo più rapido: se un profilo
+«conversazione lunga» avrà senso, questa è la leva.
+
+**`--cache-reuse 256` è da scartare**: non cambia un numero (19,15 contro 19,44 s, dentro il rumore) e
+i token riusati sono identici. Lo spostamento della cache KV non si applica a questo modello ibrido.
+
+Conferma di quanto già visto in `minis-config` §7: il prefill a freddo **non è monotono** in `-ub` —
+353 tok/s a 4096, 335 a 2048, 262 a 512, **211 a 1024**. Ogni valore si misura, non si interpola.
+
+---
+
+## T-06 — Cache KV q8_0 contro f16, a 32k, 64k e 128k
+
+Sei avvii, tre giri più un riscaldamento, un carico solo: il riassunto da 20.618 token. Il carico
+corto è stato tolto di proposito — la cache KV si vede a contesto lungo, non su un prompt breve.
+
+| contesto | KV | prefill tok/s | **decode tok/s** | VRAM dedicata | VRAM condivisa |
+|---|---|---:|---:|---:|---:|
+| 32k | f16 | 303,1 ± 0,8 | **18,80 ± 0,79** | 22,68 GiB | 1,24 GiB |
+| 32k | q8_0 | 309,9 ± 0,4 | **17,38 ± 0,54** (−7,6%) | 22,40 GiB | 1,24 GiB |
+| 64k | f16 | 244,1 ± 0,3 | **17,62 ± 0,44** | 23,39 GiB | 2,36 GiB |
+| 64k | q8_0 | 247,4 ± 0,1 | **16,65 ± 0,36** (−5,5%) | 23,06 GiB | 2,12 GiB |
+| 128k | f16 | 308,0 ± 0,2 | **17,64 ± 1,23** | 26,00 GiB | 2,99 GiB |
+| 128k | q8_0 | 316,2 ± 0,5 | **17,04 ± 0,47** (−3,4%) | 24,83 GiB | 2,99 GiB |
+
+**Verdetto: scartata.** `q8_0` peggiora il decode a **tutti** i contesti provati e risparmia poco:
+0,28 GiB a 32k, 0,33 a 64k, 1,17 a 128k. I due punti percentuali guadagnati sul prefill non
+compensano. Non entra nei profili standard.
+
+**[correzione]** Lo studio (riga 1.4 del piano) si aspettava «nessun guadagno sotto 64k, da +10%
+oltre». Oltre i 64k il guadagno resta **zero** e il costo resta. La ragione si vede nella colonna
+della VRAM: su questo modello solo **10 blocchi su 41** hanno attenzione piena, quindi la cache KV è
+piccola in partenza — da 32k a 128k la VRAM dedicata sale solo da 22,68 a 26,00 GiB, cioè ~35 MiB
+ogni 1.000 token. Non c'è abbastanza KV perché quantizzarla convenga.
+
+**Sulla «coerenza dell'output a temperatura 0» chiesta dal milestone:** non è misurabile
+confrontando il testo generato. Su Vulkan **due giri identici della stessa variante danno già testi
+diversi** (visto in T-04 e confermato qui): il backend non è deterministico, quindi un'impronta
+diversa fra f16 e q8_0 non direbbe niente. Il confronto di qualità che regge è la perplessità sullo
+stesso testo — `run-T06-perplexity.sh`, risultati più sotto.
+
+**Un'anomalia che non so spiegare e che lascio dichiarata:** il prefill a **64k** è più lento del 20%
+sia rispetto a 32k sia rispetto a 128k (244 contro 303 e 308), in entrambe le varianti di KV, con uno
+scarto tipo di 0,3 tok/s. Non è rumore. È lo stesso tipo di non monotonia già vista su `-ub` in
+T-13 e in `minis-config` §7: su questo backend i parametri non si interpolano, si misurano.
+
+---
+
+## T-07 — La build b10991 contro la b10809
+
+Scaricata dal Catalogo con il digest di GitHub verificato **prima** dell'estrazione. Stesso profilo,
+nessun altro cambiamento. Cinque giri più un riscaldamento.
+
+| build | codice 7k: **prefill** | codice 7k: decode | riassunto 21k: **prefill** | riassunto 21k: decode | VRAM |
+|---|---:|---:|---:|---:|---:|
+| b10809 (5266f24da) | 353,2 ± 0,8 | 25,25 ± 2,71 | 303,2 ± 0,3 | 16,81 ± 0,35 | 22,68 GiB |
+| b10991 (930e2fa59) | **377,0 ± 1,7** (+6,7%) | 26,52 ± 2,21 | **320,6 ± 0,8** (+5,7%) | 16,61 ± 0,63 | 22,73 GiB |
+
+**Verdetto: entra.** Il prefill guadagna il 6,7% sul codice e il 5,7% sul contesto lungo, con scarti
+tipo sotto i 2 tok/s: è molto più del rumore, e su questa macchina **il prefill è il collo di
+bottiglia**. Il decode non si muove: la differenza sul codice (26,52 contro 25,25) ha uno scarto tipo
+di oltre 2 e non si separa, e sul contesto lungo va semmai un filo peggio. La memoria è identica.
+Il profilo G1 gira sulla build nuova senza toccare una leva.

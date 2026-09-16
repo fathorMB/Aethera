@@ -5,7 +5,7 @@
 <h2>Fase 0 · condizioni della misura (mezza giornata)</h2>
 <table>
 <tr><th>#</th><th>Prova</th><th>Come</th><th>Cosa decide</th></tr>
-<tr><td>0.1</td><td>Piano energetico «Prestazioni» contro «Bilanciato»</td><td>Stesso profilo G1, 5 giri, prefill e decode</td><td>Se vale il +36% visto su Linux, tutte le misure future vanno rifatte in quel piano</td></tr>
+<tr><td>0.1</td><td>Banda raggiungibile con un denso piccolo (Qwen3-8B Q4, 4,7 GB) e confronto con il MoE</td><td><code>llama-bench</code> in decode; tok/s × 4,7 GB = banda utile. La modalità alimentazione è già «Massime prestazioni»</td><td>Se il denso arriva a 60–67 GB/s il divario del MoE è nei kernel (MTP, coopmat1); se resta a ~45 è la piattaforma (BIOS, driver, clock)</td></tr>
 <tr><td>0.2</td><td>Banda dell'SSD sul GGUF</td><td>DiskSpd 4K/2 MiB, QD 1/8/32, unbuffered</td><td>La colonna giusta della tabella dei tetti di streaming</td></tr>
 <tr><td>0.3</td><td>Manifest arricchito</td><td>Piano energetico, versione driver GPU/NPU, VGM, disco dei pesi</td><td>Confrontabilità di tutto ciò che segue</td></tr>
 </table>

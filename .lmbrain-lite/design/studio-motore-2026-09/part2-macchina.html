@@ -16,7 +16,7 @@
 <tr><td>NPU</td><td class="mono">"NPU Compute Accelerator Device", PCI 1022:17F0, driver AMD 32.0.203.314 (10-10-2025)</td><td>XDNA 2, 32 tile, 55 TOPS INT8 <span class="v">V</span>. Ryzen AI SW 1.8 richiede ≥ .280; FastFlowLM richiede ≥ .311: siamo sopra entrambi. Con Adrenalin 26.8/26.9 arriva un driver NPU MCDM 32.00.20102.3930 <span class="v">V</span></td></tr>
 <tr><td>RAM</td><td class="mono">2 × 48 GB SODIMM DDR5-5600 (SMBIOS tipo 34), 96 GB; Windows ne vede 47,6 GB</td><td>48 GB riservati alla iGPU (VGM). 5600 MT/s è il massimo della piattaforma su SODIMM: nessuna banda da recuperare con altri moduli <span class="v">V</span></td></tr>
 <tr><td>SSD</td><td class="mono">Kingston OM8TAP42048K1-A00, 2 TB NVMe, NTFS, 1,9 TB liberi</td><td>Un solo M.2 occupato. La X1 Pro ha tre slot M.2: due PCIe 4.0 ×4 e uno ×1 <span class="v">V</span>. Vedi «Streaming da SSD»</td></tr>
-<tr><td>Sistema</td><td class="mono">Windows 11 Pro 26200 (25H2), BIOS 1.01 del 09-04-2026, piano energetico «Bilanciato»</td><td>Il TDP dichiarato dell'X1 Pro 470 è 54 W condiviso CPU+iGPU <span class="v">V</span>; le modalità BIOS non sono documentate nelle fonti trovate</td></tr>
+<tr><td>Sistema</td><td class="mono">Windows 11 Pro 26200 (25H2), BIOS 1.01 del 09-04-2026, modalità alimentazione «Massime prestazioni» (overlay ded574b5 sopra lo schema Bilanciato)</td><td>Il TDP dichiarato dell'X1 Pro 470 è 54 W condiviso CPU+iGPU <span class="v">V</span>; le modalità BIOS non sono documentate nelle fonti trovate</td></tr>
 <tr><td>Motore</td><td class="mono">llama-server b10809 (5266f24da, 4 settembre 2026), Vulkan, in C:\Nonio</td><td>L'ultima release il 15 settembre era b10991: 180 build di distanza <span class="v">M</span></td></tr>
 <tr><td>Pesi presenti</td><td class="mono">Qwen3.6-35B-A3B Q4_K_M (22,29 GB, 2 hard link) + MTP Q8_0 separato (1,99 GB)</td><td>Unico modello sul disco. Coder-Next, Coder-30B e gpt-oss-20b hanno un profilo ma nessun file</td></tr>
 </table>
@@ -59,7 +59,7 @@
 
 <h2>Consumo, temperatura, piano energetico</h2>
 <ul>
-<li>Il piano attivo è «Bilanciato». Sul Framework 13 (HX 370, Linux) passare da risparmio a prestazioni ha dato +36% decode e +120% prefill <span class="v">V</span>. Su Windows nessuna misura: è una prova da un'ora, con la stessa riga e lo stesso prompt.</li>
+<li>La modalità alimentazione è già «Massime prestazioni» (Impostazioni di Windows; <code>powercfg /getactivescheme</code> mostra solo lo schema Bilanciato sottostante, l’overlay si legge nel registro) <span class="v">M</span>. Quindi i 21 tok/s sono già a piena potenza: il +36% visto su Linux fra risparmio e prestazioni <span class="v">V</span> qui non c’è da prendere. Resta da verificare la modalità del BIOS.</li>
 <li>La NPU dichiara meno di 2 W per l'inferenza FLM <span class="v">V</span>: il suo interesse non è la velocità ma il fatto che lavora <b>senza sottrarre potenza termica</b> alla iGPU nel budget di 54 W.</li>
 </ul>
 </section>
