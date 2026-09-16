@@ -10,6 +10,22 @@ use aethera_lib::machine::DataRoot;
 use aethera_lib::{launch, system};
 use std::time::{Duration, Instant};
 
+/// Aethera rifiuta l'arresto per trenta secondi dopo l'ultima richiesta («motore in uso»): è la
+/// protezione che serve quando c'è un client vero. Qui il client siamo noi e abbiamo appena finito,
+/// quindi si aspetta che la finestra passi invece di forzare la mano al motore.
+fn stop_when_free(engine: &Engine) -> Result<(), String> {
+    let t0 = Instant::now();
+    loop {
+        match engine.stop() {
+            Ok(()) => return Ok(()),
+            Err(e) if e.contains("in uso") && t0.elapsed() < Duration::from_secs(90) => {
+                std::thread::sleep(Duration::from_secs(3));
+            }
+            Err(e) => return Err(e),
+        }
+    }
+}
+
 fn main() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let root = DataRoot::new(args.first().ok_or("uso: m08_hold <radice> <profilo>")?);
@@ -83,7 +99,7 @@ fn main() -> Result<(), String> {
         std::thread::sleep(Duration::from_millis(500));
     }
     let _ = std::fs::remove_file(&stop);
-    engine.stop()?;
+    stop_when_free(&engine)?;
     println!("fermato · run {run_id}");
     Ok(())
 }

@@ -358,6 +358,12 @@ di RAM libera — sull'orlo dello swap. Il caricamento dura tre volte tanto. La 
 quindi non si compra niente in cambio. **`auto` si comporta gia' come `none`: il default va bene, e
 `mmap` e' da evitare su un modello che riempie la VGM.**
 
+La traccia campione per campione conferma il quadro, e aggiunge un numero che il manifest non vede:
+610 campioni a due secondi durante le due varianti (`m08/T-09-memoria.csv`) danno un **massimo di
+52,28 GiB di memoria privata** del processo e una **RAM libera scesa a 0,28 GiB** nella fase `mmap`,
+contro un working set che nella fase `none` non supera il gigabyte. Il picco di memoria privata e' la
+misura piu' diretta della doppia copia.
+
 Quello che **non** e' stato fatto come chiedeva il task: RAMMap e' una finestra e non si guida da qui.
 I fatti vengono dai contatori di sistema e dal manifest; `campiona-memoria.ps1` resta per chi vuole
 la traccia campione per campione.
