@@ -17,7 +17,7 @@ export function Val(props: { v: string | number | null | undefined; unit?: strin
   );
 }
 
-export function StateBadge(props: { status: EngineStatus | null }) {
+export function StateBadge(props: { status: EngineStatus | null; big?: boolean }) {
   const look = () => {
     const s = props.status;
     switch (s?.state) {
@@ -35,7 +35,7 @@ export function StateBadge(props: { status: EngineStatus | null }) {
     }
   };
   return (
-    <span class={`badge ${look().cls}`}>
+    <span class={`badge ${look().cls}`} classList={{ big: !!props.big }}>
       <i />
       {look().text}
     </span>
@@ -43,11 +43,11 @@ export function StateBadge(props: { status: EngineStatus | null }) {
 }
 
 /** «IN USO» con il primo motivo (lock di un client, slot attivo, richiesta recente, protezione). */
-export function UsageBadge(props: { status: EngineStatus | null; detail?: boolean }) {
+export function UsageBadge(props: { status: EngineStatus | null; detail?: boolean; big?: boolean }) {
   const u = () => (props.status?.state === "loading" || props.status?.state === "ready" ? props.status.usage : null);
   return (
     <Show when={u()?.in_use}>
-      <span class="badge busy" title={u()!.reasons.join(" · ")}>
+      <span class="badge busy" classList={{ big: !!props.big }} title={u()!.reasons.join(" · ")}>
         <i />
         IN USO{props.detail !== false && u()!.reasons.length ? ` · ${u()!.reasons[0]}` : ""}
       </span>
@@ -79,10 +79,10 @@ export function Toggle(props: { on: boolean; label: string; title?: string; onCh
 }
 
 /** Barre per serie 0..max; `null` è una barra vuota tratteggiata, non uno zero. */
-export function Spark(props: { values: (number | null)[]; max?: number; low?: number; height?: number }) {
+export function Spark(props: { values: (number | null)[]; max?: number; low?: number; height?: number; class?: string }) {
   const max = () => props.max ?? Math.max(1e-9, ...props.values.map((v) => v ?? 0));
   return (
-    <div class="spark" style={{ height: `${props.height ?? 34}px` }}>
+    <div class={`spark ${props.class ?? ""}`} style={{ height: `${props.height ?? 34}px` }}>
       <For each={props.values}>
         {(v) => (
           <Show when={v != null} fallback={<b class="nil" title="sconosciuto" />}>
@@ -182,11 +182,13 @@ export function AskName(props: {
   value: string;
   note?: string;
   confirmLabel?: string;
+  /** Accetta anche il nome proposto così com'è (per «Salva come» di un profilo mai salvato). */
+  allowSame?: boolean;
   onCancel: () => void;
   onConfirm: (value: string) => void;
 }) {
   const [value, setValue] = createSignal(props.value);
-  const ok = () => value().trim().length > 0 && value().trim() !== props.value;
+  const ok = () => value().trim().length > 0 && (props.allowSame || value().trim() !== props.value);
   return (
     <Dialog
       title={props.title}
