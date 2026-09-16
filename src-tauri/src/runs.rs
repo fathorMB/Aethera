@@ -1,9 +1,10 @@
 //! Storico degli avvii da `runs/`: manifest e telemetria di ogni avvio, per la pagina Benchmark.
 //! Aethera non lancia banchi: ogni riga è un avvio con le sue condizioni accanto.
 
+use crate::conditions::{Conditions, Driver};
 use crate::manifest::{self, Manifest};
 use crate::profile::{self, Override};
-use crate::telemetry::{self, Record, Summary};
+use crate::telemetry::{self, Record, Reference, Summary};
 use serde::Serialize;
 use std::fs;
 use std::path::Path;
@@ -35,6 +36,13 @@ pub struct RunRow {
     pub by_user: Option<bool>,
     pub left_running: Option<bool>,
     pub degraded: Vec<String>,
+    pub conditions: Option<Conditions>,
+    /// Riga corta per la tabella: `GPU …1004 · NPU …3930 · max · VGM 48`.
+    pub conditions_short: Option<String>,
+    /// Che cosa è cambiato rispetto all'avvio precedente sulla stessa macchina: da qui la mediana
+    /// di riferimento riparte, e le righe prima non si confrontano con queste senza dirlo.
+    pub conditions_changed: Vec<String>,
+    pub reference: Option<Reference>,
 }
 
 fn seconds_between(a: &str, b: &str) -> Option<u64> {
@@ -52,9 +60,10 @@ fn row(m: &Manifest, records: &[Record], current: Option<&str>) -> RunRow {
         (None, false) => None,
     };
     let after = m.memory.as_ref().and_then(|x| x.after_load.as_ref());
-    let mut summary = telemetry::summarize(records, usize::MAX);
+    let mut summary = telemetry::summarize(records, usize::MAX, Some(m.effective_profile.server.ubatch));
     summary.cache_series.clear();
     summary.decode_series.clear();
+    summary.turns.clear();
     let sp = &m.effective_profile.speculative;
     RunRow {
         id: m.run.id.clone(),
@@ -76,7 +85,11 @@ fn row(m: &Manifest, records: &[Record], current: Option<&str>) -> RunRow {
             Some(n) if sp.kind != "none" => format!("{} {n}", sp.kind),
             _ => sp.kind.clone(),
         },
-        degraded: uptime_s.map(|u| telemetry::degraded(u, records)).unwrap_or_default(),
+        degraded: Vec::new(),
+        conditions_short: m.conditions.as_ref().map(Conditions::short),
+        conditions: m.conditions.clone(),
+        conditions_changed: Vec::new(),
+        reference: None,
         summary,
         vram_dedicated_gib: after.and_then(|a| a.vram_dedicated_gib),
         ram_available_after_gib: after.and_then(|a| a.ram_available_gib),
@@ -92,20 +105,55 @@ fn valid_id(id: &str) -> bool {
     !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
+/// Mediana di riferimento per un avvio: la mediana dei decode degli avvii precedenti (`older`)
+/// con la stessa macchina, lo stesso profilo, la stessa build e le stesse condizioni. Un avvio
+/// senza condizioni registrate (prima di M-09) non entra: non si sa con che driver è stato fatto.
+pub fn reference(older: &[RunRow], machine: &str, profile: &str, build: &str, conditions: &Conditions) -> Option<Reference> {
+    let key = conditions.comparable();
+    let medians: Vec<f64> = older
+        .iter()
+        .filter(|r| r.machine == machine && r.profile == profile && r.build == build)
+        .filter(|r| r.conditions.as_ref().is_some_and(|c| c.comparable() == key))
+        .filter_map(|r| r.summary.decode_median)
+        .collect();
+    Some(Reference { decode_median: telemetry::median(&medians)?, runs: medians.len() })
+}
+
+/// Che cosa è cambiato rispetto all'avvio più recente fra `older`, sulla stessa macchina e con le
+/// condizioni registrate.
+pub fn changed_since(older: &[RunRow], machine: &str, conditions: &Conditions) -> Vec<String> {
+    older
+        .iter()
+        .filter(|r| r.machine == machine)
+        .find_map(|r| r.conditions.as_ref())
+        .map(|before| conditions.changes_since(before))
+        .unwrap_or_default()
+}
+
 /// Avvii leggibili, dal più recente. Le cartelle senza manifest valido si saltano.
 pub fn list(runs: &Path, current: Option<&str>) -> Vec<RunRow> {
     let Ok(entries) = fs::read_dir(runs) else { return Vec::new() };
-    let mut rows: Vec<RunRow> = entries
+    let mut read: Vec<(RunRow, Vec<Record>)> = entries
         .flatten()
         .map(|e| e.path())
         .filter(|p| p.is_dir())
         .filter_map(|dir| {
             let m = manifest::read(&dir.join("manifest.toml")).ok()?;
-            Some(row(&m, &telemetry::read(&dir), current))
+            let records = telemetry::read(&dir);
+            Some((row(&m, &records, current), records))
         })
         .collect();
-    rows.sort_by(|a, b| b.started.cmp(&a.started));
-    rows
+    read.sort_by(|a, b| b.0.started.cmp(&a.0.started));
+    let plain: Vec<RunRow> = read.iter().map(|(r, _)| r.clone()).collect();
+    for (i, (r, records)) in read.iter_mut().enumerate() {
+        let older = &plain[i + 1..];
+        if let Some(c) = r.conditions.clone() {
+            r.reference = reference(older, &r.machine, &r.profile, &r.build, &c);
+            r.conditions_changed = changed_since(older, &r.machine, &c);
+        }
+        r.degraded = r.uptime_s.map(|u| telemetry::degraded(u, records, r.reference.as_ref())).unwrap_or_default();
+    }
+    read.into_iter().map(|(r, _)| r).collect()
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -124,7 +172,9 @@ pub fn detail(runs: &Path, id: &str, current: Option<&str>) -> Result<RunDetail,
     let manifest_text = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
     let m: Manifest = toml::from_str(&manifest_text).map_err(|e| format!("{}: {e}", path.display()))?;
     let records = telemetry::read(&dir);
-    Ok(RunDetail { row: row(&m, &records, current), manifest_text, records })
+    // Riferimento e cambi di condizioni dipendono dagli altri avvii: li calcola la lista.
+    let row = list(runs, current).into_iter().find(|r| r.id == m.run.id).unwrap_or_else(|| row(&m, &records, current));
+    Ok(RunDetail { row, manifest_text, records })
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -140,12 +190,34 @@ pub struct Comparison {
     pub b: RunRow,
     /// Differenze fra i profili effettivi dei due avvii.
     pub profile_diff: Vec<Override>,
-    /// Condizioni della misura: macchina, build, tempo acceso, carico, memoria.
+    /// Condizioni della misura: macchina, build, driver, tempo acceso, carico, memoria.
     pub conditions: Vec<Condition>,
+    /// Condizioni diverse fra i due avvii che da sole spostano i numeri: il Δ non è del solo profilo.
+    pub not_comparable: Vec<String>,
 }
 
 fn opt<T: ToString>(x: Option<T>) -> Option<String> {
     x.map(|v| v.to_string())
+}
+
+/// Perché due avvii non si confrontano come se differissero solo per il profilo.
+fn not_comparable(ma: &Manifest, mb: &Manifest) -> Vec<String> {
+    let mut out = Vec::new();
+    if ma.run.machine != mb.run.machine {
+        out.push(format!("macchina {} · {}", ma.run.machine, mb.run.machine));
+    }
+    match (&ma.conditions, &mb.conditions) {
+        (Some(ca), Some(cb)) => {
+            let kb = cb.comparable();
+            for (k, va) in ca.comparable() {
+                if let Some(vb) = kb.get(k).filter(|vb| **vb != va) {
+                    out.push(format!("{k} {va} · {vb}"));
+                }
+            }
+        }
+        _ => out.push("condizioni di uno dei due avvii sconosciute: è precedente a quando Aethera le registra".into()),
+    }
+    out
 }
 
 pub fn compare(runs: &Path, a: &str, b: &str, current: Option<&str>) -> Result<Comparison, String> {
@@ -155,10 +227,26 @@ pub fn compare(runs: &Path, a: &str, b: &str, current: Option<&str>) -> Result<C
     let before = |m: &Manifest| m.memory.as_ref().and_then(|x| x.before.clone()).unwrap_or_default();
     let (ba, bb) = (before(&ma), before(&mb));
     let c = |label: &str, a: Option<String>, b: Option<String>| Condition { label: label.into(), a, b };
+    let (ca, cb) = (ma.conditions.clone().unwrap_or_default(), mb.conditions.clone().unwrap_or_default());
+    let drivers = |ds: &[Driver]| {
+        (!ds.is_empty()).then(|| ds.iter().map(|d| d.version.clone().unwrap_or_else(|| "?".into())).collect::<Vec<_>>().join(" + "))
+    };
+    let vgm = |x: &Conditions| x.gpus.iter().find_map(|g| g.dedicated_gib).map(|v| format!("{v} GiB"));
+    let volume = |x: &Conditions| match (&x.weights_volume, &x.weights_disk) {
+        (Some(v), Some(d)) => Some(format!("{v} · {d}")),
+        (v, _) => v.clone(),
+    };
+    let not_comparable = not_comparable(&ma, &mb);
     let conditions = vec![
         c("Macchina", Some(ma.run.machine.clone()), Some(mb.run.machine.clone())),
         c("Build", Some(da.row.build.clone()), Some(db.row.build.clone())),
         c("Commit", ma.engine.commit.clone(), mb.engine.commit.clone()),
+        c("Driver GPU", drivers(&ca.gpus), drivers(&cb.gpus)),
+        c("AMD Software", ca.adrenalin.clone(), cb.adrenalin.clone()),
+        c("Driver NPU", drivers(&ca.npus), drivers(&cb.npus)),
+        c("Alimentazione", ca.overlay_label(), cb.overlay_label()),
+        c("VGM", vgm(&ca), vgm(&cb)),
+        c("Volume dei pesi", volume(&ca), volume(&cb)),
         c("Pesi (SHA-256 dichiarato)", ma.model.sha256_declared.clone(), mb.model.sha256_declared.clone()),
         c("Acceso per (s)", opt(da.row.uptime_s), opt(db.row.uptime_s)),
         c("Richieste", Some(da.row.summary.requests.to_string()), Some(db.row.summary.requests.to_string())),
@@ -173,6 +261,7 @@ pub fn compare(runs: &Path, a: &str, b: &str, current: Option<&str>) -> Result<C
     Ok(Comparison {
         profile_diff: profile::diff(&ma.effective_profile, &mb.effective_profile),
         conditions,
+        not_comparable,
         a: da.row,
         b: db.row,
     })

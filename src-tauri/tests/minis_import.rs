@@ -63,6 +63,7 @@ fn g1_command_line_matches_serve_ps1() {
         model: PathBuf::from(r"C:\Git\minis-config\models\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf"),
         slot_dir: Some(PathBuf::from(r"C:\Git\minis-config\manifests\slots")),
         draft_model: None,
+        chat_template: None,
     };
     let binary = PathBuf::from(r"C:\Nonio\llama-b10809-vulkan\llama-server.exe");
     let mut ours = cmdline::split_line(&cmdline::render_line(&binary, &cmdline::build_args(&p, &paths)));
@@ -143,6 +144,27 @@ fn manifest_roundtrips_through_toml() {
                 ram_margin_gib: 16.0,
                 margin_ok: Some(true),
             }),
+        }),
+        conditions: Some(aethera_lib::conditions::Conditions {
+            gpus: vec![aethera_lib::conditions::Driver {
+                name: "AMD Radeon(TM) 890M Graphics".into(),
+                version: Some("32.0.31041.1004".into()),
+                date: Some("2026-08-17".into()),
+                dedicated_gib: Some(48.0),
+            }],
+            npus: vec![aethera_lib::conditions::Driver {
+                name: "NPU Compute Accelerator Device".into(),
+                version: Some("32.0.20102.3930".into()),
+                date: Some("2026-05-07".into()),
+                dedicated_gib: None,
+            }],
+            adrenalin: Some("26.8.1".into()),
+            power_scheme: Some("381b4222-f694-41f0-9685-ff5bb260df2e".into()),
+            power_overlay: Some("ded574b5-45a0-4f42-8737-46345c09c238".into()),
+            weights_volume: Some("C:".into()),
+            weights_disk: Some("KINGSTON OM8TAP42048K1-A00".into()),
+            weights_bus: Some("NVMe".into()),
+            weights_free_gb: Some(1769.02),
         }),
         overrides: vec![profile::Override { field: "server.ubatch".into(), base: Some("4096".into()), value: Some("2048".into()) }],
         exit: Some(manifest::ExitSection { at: "2026-09-15T19:44:31+02:00".into(), code: None, by_user: true, left_running: false }),

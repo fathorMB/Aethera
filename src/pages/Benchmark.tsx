@@ -17,6 +17,9 @@ function Conditions(props: { row: RunRow }) {
   const r = () => props.row;
   return (
     <span class="row" style={{ gap: "4px" }}>
+      <span class="mono cond" title={r().reference ? `mediana di riferimento ${fixed(r().reference!.decode_median, 1)} tok/s su ${r().reference!.runs} avvii con le stesse condizioni` : ""}>
+        {r().conditions_short ?? "condizioni sconosciute"}
+      </span>
       <Show when={r().running}>
         <span class="badge ok tight">
           <i />
@@ -95,6 +98,12 @@ function CompareCard(props: { cmp: Comparison }) {
           {a().id} vs {b().id}
         </span>
       </h2>
+      <Show when={props.cmp.not_comparable.length}>
+        <div class="note warn mb">
+          <b>A e B non differiscono solo per il profilo:</b> {props.cmp.not_comparable.join(" · ")}. Su questa macchina
+          il solo driver GPU ha spostato il prefill del 17 % (M-08): il Δ qui sotto non è attribuibile al profilo.
+        </div>
+      </Show>
       <table style={{ "font-size": "12px" }}>
         <thead>
           <tr>
@@ -329,46 +338,56 @@ export default function Benchmark() {
               }
             >
               {(r) => (
-                <tr classList={{ sel: checked().includes(r.id) || focus() === r.id }} class="click" onClick={() => setFocus(r.id)}>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" checked={checked().includes(r.id)} onChange={() => toggle(r.id)} />
-                  </td>
-                  <td class="mono">{r.id}</td>
-                  <td class="num">{clock(r.started)}</td>
-                  <td class="mono mini">
-                    {r.profile}{" "}
-                    <For each={r.overrides}>
-                      {(o) => (
-                        <span class="pill mod" title={`${o.base ?? "—"} → ${o.value ?? "—"}`}>
-                          {o.field.split(".").pop()} {o.value ?? "—"}
-                        </span>
-                      )}
-                    </For>
-                  </td>
-                  <td class="mono">{r.build}</td>
-                  <td class="r num">
-                    <Val v={r.uptime_s == null ? null : duration(r.uptime_s)} />
-                  </td>
-                  <td class="r num">{num(r.summary.requests)}</td>
-                  <td class="r">
-                    <Val v={fixed(r.summary.prefill_median, 0)} />
-                  </td>
-                  <td class="r">
-                    <Val v={fixed(r.summary.decode_median, 1)} />
-                  </td>
-                  <td class="r">
-                    <Val v={pct(r.summary.acceptance)} unit="%" />
-                  </td>
-                  <td class="r">
-                    <Val v={pct(r.summary.cache_share)} unit="%" />
-                  </td>
-                  <td class="r">
-                    <Val v={fixed(r.vram_dedicated_gib, 2)} />
-                  </td>
-                  <td>
-                    <Conditions row={r} />
-                  </td>
-                </tr>
+                <>
+                  <tr classList={{ sel: checked().includes(r.id) || focus() === r.id }} class="click" onClick={() => setFocus(r.id)}>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={checked().includes(r.id)} onChange={() => toggle(r.id)} />
+                    </td>
+                    <td class="mono">{r.id}</td>
+                    <td class="num">{clock(r.started)}</td>
+                    <td class="mono mini">
+                      {r.profile}{" "}
+                      <For each={r.overrides}>
+                        {(o) => (
+                          <span class="pill mod" title={`${o.base ?? "—"} → ${o.value ?? "—"}`}>
+                            {o.field.split(".").pop()} {o.value ?? "—"}
+                          </span>
+                        )}
+                      </For>
+                    </td>
+                    <td class="mono">{r.build}</td>
+                    <td class="r num">
+                      <Val v={r.uptime_s == null ? null : duration(r.uptime_s)} />
+                    </td>
+                    <td class="r num">{num(r.summary.requests)}</td>
+                    <td class="r">
+                      <Val v={fixed(r.summary.prefill_median, 0)} />
+                    </td>
+                    <td class="r">
+                      <Val v={fixed(r.summary.decode_median, 1)} />
+                    </td>
+                    <td class="r">
+                      <Val v={pct(r.summary.acceptance)} unit="%" />
+                    </td>
+                    <td class="r">
+                      <Val v={pct(r.summary.cache_share)} unit="%" />
+                    </td>
+                    <td class="r">
+                      <Val v={fixed(r.vram_dedicated_gib, 2)} />
+                    </td>
+                    <td>
+                      <Conditions row={r} />
+                    </td>
+                  </tr>
+                  <Show when={r.conditions_changed.length}>
+                    <tr class="sep">
+                      <td colspan={13}>
+                        ▲ da qui in su: {r.conditions_changed.join(" · ")}. La mediana di riferimento per «degradato»
+                        riparte, e le righe sotto non si confrontano con quelle sopra senza dirlo.
+                      </td>
+                    </tr>
+                  </Show>
+                </>
               )}
             </For>
           </tbody>

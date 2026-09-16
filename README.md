@@ -29,7 +29,12 @@ davvero servito. Chi lancia le prove è un altro programma.
   il digest di GitHub, metadati letti dal GGUF senza caricarlo, download riprendibili, campionamento
   consigliato letto dalla model card con la fonte e la data.
 - **Uno storico degli avvii.** Ogni avvio lascia il suo manifest e la sua telemetria: si confrontano
-  due avvii e si vede che cosa è cambiato fra i due, nel profilo e nelle condizioni.
+  due avvii e si vede che cosa è cambiato fra i due, nel profilo e nelle condizioni — build, driver di
+  GPU e NPU, profilo di alimentazione, VGM, disco dei pesi. Due avvii con un driver diverso non si
+  confrontano senza che la pagina lo dica.
+- **Quanto un client costa al motore.** Richiesta per richiesta, quanta parte del prompt il motore ha
+  riusato e quanta ha dovuto rielaborare, e quando un client ha compattato la conversazione e quanto
+  tempo è costato. Su questa macchina pesa più di qualunque leva del motore.
 
 ## Che cosa serve per usarla
 
@@ -72,7 +77,8 @@ Nessuno di questi passi richiede di aprire un editor di testo.
 | `catalog.toml` | i modelli conosciuti: repository, hash atteso e calcolato, metadati GGUF letti una volta, campionamento consigliato |
 | `profiles/*.toml` | un file per profilo; il nome del file è il nome del profilo **ed è l'alias servito** |
 | `builds/` | le build scaricate da Aethera (quelle dichiarate a mano restano dove sono) |
-| `runs/<id>/` | per ogni avvio: `manifest.toml` (com'è stato acceso), `server.log`, telemetria e slot salvati |
+| `templates/` | template di chat che un profilo può passare al motore; Aethera ci scrive `qwen3.6-tollerante.jinja` se manca, e non lo sovrascrive se lo cambi |
+| `runs/<id>/` | per ogni avvio: `manifest.toml` (com'è stato acceso e in che condizioni), `server.log`, telemetria e slot salvati |
 
 **Fuori dalla radice dati**, in `%APPDATA%\Aethera\settings.toml`, restano solo due cose: dove sta la
 radice dati e cosa fare all'uscita. Sono preferenze di questo computer, non del progetto.
@@ -94,10 +100,17 @@ Impostazioni → «Aggiungi build…»): l'id si ricava dal nome della cartella,
 
 ## Per i client
 
-Con il motore acceso, Impostazioni mostra le righe già pronte da incollare: il `profile.toml` di
-Nonio, il blocco d'ambiente per i banchi, la versione PowerShell. Portano l'indirizzo, l'alias, il
-contesto **servito** (letto da `/props`, non quello dichiarato) e il campionamento consigliato del
-modello con la fonte e la data in cui è stato letto.
+Con il motore acceso, Impostazioni mostra le righe già pronte da incollare, una scheda per client: il
+`profile.toml` di Nonio, l'`opencode.json` di OpenCode, le variabili per Claude Code (PowerShell o
+bash) e il blocco d'ambiente per i banchi. Portano l'indirizzo, l'alias, il contesto **servito**
+(letto da `/props`, non quello dichiarato) e il campionamento consigliato del modello con la fonte e
+la data in cui è stato letto. Accanto, il **budget di contesto** di ogni client: quanto spazio gli
+resta per lavorare dopo il suo prompt fisso e l'output riservato.
+
+**Claude Code con Qwen3.6.** Claude Code manda messaggi di sistema anche a metà conversazione, e il
+template di chat di Qwen3.6 li rifiuta con un errore 500. Il profilo lo risolve con
+`chat_template_file = "qwen3.6-tollerante.jinja"`: è il template del modello con quella sola riga
+cambiata. La scheda Claude Code dice se l'avvio acceso lo usa.
 
 Aethera espone anche un endpoint locale su `127.0.0.1:8090` per chi vuole coordinarsi da solo:
 
@@ -107,10 +120,11 @@ Aethera espone anche un endpoint locale su `127.0.0.1:8090` per chi vuole coordi
 | `GET` | `/run` | il manifest dell'avvio corrente |
 | `POST` | `/lock` | «sto lavorando»: finché il lock vale, arresto e riavvio sono rifiutati |
 | `DELETE` | `/lock` | rilascia |
-| `GET` | `/telemetry/recent` | prefill, decode, accettazione e quota di cache delle ultime richieste |
+| `GET` | `/telemetry/recent` | prefill, decode, accettazione e quota di cache delle ultime richieste, ognuna con come ha trattato la conversazione, e le compattazioni |
 
-Il lock non cambia il motore: rende solo rifiutati arresto e riavvio. Le richieste che arrivano da un
-browser (con `Origin`) sono rifiutate.
+Il lock non cambia il motore: rende solo rifiutati arresto e riavvio. È anche l'unico modo in cui
+Aethera sa **quale** client ha mandato una richiesta: il log del motore non lo dice. Le richieste che
+arrivano da un browser (con `Origin`) sono rifiutate.
 
 ## Che cosa non fa
 

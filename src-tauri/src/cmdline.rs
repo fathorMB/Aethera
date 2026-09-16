@@ -12,6 +12,8 @@ pub struct LaunchPaths {
     /// Presente solo se il profilo chiede il salvataggio degli slot.
     pub slot_dir: Option<PathBuf>,
     pub draft_model: Option<PathBuf>,
+    /// Percorso completo del template di chat, se il profilo ne chiede uno.
+    pub chat_template: Option<PathBuf>,
 }
 
 fn kv(a: &mut Vec<String>, flag: &str, value: impl ToString) {
@@ -27,7 +29,16 @@ pub fn build_args(p: &Profile, paths: &LaunchPaths) -> Vec<String> {
     kv(&mut a, "--port", s.port);
     kv(&mut a, "--ctx-size", s.ctx);
     kv(&mut a, "--parallel", s.n_parallel);
-    kv(&mut a, "--n-gpu-layers", s.n_gpu_layers);
+    // Senza n_gpu_layers i layer li sceglie --fit: si scrive solo quello che il profilo dice.
+    if let Some(n) = s.n_gpu_layers {
+        kv(&mut a, "--n-gpu-layers", n);
+    }
+    if let Some(f) = &s.fit {
+        kv(&mut a, "--fit", f);
+    }
+    if let Some(t) = &s.fit_target {
+        kv(&mut a, "--fit-target", t);
+    }
     kv(&mut a, "--ubatch-size", s.ubatch);
     kv(&mut a, "--batch-size", s.batch);
     kv(&mut a, "--flash-attn", &s.flash_attn);
@@ -48,6 +59,18 @@ pub fn build_args(p: &Profile, paths: &LaunchPaths) -> Vec<String> {
     }
     if let Some(t) = s.threads_batch {
         kv(&mut a, "--threads-batch", t);
+    }
+    if let Some(n) = s.n_cpu_moe {
+        kv(&mut a, "--n-cpu-moe", n);
+    }
+    if !s.tensor_overrides.is_empty() {
+        kv(&mut a, "--override-tensor", s.tensor_overrides.join(","));
+    }
+    if let Some(l) = &s.lazy_mode {
+        kv(&mut a, "--lazy-mode", l);
+    }
+    if let Some(t) = &paths.chat_template {
+        kv(&mut a, "--chat-template-file", t.display());
     }
     let sp = &p.speculative;
     if sp.kind != "none" {
@@ -70,6 +93,15 @@ pub fn build_args(p: &Profile, paths: &LaunchPaths) -> Vec<String> {
     }
     if let Some(n) = p.cache.ctx_checkpoints {
         kv(&mut a, "--ctx-checkpoints", n);
+    }
+    if let Some(n) = p.cache.checkpoint_min_step {
+        kv(&mut a, "--checkpoint-min-step", n);
+    }
+    if let Some(n) = p.cache.cache_ram {
+        kv(&mut a, "--cache-ram", n);
+    }
+    if let Some(u) = p.cache.kv_unified {
+        a.push(if u { "--kv-unified" } else { "--no-kv-unified" }.into());
     }
     a.extend(s.extra_args.iter().cloned());
     a
@@ -195,5 +227,37 @@ mod tests {
         let edited = s(&["--ubatch-size", "2048", "--metrics", "--n-gpu-layers", "-1", "--cache-reuse", "256"]);
         let st: Vec<ArgStatus> = compare(&base, &edited).into_iter().map(|g| g.status).collect();
         assert_eq!(st, vec![ArgStatus::Changed, ArgStatus::Same, ArgStatus::Same, ArgStatus::Added]);
+    }
+
+    #[test]
+    fn measured_levers_reach_the_command_line() {
+        let mut p = crate::profile::template("g3", "x.gguf", "b10991", "vulkan", 8080);
+        let paths = LaunchPaths {
+            model: PathBuf::from(r"C:\m\x.gguf"),
+            slot_dir: None,
+            draft_model: None,
+            chat_template: Some(PathBuf::from(r"C:\AetheraData\templates\qwen3.6-tollerante.jinja")),
+        };
+        p.server.n_gpu_layers = None;
+        p.server.fit = Some("on".into());
+        p.server.fit_target = Some("1024".into());
+        p.server.n_cpu_moe = Some(4);
+        p.server.tensor_overrides = s(&[r"blk\.1\.ffn=CPU", "exps=Vulkan0"]);
+        p.server.lazy_mode = Some("off".into());
+        p.cache.checkpoint_min_step = Some(128);
+        p.cache.cache_ram = Some(-1);
+        p.cache.kv_unified = Some(false);
+        let groups = group(&build_args(&p, &paths));
+        let get = |f: &str| groups.iter().find(|(flag, _)| flag == f).map(|(_, v)| v.clone());
+        assert_eq!(get("--n-gpu-layers"), None, "senza n_gpu_layers decide --fit");
+        assert_eq!(get("--fit"), Some(Some("on".into())));
+        assert_eq!(get("--fit-target"), Some(Some("1024".into())));
+        assert_eq!(get("--n-cpu-moe"), Some(Some("4".into())));
+        assert_eq!(get("--override-tensor"), Some(Some(r"blk\.1\.ffn=CPU,exps=Vulkan0".into())));
+        assert_eq!(get("--lazy-mode"), Some(Some("off".into())));
+        assert_eq!(get("--chat-template-file"), Some(Some(r"C:\AetheraData\templates\qwen3.6-tollerante.jinja".into())));
+        assert_eq!(get("--checkpoint-min-step"), Some(Some("128".into())));
+        assert_eq!(get("--cache-ram"), Some(Some("-1".into())));
+        assert_eq!(get("--no-kv-unified"), Some(None));
     }
 }

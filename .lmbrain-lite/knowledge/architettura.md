@@ -12,8 +12,10 @@ App alla radice del repo: `src/` (SolidJS), `src-tauri/` (Rust, crate `aethera_l
 | Modulo | Cosa fa |
 |---|---|
 | `settings.rs` | preferenze app (radice dati, comportamento all'uscita) in `%APPDATA%\Aethera\settings.toml`; `AETHERA_CONFIG_DIR` le sposta per le prove |
-| `machine.rs` | radice dati (`machine.toml`, `profiles/`, `builds/`, `runs/`), build dichiarate (`[[build]] id = "b10809-vulkan"`) o in `builds/` |
-| `system.rs` | letture di sistema dietro il trait `SystemProbe` (Windows: registro + `GlobalMemoryStatusEx`) |
+| `machine.rs` | radice dati (`machine.toml`, `profiles/`, `builds/`, `runs/`, `templates/`), build dichiarate (`[[build]] id = "b10809-vulkan"`) o in `builds/`; scrive i template di Aethera solo se mancano |
+| `system.rs` | letture di sistema dietro il trait `SystemProbe` (Windows: registro + `GlobalMemoryStatusEx`; condizioni dell'avvio: classi di dispositivi, `PowerSchemes`, `IOCTL_STORAGE_QUERY_PROPERTY`) |
+| `conditions.rs` | driver GPU/NPU, AMD Software, overlay di alimentazione, VGM, disco dei pesi; quali condizioni rendono due avvii non confrontabili |
+| `proposals.rs` | modifiche che M-08 suggerisce per un profilo (build, `-ngl`, ubatch) e avvisi non bloccanti (`mmap` su pesi che riempiono la VGM) |
 | `profile.rs` | schema TOML v1, validazione con tutti gli errori, `diff` per gli override, `CACHE_FIELDS` |
 | `import.rs` | JSON di minis-config → TOML (extra_args di spec/cache/load diventano campi, BOM tollerato) |
 | `cmdline.rs` | argv nell'ordine di `serve.ps1` + `--load-mode` esplicito; confronto base/modificato |
@@ -21,7 +23,7 @@ App alla radice del repo: `src/` (SolidJS), `src-tauri/` (Rust, crate `aethera_l
 | `engine.rs` + `job.rs` | processo in job object (kill-on-close, `release` per «lascia acceso»), monitor `/health` → `/props`, stati |
 | `manifest.rs` | `runs/<id>/manifest.toml`, aggiornato a pronto e all'uscita, con profilo effettivo e `[memory.before]` / `[memory.after_load]` |
 | `memory.rs` | `--list-devices` (VRAM libera prima), memoria dopo il caricamento, doppia copia (working set ≥ metà dei pesi) |
-| `telemetry.rs` | `runs/<id>/telemetry.jsonl`: tempi da `print_timing` del log, cache da `/slots` durante l'elaborazione, riserva `/metrics`; mediane, quota cache, degradato |
+| `telemetry.rs` | `runs/<id>/telemetry.jsonl`: tempi da `print_timing`, cache dalla riga `release` del log (riserve `/slots` e `/metrics`); come ogni richiesta tratta la conversazione, compattazioni, mediane, degradato contro la mediana di riferimento |
 | `endpoint.rs` | 127.0.0.1:8090: `/status`, `/run`, `POST`/`DELETE /lock` con TTL, `/telemetry/recent`; rifiuta richieste con `Origin` |
 | `runs.rs` | storico e confronto degli avvii per la pagina Benchmark |
 | `gguf.rs` | intestazione di un GGUF senza caricare i pesi (array lunghi saltati): architettura, blocchi, MTP, esperti, parametri della KV, tipi dei tensori |
@@ -31,13 +33,15 @@ App alla radice del repo: `src/` (SolidJS), `src-tauri/` (Rust, crate `aethera_l
 | `download.rs` | oid LFS da `/api/models/<repo>/tree/main`, download riprendibile in `.part`, rinomina solo dopo la verifica |
 | `builds.rs` | release `b<numero>` di ggml-org (sono **prerelease**), asset per backend, digest verificato prima di estrarre, estrazione in `builds/llama-<tag>-<backend>` |
 | `tasks.rs` | lavori lunghi (hash, download, installazioni) con avanzamento e annullamento; da non confondere con `job.rs`, che è il job object di Windows |
-| `clients.rs`, `tray.rs` | riga Nonio e blocco `AETHERA_*`/`BENCH_*`; testi e voci della tray |
+| `clients.rs`, `tray.rs` | righe per Nonio, OpenCode, Claude Code e blocco `AETHERA_*`/`BENCH_*`, budget di contesto per client; testi e voci della tray |
 | `commands.rs`, `lib.rs` | comandi Tauri, tray aggiornata ogni 2 s, scansione orfani ogni 3 s, X → tray con motore acceso, eventi `aethera://ask-exit` e `aethera://notice` |
 
 ## Fonti delle misure su b10809 (fissate il 15/16-09)
 
 - Per richiesta: righe `print_timing` (prompt eval, eval, draft acceptance) chiuse da `release`. Il log a verbosità di default non ha i token dalla cache.
-- Token dalla cache: `/slots` mentre `is_processing` (`id_task`, `n_prompt_tokens_cache`); a slot libero il campo torna a 0. `llamacpp:prompt_tokens_cached_total` sale **all'avvio** della richiesta: la sua differenza vale solo se nel log non c'è un `launch_slot_` dopo il `release`.
+- Token dalla cache (M-09): dalla riga `release … stop processing: n_tokens = N` meno generati e rielaborati; coincide con `/slots` a meno di 2 token (18 richieste di Claude Code). Riserve: `/slots` mentre `is_processing` (`id_task`, `n_prompt_tokens_cache`; a slot libero torna a 0) e `llamacpp:prompt_tokens_cached_total`, che sale **all'avvio** della richiesta e vale solo se nel log non c'è un `launch_slot_` dopo il `release`.
+- Compattazioni: una richiesta «estende» se tiene ≥ 90% del contesto precedente dello slot o tutto tranne l'ultimo ubatch; «contesto ricostruito» se il prompt è < 70% del contesto precedente, e la richiesta che riscriveva subito prima è il riassunto. Il riuso da solo non basta: Claude Code tiene il suo prompt fisso anche quando compatta.
+- Il client di una richiesta si sa solo dal lock sull'endpoint: il log non lo dice, e Aethera non sta fra client e motore.
 - Memoria del processo: PDH `\GPU Process Memory(pid_<pid>_*)\Dedicated Usage` e `Shared Usage` (22,68 GiB su G1, come `serve.ps1`), working set da `GetProcessMemoryInfo`.
 - «In uso»: slot attivo, richiesta negli ultimi 30 s, lock dell'endpoint o protezione manuale; `Engine::stop` rifiuta.
 
@@ -70,6 +74,7 @@ App alla radice del repo: `src/` (SolidJS), `src-tauri/` (Rust, crate `aethera_l
 - Sviluppo: `npm.cmd run tauri dev` (sulla PowerShell dell'operatore `npm.ps1` è bloccato).
 - Test: `cargo test --manifest-path src-tauri/Cargo.toml` (fixture in `src-tauri/tests/fixtures/minis-config/`), `npm.cmd test`, `npm.cmd run build`.
 - Prova reale M-03: `cargo run --manifest-path src-tauri/Cargo.toml --example e2e_m03 -- C:\AetheraData` (memoria, telemetria, cache, lock che rifiuta lo stop) ed `--example e2e_orphan -- C:\AetheraData` (orfano riconosciuto e terminato). Richiedono la porta 8080 e 8090 libere: non con `tauri dev` acceso (8090).
+- Prova reale M-09: `cargo run --manifest-path src-tauri/Cargo.toml --example e2e_m09 -- C:\AetheraData <cartella di lavoro> [nonio opencode claude]`: G1 con le proposte e il template tollerante, i tre client con le righe di Aethera e un lock ciascuno. `--example m09_replay -- C:\AetheraData <id avvio>` rilegge il log di un avvio con il parser nuovo e lo confronta con `/slots`; `--example conditions` stampa le condizioni della macchina.
 - Prova reale M-04: `cargo run --manifest-path src-tauri/Cargo.toml --example e2e_m04 -- C:\AetheraData`
   (metadati, stima contro la misura, catalogo, oid LFS, ripresa del download sul file vero, release e digest).
   `--hash` aggiunge il ricalcolo completo dei 22 GB; `--install` installa davvero una build in `%TEMP%`

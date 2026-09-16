@@ -148,3 +148,12 @@ td .empty, th .empty { border: 0; background: none; padding: 10px 2px }
 .welcome { max-width: 620px; margin: 60px auto }
 .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; z-index: 10 }
 .dialog { max-width: 440px; box-shadow: 0 8px 30px rgba(0, 0, 0, .4) }
+
+/* M-09: riuso del prompt, condizioni, leve misurate */
+.ev td { font-size: 12px }
+.tag { font-size: 11px; font-weight: 600; white-space: nowrap }
+.tag.ext { color: var(--ok) } .tag.cold { color: var(--fg2) } .tag.sum { color: var(--warn) } .tag.reb { color: var(--err) }
+.note b { color: var(--fg) }
+.pill.x { color: var(--err); border-color: var(--err) }
+tr.sep td { color: var(--warn); font-size: 11px; border-bottom: 1px dashed var(--warn); padding-top: 10px }
+.field .hint { grid-column: 2 / 4; margin-top: -2px }

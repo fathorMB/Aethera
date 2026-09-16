@@ -28,8 +28,19 @@ pub const SPEC_TYPES: &[&str] = &[
 ];
 const SPEC_NEEDS_DRAFT_MODEL: &[&str] = &["draft-simple", "draft-eagle3", "draft-dflash", "draft-dspark"];
 
+pub const ON_OFF: &[&str] = &["on", "off"];
+pub const LAZY_MODES: &[&str] = &["auto", "on", "off"];
+
 /// Campi che cambiano come il motore riusa il prefisso: una loro modifica si dichiara «invalida la cache».
-pub const CACHE_FIELDS: &[&str] = &["server.ctx", "server.n_parallel", "cache.cache_reuse", "cache.ctx_checkpoints"];
+pub const CACHE_FIELDS: &[&str] = &[
+    "server.ctx",
+    "server.n_parallel",
+    "cache.cache_reuse",
+    "cache.ctx_checkpoints",
+    "cache.checkpoint_min_step",
+    "cache.cache_ram",
+    "cache.kv_unified",
+];
 
 fn yes() -> bool {
     true
@@ -95,7 +106,15 @@ pub struct Server {
     pub port: u16,
     pub ctx: u32,
     pub n_parallel: u32,
-    pub n_gpu_layers: i32,
+    /// Assente: i layer sulla GPU li sceglie `--fit`, che regola solo gli argomenti non impostati.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub n_gpu_layers: Option<i32>,
+    /// `on` o `off`: il default del motore (b10991) è `on`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fit: Option<String>,
+    /// MiB da lasciare liberi per dispositivo, separati da virgole: `1024` o `1024,512`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fit_target: Option<String>,
     pub flash_attn: String,
     pub cache_type_k: String,
     pub cache_type_v: String,
@@ -107,6 +126,19 @@ pub struct Server {
     pub threads: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub threads_batch: Option<i32>,
+    /// Esperti MoE dei primi N layer tenuti sulla CPU. M-08 T-08: su questa macchina peggiora sempre.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub n_cpu_moe: Option<u32>,
+    /// `-ot`: una regola `regex=buffer` per voce.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tensor_overrides: Vec<String>,
+    /// `--lazy-mode`: `auto`, `on`, `off`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lazy_mode: Option<String>,
+    /// Template di chat al posto di quello del modello: nome di un file in `<radice>/templates`.
+    /// Aethera vi scrive `qwen3.6-tollerante.jinja`, che serve a Claude Code (M-09).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_template_file: Option<String>,
     #[serde(default = "yes")]
     pub metrics: bool,
     #[serde(default = "yes")]
@@ -146,6 +178,13 @@ pub struct Cache {
     pub cache_reuse: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ctx_checkpoints: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checkpoint_min_step: Option<u32>,
+    /// MiB di cache dei prompt in RAM: -1 senza limite, 0 disattivata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_ram: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kv_unified: Option<bool>,
 }
 
 /// Budget dichiarato dal client: finestra di conversazione + output riservato ≤ contesto.
@@ -194,7 +233,9 @@ pub fn template(name: &str, model_file: &str, build: &str, backend: &str, port: 
             port,
             ctx: 32768,
             n_parallel: 1,
-            n_gpu_layers: 999,
+            n_gpu_layers: Some(999),
+            fit: None,
+            fit_target: None,
             flash_attn: "on".into(),
             cache_type_k: "f16".into(),
             cache_type_v: "f16".into(),
@@ -203,6 +244,10 @@ pub fn template(name: &str, model_file: &str, build: &str, backend: &str, port: 
             load_mode: auto(),
             threads: None,
             threads_batch: None,
+            n_cpu_moe: None,
+            tensor_overrides: Vec::new(),
+            lazy_mode: None,
+            chat_template_file: None,
             metrics: true,
             jinja: true,
             slot_save: true,
@@ -302,6 +347,26 @@ const MANAGED_FLAGS: &[(&str, &str)] = &[
     ("-ctxcp", "cache.ctx_checkpoints"),
     ("--ctx-checkpoints", "cache.ctx_checkpoints"),
     ("--swa-checkpoints", "cache.ctx_checkpoints"),
+    ("-fit", "server.fit"),
+    ("--fit", "server.fit"),
+    ("-fitt", "server.fit_target"),
+    ("--fit-target", "server.fit_target"),
+    ("-ncmoe", "server.n_cpu_moe"),
+    ("--n-cpu-moe", "server.n_cpu_moe"),
+    ("-ot", "server.tensor_overrides"),
+    ("--override-tensor", "server.tensor_overrides"),
+    ("-lzm", "server.lazy_mode"),
+    ("--lazy-mode", "server.lazy_mode"),
+    ("--chat-template-file", "server.chat_template_file"),
+    ("--chat-template", "server.chat_template_file"),
+    ("-cms", "cache.checkpoint_min_step"),
+    ("--checkpoint-min-step", "cache.checkpoint_min_step"),
+    ("-cram", "cache.cache_ram"),
+    ("--cache-ram", "cache.cache_ram"),
+    ("-kvu", "cache.kv_unified"),
+    ("--kv-unified", "cache.kv_unified"),
+    ("-no-kvu", "cache.kv_unified"),
+    ("--no-kv-unified", "cache.kv_unified"),
 ];
 
 pub fn managed_flag(token: &str) -> Option<&'static str> {
@@ -404,6 +469,48 @@ pub fn validate(p: &Profile) -> Vec<Issue> {
         if matches!(t, Some(n) if n == 0 || n < -1) {
             v.push(issue(field, "atteso -1 (automatico) o un numero positivo"));
         }
+    }
+    if let Some(f) = &s.fit {
+        one_of("server.fit", f, ON_OFF, &mut v);
+    }
+    if s.n_gpu_layers.is_none() && s.fit.as_deref() == Some("off") {
+        v.push(issue(
+            "server.n_gpu_layers",
+            "senza n_gpu_layers e con fit = off i layer sulla GPU restano al default del motore: una leva nascosta",
+        ));
+    }
+    if let Some(t) = &s.fit_target {
+        if t.split(',').any(|x| x.trim().parse::<u32>().is_err()) {
+            v.push(issue("server.fit_target", "attesi MiB interi separati da virgole, per esempio 1024 o 1024,512"));
+        }
+        if s.fit.as_deref() == Some("off") {
+            v.push(issue("server.fit_target", "con fit = off non ha effetto"));
+        }
+    }
+    if let Some(l) = &s.lazy_mode {
+        one_of("server.lazy_mode", l, LAZY_MODES, &mut v);
+        if l == "on" && !s.load_mode.contains("mmap") && s.load_mode != "auto" {
+            v.push(issue("server.lazy_mode", "lazy_mode = on legge dal disco su richiesta: richiede load_mode con mmap"));
+        }
+    }
+    for (i, o) in s.tensor_overrides.iter().enumerate() {
+        match o.split_once('=') {
+            Some((pat, buf)) if !pat.trim().is_empty() && !buf.trim().is_empty() && !o.contains(',') => {}
+            _ => v.push(issue(
+                "server.tensor_overrides",
+                format!("regola {} «{o}»: attesa una sola regola `regex=buffer`, senza virgole", i + 1),
+            )),
+        }
+    }
+    if let Some(t) = &s.chat_template_file {
+        if t.trim().is_empty() || t.contains(['/', '\\']) {
+            v.push(issue("server.chat_template_file", "solo il nome del file: i template stanno in <radice dati>/templates"));
+        } else if !t.to_ascii_lowercase().ends_with(".jinja") {
+            v.push(issue("server.chat_template_file", "atteso un file .jinja"));
+        }
+    }
+    if matches!(p.cache.cache_ram, Some(n) if n < -1) {
+        v.push(issue("cache.cache_ram", "atteso -1 (senza limite), 0 (disattivata) o MiB"));
     }
     for a in &s.extra_args {
         if let Some(field) = managed_flag(a) {
@@ -547,6 +654,41 @@ cache_type_v = "f16"
 ubatch = 4096
 batch = 4096
 "#;
+
+    #[test]
+    fn measured_levers_have_their_own_fields() {
+        let text = MINIMAL.replace("n_gpu_layers = 999\n", "fit = \"on\"\nfit_target = \"1024,512\"\n")
+            + "n_cpu_moe = 8\ntensor_overrides = [\"blk\\\\.1\\\\.ffn_.*=CPU\"]\nlazy_mode = \"auto\"\nchat_template_file = \"qwen3.6-tollerante.jinja\"\n\n[cache]\ncheckpoint_min_step = 128\ncache_ram = 15000\nkv_unified = true\n";
+        let (p, issues) = load(&text, "prova");
+        assert!(issues.is_empty(), "{issues:?}");
+        let p = p.unwrap();
+        assert_eq!((p.server.n_gpu_layers, p.server.fit.as_deref()), (None, Some("on")));
+        assert_eq!(p.server.tensor_overrides, vec![r"blk\.1\.ffn_.*=CPU".to_string()]);
+        assert_eq!((p.cache.cache_ram, p.cache.kv_unified), (Some(15000), Some(true)));
+        let back = toml::to_string_pretty(&p).unwrap();
+        assert_eq!(load(&back, "prova").0.unwrap(), p);
+    }
+
+    #[test]
+    fn a_hidden_lever_is_an_error() {
+        let text = MINIMAL.replace("n_gpu_layers = 999\n", "fit = \"off\"\nfit_target = \"mille\"\n")
+            + "tensor_overrides = [\"a=CPU,b=CPU\", \"senza-uguale\"]\nlazy_mode = \"sempre\"\nchat_template_file = \"C:\\\\t.jinja\"\nextra_args = [\"--n-cpu-moe\", \"4\", \"-kvu\"]\n\n[cache]\ncache_ram = -5\n";
+        let (_, issues) = load(&text, "prova");
+        let fields: Vec<&str> = issues.iter().map(|i| i.field.as_str()).collect();
+        for f in [
+            "server.n_gpu_layers",
+            "server.fit_target",
+            "server.lazy_mode",
+            "server.tensor_overrides",
+            "server.chat_template_file",
+            "cache.cache_ram",
+            "server.extra_args",
+        ] {
+            assert!(fields.contains(&f), "manca {f} in {issues:?}");
+        }
+        assert_eq!(fields.iter().filter(|f| **f == "server.tensor_overrides").count(), 2);
+        assert_eq!(fields.iter().filter(|f| **f == "server.extra_args").count(), 2);
+    }
 
     #[test]
     fn minimal_profile_is_valid_with_explicit_defaults() {

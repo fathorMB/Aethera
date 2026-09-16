@@ -2,6 +2,7 @@
 //! Si scrive all'avvio, si aggiorna quando il motore è pronto e quando esce.
 //! Un campo assente è sconosciuto, mai zero.
 
+use crate::conditions::Conditions;
 use crate::memory::MemorySection;
 use crate::profile::{Override, Profile};
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,9 @@ pub struct Manifest {
     /// Memoria prima dell'avvio e misurata dopo il caricamento (M-03): assente negli avvii precedenti.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub memory: Option<MemorySection>,
+    /// Driver, alimentazione e disco dei pesi all'avvio (M-09): assenti negli avvii precedenti.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conditions: Option<Conditions>,
     #[serde(default, rename = "override", skip_serializing_if = "Vec::is_empty")]
     pub overrides: Vec<Override>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

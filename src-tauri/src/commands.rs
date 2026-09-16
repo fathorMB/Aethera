@@ -16,8 +16,10 @@ use crate::launch;
 use crate::machine::{self, BuildEntry, DataRoot, MachineConfig, ResolvedBuild};
 use crate::modelcard;
 use crate::profile::{self, Issue, Override, Profile};
+use crate::proposals;
 use crate::runs::{self, Comparison, RunDetail, RunRow};
 use crate::settings::ExitBehavior;
+use crate::conditions::Conditions;
 use crate::system::{self, SystemReport};
 use crate::tasks::{Kind, TaskView};
 use crate::AppState;
@@ -39,6 +41,8 @@ pub struct Overview {
     pub machine: Option<MachineConfig>,
     pub machine_error: Option<String>,
     pub system: SystemReport,
+    /// Driver, alimentazione e disco dei pesi come li vede adesso Windows.
+    pub conditions: Conditions,
     pub exit_behavior: ExitBehavior,
     pub builds: Vec<ResolvedBuild>,
     pub builds_missing: Vec<BuildEntry>,
@@ -64,6 +68,7 @@ fn build_overview(state: &AppState) -> Overview {
         machine: None,
         machine_error: None,
         system: system::probe().report(),
+        conditions: system::probe().conditions(None),
         exit_behavior: settings.exit_behavior,
         builds: Vec::new(),
         builds_missing: Vec::new(),
@@ -83,6 +88,7 @@ fn build_overview(state: &AppState) -> Overview {
         }
         match root.ensure(&o.system) {
             Ok(m) => {
+                o.conditions = system::probe().conditions(m.models_dir.as_deref());
                 o.builds = root.builds_available(&m);
                 o.builds_missing =
                     m.builds.iter().filter(|b| !b.path.join(machine::server_binary_name()).is_file()).cloned().collect();
@@ -340,6 +346,10 @@ pub struct Preview {
     pub model_size_gb: Option<f64>,
     /// Stima di memoria alle leve correnti: si aggiorna mentre si cambiano contesto e cache.
     pub estimate: Option<Estimate>,
+    /// Modifiche che le misure di M-08 suggeriscono per questo profilo: si applicano a mano.
+    pub proposals: Vec<proposals::Proposal>,
+    /// Avvisi che non impediscono l'avvio.
+    pub warnings: Vec<String>,
 }
 
 /// Stima per l'anteprima. Usa **solo** i metadati GGUF già in catalogo: leggerli dal file costa
@@ -360,7 +370,10 @@ pub fn preview(state: State<AppState>, base: String, edited: Profile) -> Result<
     let (root, m) = root_and_machine(&state)?;
     let p = launch::prepare(&root, &m, &base, &edited, &root.runs().join("{run}").join("slots"));
     let binary = p.build.as_ref().map(|b| b.binary.clone()).unwrap_or_else(|| PathBuf::from(machine::server_binary_name()));
+    let vgm = system::probe().report().gpus.iter().filter_map(|g| g.dedicated_gib).reduce(f64::max);
     Ok(Preview {
+        proposals: proposals::for_profile(&edited, &root.builds_available(&m)),
+        warnings: proposals::warnings(&edited, p.model_size, vgm),
         args: cmdline::compare(p.base_args.as_deref().unwrap_or(&p.args), &p.args),
         line: cmdline::render_line(&binary, &p.args),
         binary: p.build.map(|b| b.binary.display().to_string()),
@@ -612,6 +625,10 @@ fn start_from(state: &AppState, base: &str, edited: Profile) -> Result<RunInfo, 
     if !p.blockers.is_empty() {
         return Err(p.blockers.join("\n"));
     }
+    let conditions = system::probe().conditions(m.models_dir.as_deref());
+    let history = runs::list(&root.runs(), None);
+    let reference = runs::reference(&history, &m.name, &edited.name, &edited.runtime.build, &conditions);
+    let conditions_changed = runs::changed_since(&history, &m.name, &conditions);
     state.engine.start(StartRequest {
         run_id,
         run_dir,
@@ -627,6 +644,9 @@ fn start_from(state: &AppState, base: &str, edited: Profile) -> Result<RunInfo, 
         machine_name: m.name,
         ram_margin_gib: m.ram_margin_gib,
         system: system::probe().report(),
+        conditions,
+        reference,
+        conditions_changed,
     })
 }
 
@@ -696,6 +716,16 @@ pub fn orphan_terminate(state: State<AppState>, pid: u32) -> Result<(), String> 
 pub fn snippets_for(state: &AppState) -> Option<ClientSnippets> {
     let m = state.engine.manifest()?;
     let base_url = format!("http://{}:{}", m.server.host, m.server.port);
+    // Prompt fissi: quelli misurati da M-08, più la prima richiesta a freddo di ogni client che in
+    // questo avvio ha preso il lock (solo così il log sa chi è).
+    let mut fixed = clients::measured_fixed_prompts();
+    if let Some((_, summary, _)) = state.engine.recent(usize::MAX) {
+        for f in clients::fixed_from_turns(&summary.turns, &m.run.id) {
+            fixed.retain(|x| x.client != f.client);
+            fixed.push(f);
+        }
+    }
+    let claude_config_dir = data_root(state).ok().map(|r| r.path.join("clients").join("claude-code").display().to_string());
     Some(clients::snippets(&RunFacts {
         run_id: &m.run.id,
         base_url: &base_url,
@@ -707,6 +737,9 @@ pub fn snippets_for(state: &AppState) -> Option<ClientSnippets> {
         // Il campionamento è quello del profilo **avviato**, non quello del file su disco:
         // le righe devono valere per il motore che sta rispondendo adesso.
         sampling: &m.effective_profile.sampling_by_mode,
+        chat_template: m.effective_profile.server.chat_template_file.as_deref(),
+        claude_config_dir,
+        fixed_prompts: &fixed,
     }))
 }
 

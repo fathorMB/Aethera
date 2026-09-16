@@ -17,7 +17,8 @@ generated: true
 | 6 | M-06 | Comportamento quando qualcosa va storto | active | 8/9 (1 blocked) | 89% |
 | 7 | M-07 | Confezionamento, prima esecuzione e documentazione | active | 5/7 (2 blocked) | 71% |
 | 8 | M-08 | Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU | done | 14/14 | 100% |
-| 9 | M-09 | Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove | proposed | 0/11 | 0% |
+| 9 | M-09 | Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove | active | 10/11 (1 blocked) | 91% |
+| 10 | M-10 | Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD | approved | 0/13 | 0% |
 
 ## M-01 — Mockup di design della v1
 
@@ -77,8 +78,15 @@ generated: true
 
 ## M-09 — Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove
 
-- `status`: proposed
+- `status`: active
 - `priority`: 9
 - `file`: milestones/M-09.md
 - `outcome`: L'operatore vede nella finestra quello che M-08 ha dovuto ricavare a mano. Ogni avvio registra le condizioni che cambiano i numeri: versione dei driver GPU e NPU, profilo energetico, VGM, disco dei pesi. La pagina Motore mostra, richiesta per richiesta, quanta parte del prompt il motore ha riusato e quando un client ha compattato la conversazione. I profili standard e lo schema contengono le leve misurate, senza nasconderle in extra_args. Claude Code funziona contro il motore locale con Qwen3.6 senza passaggi manuali.
+
+## M-10 — Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD
+
+- `status`: approved
+- `priority`: 10
+- `file`: milestones/M-10.md
+- `outcome`: Si sa, con misure e non con stime, se Qwen3.8-Flash-Next intero (tutti i 512 esperti, nessuna potatura) gira su questa macchina come agente di coding utilizzabile: corpo del modello residente nella VGM regolata a 64 o 72 GB, tabella n-gram lasciata su SSD con --lazy-mode, prefill freddo e caldo, decode a 32k e 64k, e task riusciti per ora di macchina contro Qwen3.6-35B-A3B. Alla fine c'è un rapporto con un verdetto per quant (IQ3_XXS, Q3_K_XL, IQ4_XS) e la ricetta da portare nei profili.
 

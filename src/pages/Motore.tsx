@@ -1,6 +1,6 @@
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import * as api from "../api";
-import type { EngineStatus, MemorySection, Orphan, Overview, ReadyStatus, Setup } from "../api";
+import type { Conditions, EngineStatus, MemorySection, Orphan, Overview, ReadyStatus, Setup, Summary, TurnKind } from "../api";
 import type { PageId } from "../App";
 import { copy, Empty, Spark, StateBadge, Toggle, UsageBadge, Val } from "../components";
 import { clock, duration, fixed, num, pct } from "../format";
@@ -90,6 +90,182 @@ function MemoryCard(props: { memory: MemorySection | null; loadMs: number | null
             </span>
           </Show>
         </Show>
+      </div>
+    </div>
+  );
+}
+
+/** Driver, alimentazione, VGM e disco dei pesi: le condizioni che M-08 ha dovuto ricavare a mano. */
+function ConditionsCard(props: { conditions: Conditions | null; changed: string[] }) {
+  const c = () => props.conditions;
+  const changedKey = (k: string) => props.changed.some((x) => x.startsWith(k));
+  return (
+    <div class="card">
+      <h2>
+        Condizioni dell'avvio <span class="r">lette all'avvio, nel manifest</span>
+      </h2>
+      <Show when={c()} fallback={<div class="cond">Non registrate: l'avvio è precedente a quando Aethera le legge.</div>}>
+        {(k) => (
+          <dl class="kv">
+            <For each={k().gpus ?? []} fallback={<><dt>Driver GPU</dt><dd><Val v={null} /></dd></>}>
+              {(g) => (
+                <>
+                  <dt>Driver GPU</dt>
+                  <dd>
+                    <span class="mono">
+                      <Val v={g.version} />
+                    </span>{" "}
+                    <Show when={changedKey("driver GPU")}>
+                      <span class="pill mod">cambiato</span>
+                    </Show>
+                    <div class="cond">
+                      {g.name}
+                      {g.date ? ` · ${g.date}` : ""}
+                      {k().adrenalin ? ` · AMD Software ${k().adrenalin}` : ""}
+                    </div>
+                  </dd>
+                </>
+              )}
+            </For>
+            <For each={k().npus ?? []} fallback={<><dt>Driver NPU</dt><dd><Val v={null} /></dd></>}>
+              {(n) => (
+                <>
+                  <dt>Driver NPU</dt>
+                  <dd>
+                    <span class="mono">
+                      <Val v={n.version} />
+                    </span>{" "}
+                    <Show when={changedKey("driver NPU")}>
+                      <span class="pill mod">cambiato</span>
+                    </Show>
+                    <div class="cond">{n.name}</div>
+                  </dd>
+                </>
+              )}
+            </For>
+            <dt>Alimentazione</dt>
+            <dd>
+              <Val v={api.overlayName(k().power_overlay)} mono={false} />{" "}
+              <Show when={changedKey("alimentazione")}>
+                <span class="pill mod">cambiata</span>
+              </Show>
+              <div class="cond">overlay dal registro: powercfg mostra solo lo schema sotto</div>
+            </dd>
+            <dt>VGM</dt>
+            <dd>
+              <Val v={fixed(k().gpus?.find((g) => g.dedicated_gib != null)?.dedicated_gib, 0)} unit="GiB dedicati" />
+            </dd>
+            <dt>Pesi su</dt>
+            <dd>
+              <span class="mono">
+                <Val v={k().weights_volume} />
+              </span>{" "}
+              · <Val v={k().weights_disk} mono={false} />
+              <div class="cond">
+                {k().weights_bus ?? "bus sconosciuto"} ·{" "}
+                {k().weights_free_gb != null ? `${num(Math.round(k().weights_free_gb!))} GB liberi all'avvio` : "spazio libero sconosciuto"}
+              </div>
+            </dd>
+          </dl>
+        )}
+      </Show>
+    </div>
+  );
+}
+
+const KIND: Record<TurnKind, { label: string; cls: string }> = {
+  cold: { label: "a freddo", cls: "cold" },
+  extends: { label: "estende", cls: "ext" },
+  rewrites: { label: "riscrive", cls: "sum" },
+  summary: { label: "compattazione · riassunto", cls: "sum" },
+  rebuilt: { label: "compattazione · contesto ricostruito", cls: "reb" },
+  unknown: { label: "non attribuibile", cls: "cold" },
+};
+
+const seconds = (ms: number | null | undefined) => (ms == null ? null : `${fixed(ms / 1000, 1)} s`);
+
+/** Richiesta per richiesta: quanto il motore ha riusato, quanto ha rielaborato, e le compattazioni. */
+function TurnsCard(props: { summary: Summary }) {
+  const turns = () => [...props.summary.turns].reverse();
+  const last = () => props.summary.compactions[props.summary.compactions.length - 1];
+  return (
+    <div class="card mb">
+      <h2>
+        Richiesta per richiesta <span class="r">quanto il motore ha riusato e quanto ha rielaborato · dalla più recente</span>
+      </h2>
+      <Show when={last()}>
+        {(c) => (
+          <div class="note warn mb">
+            <b>Compattazione alle {clock(c().at)}</b>
+            {c().client ? ` di ${c().client}` : ""}: {num(c().reprocessed)} token rielaborati fra riassunto e contesto
+            ricostruito, <b>{seconds(c().cost_ms)}</b> che la conversazione non avrebbe pagato continuando.
+            <Show when={props.summary.compactions.length > 1}>
+              {" "}
+              Nelle ultime {props.summary.window} richieste: {props.summary.compactions.length} compattazioni,{" "}
+              {seconds(props.summary.compactions.reduce((a, x) => a + x.cost_ms, 0))} in tutto.
+            </Show>{" "}
+            Più contesto servito le rende più rare: vedi <i>Budget di contesto</i> nelle Impostazioni.
+          </div>
+        )}
+      </Show>
+      <Show when={turns().length} fallback={<div class="cond">Nessuna richiesta servita da questo avvio.</div>}>
+        <table class="ev">
+          <thead>
+            <tr>
+              <th>ora</th>
+              <th>client</th>
+              <th class="r">prompt</th>
+              <th class="r">riusati</th>
+              <th class="r">rielaborati</th>
+              <th style={{ width: "110px" }}>quota riusata</th>
+              <th class="r">prefill</th>
+              <th class="r">decode</th>
+              <th>lettura</th>
+            </tr>
+          </thead>
+          <tbody>
+            <For each={turns()}>
+              {(t) => {
+                const share = () => (t.prompt_total ? (t.cache_n ?? 0) / t.prompt_total : null);
+                const tone = () => (share() == null ? "" : share()! >= 0.9 ? "ok" : share()! >= 0.5 ? "warn" : "err");
+                return (
+                  <tr classList={{ sel: t.kind === "summary" || t.kind === "rebuilt" }}>
+                    <td class="num">{clock(t.at)}</td>
+                    <td class="mono">
+                      <Val v={t.client} />
+                    </td>
+                    <td class="r">
+                      <Val v={num(t.prompt_total)} />
+                    </td>
+                    <td class="r">
+                      <Val v={num(t.cache_n)} />
+                    </td>
+                    <td class="r num">{num(t.prompt_n)}</td>
+                    <td>
+                      <Show when={share() != null} fallback={<Val v={null} />}>
+                        <div class={`bar ${tone()}`} title={pct(share()) + " %"}>
+                          <span style={{ width: `${Math.max(share()! * 100, 1)}%` }} />
+                        </div>
+                      </Show>
+                    </td>
+                    <td class="r num">{seconds(t.prompt_ms)}</td>
+                    <td class="r num">{seconds(t.gen_ms)}</td>
+                    <td>
+                      <span class={`tag ${KIND[t.kind].cls}`}>{KIND[t.kind].label}</span>
+                    </td>
+                  </tr>
+                );
+              }}
+            </For>
+          </tbody>
+        </table>
+      </Show>
+      <div class="cond" style={{ "margin-top": "6px" }}>
+        I token riusati vengono dal log del motore (contesto a fine richiesta meno generati e rielaborati, a meno di 2 token
+        {props.summary.cache_sources.some((x) => x !== "log") ? `; alcune righe da ${props.summary.cache_sources.filter((x) => x !== "log").join(" e ")}` : ""}).
+        Il <b>client</b> si conosce solo se ha preso il lock sull'endpoint di Aethera. <b>Estende</b>: tiene almeno il
+        90 % della conversazione di prima, o tutto tranne l'ultimo ubatch. <b>Contesto ricostruito</b>: il prompt è più
+        corto del 70 % della conversazione di prima; la richiesta che riscriveva subito prima è il <b>riassunto</b>.
       </div>
     </div>
   );
@@ -494,19 +670,35 @@ export default function Motore(props: { status: EngineStatus | null; overview: O
 
               <div class="card">
                 <h2>
-                  Cache del prefisso <span class="r">ultimi {ready()?.telemetry.window ?? 0} turni</span>
+                  Riuso del prompt <span class="r">ultime {ready()?.telemetry.window ?? 0} richieste · dal log</span>
                 </h2>
-                <div class="big">
-                  <Val v={pct(ready()?.telemetry.cache_share)} />
-                  <small>% riusato</small>
+                <div class="grid g2">
+                  <div>
+                    <div class="big">
+                      <Val v={pct(ready()?.telemetry.cache_share)} />
+                      <small>% riusato</small>
+                    </div>
+                    <div class="cond">token dalla cache / token di prompt</div>
+                  </div>
+                  <div>
+                    <div class="big">
+                      {ready()?.telemetry.compactions.length ?? 0}
+                      <small>{ready()?.telemetry.compactions.length === 1 ? "compattazione" : "compattazioni"}</small>
+                    </div>
+                    <div class="cond">
+                      <Show when={ready()?.telemetry.compactions.length} fallback="nessuna nella finestra">
+                        costate {seconds(ready()!.telemetry.compactions.reduce((a, c) => a + c.cost_ms, 0))}
+                      </Show>
+                    </div>
+                  </div>
                 </div>
                 <Show when={ready()?.telemetry.cache_series.length} fallback={<div class="cond">nessuna richiesta servita</div>}>
                   <div style={{ margin: "8px 0 4px" }}>
                     <Spark values={ready()!.telemetry.cache_series} max={1} low={0.5} />
                   </div>
                   <div class="cond">
-                    Quota di token di prompt dalla cache per richiesta (/metrics). Una barra rossa è sotto il 50 %: il
-                    client ha riscritto il prefisso o qualcosa ha invalidato la cache. Tratteggio = non attribuibile.
+                    Quota riusata per richiesta. Rossa sotto il 50 %: il client ha cambiato il prompt prima della coda.
+                    Tratteggio = non attribuibile.
                   </div>
                 </Show>
               </div>
@@ -554,9 +746,31 @@ export default function Motore(props: { status: EngineStatus | null; overview: O
             <For each={ready()?.divergences ?? []}>
               {(msg) => <div class="note warn mb">{msg} — si registra, non si corregge</div>}
             </For>
+            <Show when={ready()?.conditions_changed.length}>
+              <div class="note warn mb">
+                <b>Condizioni cambiate dall'avvio precedente:</b> {ready()!.conditions_changed.join(" · ")}. La soglia
+                «degradato» non confronta questo avvio con quelli di prima:{" "}
+                <Show
+                  when={ready()!.reference}
+                  fallback="la mediana di riferimento riparte da qui (nessun avvio con queste condizioni finora)."
+                >
+                  {(ref) => (
+                    <>
+                      la mediana di riferimento riparte ({fixed(ref().decode_median, 1)} tok/s, {ref().runs}{" "}
+                      {ref().runs === 1 ? "avvio" : "avvii"} con queste condizioni finora).
+                    </>
+                  )}
+                </Show>
+              </div>
+            </Show>
+
+            <Show when={ready()}>{(rd) => <TurnsCard summary={rd().telemetry} />}</Show>
 
             <div class="grid g2 mb" style={{ "align-items": "start" }}>
-              <MemoryCard memory={ready()?.memory ?? null} loadMs={ready()?.load_ms ?? null} />
+              <div class="grid" style={{ "align-items": "start" }}>
+                <ConditionsCard conditions={ready()?.conditions ?? null} changed={ready()?.conditions_changed ?? []} />
+                <MemoryCard memory={ready()?.memory ?? null} loadMs={ready()?.load_ms ?? null} />
+              </div>
 
               <div class="card">
                 <h2>

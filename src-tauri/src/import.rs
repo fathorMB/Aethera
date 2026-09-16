@@ -95,6 +95,8 @@ pub fn import_minis_json(text: &str, source: &str, build: &str) -> Result<Import
     let mut speculative = Speculative::default();
     let mut cache = Cache::default();
     let mut load_mode = "auto".to_string();
+    let (mut fit, mut fit_target, mut n_cpu_moe, mut lazy_mode) = (None, None, None, None);
+    let mut tensor_overrides: Vec<String> = Vec::new();
     let mut extra = Vec::new();
     let args = m.server.extra_args.unwrap_or_default();
     let mut i = 0;
@@ -132,6 +134,42 @@ pub fn import_minis_json(text: &str, source: &str, build: &str) -> Result<Import
             "--load-mode" | "-lm" => {
                 load_mode = value(&args, i, flag)?.to_string();
                 2
+            }
+            "--fit" | "-fit" => {
+                fit = Some(value(&args, i, flag)?.to_string());
+                2
+            }
+            "--fit-target" | "-fitt" => {
+                fit_target = Some(value(&args, i, flag)?.to_string());
+                2
+            }
+            "--n-cpu-moe" | "-ncmoe" => {
+                n_cpu_moe = Some(number(&args, i, flag)?);
+                2
+            }
+            "--override-tensor" | "-ot" => {
+                tensor_overrides.extend(value(&args, i, flag)?.split(',').map(str::to_string));
+                2
+            }
+            "--lazy-mode" | "-lzm" => {
+                lazy_mode = Some(value(&args, i, flag)?.to_string());
+                2
+            }
+            "--checkpoint-min-step" | "-cms" => {
+                cache.checkpoint_min_step = Some(number(&args, i, flag)?);
+                2
+            }
+            "--cache-ram" | "-cram" => {
+                cache.cache_ram = Some(number(&args, i, flag)?);
+                2
+            }
+            "--kv-unified" | "-kvu" => {
+                cache.kv_unified = Some(true);
+                1
+            }
+            "--no-kv-unified" | "-no-kvu" => {
+                cache.kv_unified = Some(false);
+                1
             }
             other => {
                 if let Some(field) = profile::managed_flag(other) {
@@ -193,7 +231,9 @@ pub fn import_minis_json(text: &str, source: &str, build: &str) -> Result<Import
             port: m.server.port,
             ctx: m.server.ctx,
             n_parallel: m.server.n_parallel,
-            n_gpu_layers: m.server.n_gpu_layers,
+            n_gpu_layers: Some(m.server.n_gpu_layers),
+            fit,
+            fit_target,
             flash_attn: m.server.flash_attn,
             cache_type_k: m.server.cache_type_k,
             cache_type_v: m.server.cache_type_v,
@@ -202,6 +242,10 @@ pub fn import_minis_json(text: &str, source: &str, build: &str) -> Result<Import
             load_mode,
             threads: None,
             threads_batch: None,
+            n_cpu_moe,
+            tensor_overrides,
+            lazy_mode,
+            chat_template_file: None,
             metrics: m.server.metrics.unwrap_or(false),
             jinja: m.server.jinja.unwrap_or(false),
             slot_save: m.server.slot_save_path.is_some(),

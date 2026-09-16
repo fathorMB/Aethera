@@ -70,6 +70,9 @@ fn main() -> Result<(), String> {
         machine_name: machine.name.clone(),
         ram_margin_gib: machine.ram_margin_gib,
         system: report,
+        conditions: system::probe().conditions(None),
+        reference: None,
+        conditions_changed: Vec::new(),
     })?;
     println!("{}\n{}", run.run_id, run.command_line);
 

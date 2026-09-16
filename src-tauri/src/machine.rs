@@ -74,6 +74,11 @@ impl DataRoot {
         self.path.join("runs")
     }
 
+    /// Template di chat che un profilo può passare al motore con `chat_template_file`.
+    pub fn templates(&self) -> PathBuf {
+        self.path.join("templates")
+    }
+
     pub fn machine_file(&self) -> PathBuf {
         self.path.join(MACHINE_FILE)
     }
@@ -91,8 +96,15 @@ impl DataRoot {
 
     /// Crea la struttura se manca e scrive un `machine.toml` iniziale al primo avvio.
     pub fn ensure(&self, system: &SystemReport) -> Result<MachineConfig, String> {
-        for dir in [self.path.clone(), self.profiles(), self.builds(), self.runs()] {
+        for dir in [self.path.clone(), self.profiles(), self.builds(), self.runs(), self.templates()] {
             fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        }
+        // Solo se manca: un template cambiato a mano resta com'è.
+        for (name, text) in BUILTIN_TEMPLATES {
+            let file = self.templates().join(name);
+            if !file.exists() {
+                fs::write(&file, text).map_err(|e| format!("{}: {e}", file.display()))?;
+            }
         }
         if !self.machine_file().exists() {
             let name = system.hostname.clone().unwrap_or_else(|| "macchina".into()).to_lowercase();
@@ -162,6 +174,10 @@ impl DataRoot {
         out
     }
 }
+
+/// Template che Aethera scrive in `templates/` se mancano.
+pub const BUILTIN_TEMPLATES: &[(&str, &str)] =
+    &[("qwen3.6-tollerante.jinja", include_str!("../templates/qwen3.6-tollerante.jinja"))];
 
 /// Backend di llama.cpp riconosciuti dentro l'id di una build.
 pub const BACKENDS: &[&str] = &["vulkan", "cuda", "hip", "sycl", "musa", "cann", "opencl", "metal", "blas", "cpu"];

@@ -5,7 +5,7 @@ import type { EngineStatus, Issue, Overview, Preview, Profile, ProfileEntry } fr
 import { AskName, CommandLine, Confirm, copy, Empty, Val } from "../components";
 import { fixed, getPath, sameValue, setPath, show } from "../format";
 
-type Kind = "text" | "opttext" | "int" | "optint" | "optfloat" | "bool" | "select" | "list";
+type Kind = "text" | "opttext" | "int" | "optint" | "optfloat" | "bool" | "optbool" | "select" | "optselect" | "list";
 
 interface FieldDef {
   path: string;
@@ -14,7 +14,11 @@ interface FieldDef {
   options?: string[];
   cache?: boolean;
   hint?: string;
+  /** Che cosa ne ha concluso M-08 su questa macchina: informa, non impedisce. */
+  verdict?: string;
 }
+
+const M08 = "rapporto in .lmbrain-lite/reports/misure-motore-2026-09.md";
 
 const FLASH = ["on", "off", "auto"];
 const CACHE_TYPES = ["f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1"];
@@ -46,7 +50,9 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
       { path: "server.port", label: "port", kind: "int", hint: "sempre esplicita" },
       { path: "server.ctx", label: "ctx", kind: "int", cache: true, hint: "verificato su /props" },
       { path: "server.n_parallel", label: "n_parallel", kind: "int", cache: true, hint: "MTP richiede 1" },
-      { path: "server.n_gpu_layers", label: "n_gpu_layers", kind: "int" },
+      { path: "server.n_gpu_layers", label: "n_gpu_layers", kind: "optint", hint: "vuoto: decide fit" },
+      { path: "server.fit", label: "fit", kind: "optselect", options: ["on", "off"], hint: "default motore: on" },
+      { path: "server.fit_target", label: "fit_target", kind: "opttext", hint: "MiB liberi · 1024 o 1024,512" },
       { path: "server.flash_attn", label: "flash_attn", kind: "select", options: FLASH },
       { path: "server.cache_type_k", label: "cache_type_k", kind: "select", options: CACHE_TYPES },
       { path: "server.cache_type_v", label: "cache_type_v", kind: "select", options: CACHE_TYPES },
@@ -55,6 +61,21 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
       { path: "server.batch", label: "batch", kind: "int" },
       { path: "server.threads", label: "threads", kind: "optint", hint: "default motore" },
       { path: "server.threads_batch", label: "threads_batch", kind: "optint", hint: "default motore" },
+      {
+        path: "server.n_cpu_moe",
+        label: "n_cpu_moe",
+        kind: "optint",
+        verdict: "M-08: peggiora",
+        hint: "M-08 T-08: sul Coder-Next ogni layer di esperti sulla CPU toglie velocità, in modo monotono",
+      },
+      { path: "server.tensor_overrides", label: "tensor_overrides", kind: "list", hint: "-ot · regex=buffer, separati da spazi" },
+      { path: "server.lazy_mode", label: "lazy_mode", kind: "optselect", options: ["auto", "on", "off"], hint: "default motore: auto" },
+      {
+        path: "server.chat_template_file",
+        label: "chat_template_file",
+        kind: "opttext",
+        hint: "vuoto: del modello · qwen3.6-tollerante.jinja per Claude Code",
+      },
       { path: "server.metrics", label: "metrics", kind: "bool" },
       { path: "server.jinja", label: "jinja", kind: "bool" },
       { path: "server.slot_save", label: "slot_save", kind: "bool", hint: "runs/<id>/slots" },
@@ -74,8 +95,46 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
   {
     title: "Cache e checkpoint",
     fields: [
-      { path: "cache.cache_reuse", label: "cache_reuse", kind: "optint", cache: true, hint: "off" },
-      { path: "cache.ctx_checkpoints", label: "ctx_checkpoints", kind: "optint", cache: true, hint: "default motore" },
+      {
+        path: "cache.cache_reuse",
+        label: "cache_reuse",
+        kind: "optint",
+        cache: true,
+        verdict: "M-08: scartata",
+        hint: "M-08 T-13: con --cache-reuse 256 i turni costano come senza",
+      },
+      {
+        path: "cache.ctx_checkpoints",
+        label: "ctx_checkpoints",
+        kind: "optint",
+        cache: true,
+        verdict: "M-08: scartata",
+        hint: "M-08 T-04: stessi token riusati, turno per turno",
+      },
+      {
+        path: "cache.checkpoint_min_step",
+        label: "checkpoint_min_step",
+        kind: "optint",
+        cache: true,
+        verdict: "M-08: scartata",
+        hint: "M-08 T-04: nessun effetto sul riuso",
+      },
+      {
+        path: "cache.cache_ram",
+        label: "cache_ram",
+        kind: "optint",
+        cache: true,
+        verdict: "M-08: scartata",
+        hint: "MiB · -1 senza limite · 0 spenta. M-08 T-04: nessun effetto sul riuso",
+      },
+      {
+        path: "cache.kv_unified",
+        label: "kv_unified",
+        kind: "optbool",
+        cache: true,
+        verdict: "M-08: scartata",
+        hint: "M-08 T-04: nessun effetto sul riuso",
+      },
     ],
   },
 ];
@@ -86,6 +145,10 @@ function parse(kind: Kind, raw: string): { ok: true; value: unknown } | { ok: fa
     case "text":
     case "select":
       return { ok: true, value: raw };
+    case "optselect":
+      return { ok: true, value: t === "" ? null : t };
+    case "optbool":
+      return { ok: true, value: t === "" ? null : t === "on" };
     case "opttext":
       return { ok: true, value: t === "" ? null : t };
     case "list":
@@ -119,8 +182,12 @@ function FieldRow(props: {
   const issues = () => props.issues.filter((i) => i.field === props.def.path);
   const text = () => {
     const v = value();
-    return v == null ? "" : Array.isArray(v) ? v.join(" ") : String(v);
+    if (v == null) return "";
+    if (typeof v === "boolean") return v ? "on" : "off";
+    return Array.isArray(v) ? v.join(" ") : String(v);
   };
+  const options = () => (props.def.kind === "optbool" ? ["on", "off"] : (props.def.options ?? []));
+  const optional = () => props.def.kind === "optselect" || props.def.kind === "optbool";
   const onInput = (raw: string) => {
     const r = parse(props.def.kind, raw);
     setBad(!r.ok);
@@ -140,11 +207,21 @@ function FieldRow(props: {
           when={props.def.kind === "bool"}
           fallback={
             <Show
-              when={props.def.kind === "select"}
-              fallback={<input value={text()} onInput={(e) => onInput(e.currentTarget.value)} spellcheck={false} />}
+              when={props.def.kind === "select" || optional()}
+              fallback={
+                <input
+                  value={text()}
+                  placeholder={props.def.kind.startsWith("opt") ? "non impostato" : ""}
+                  onInput={(e) => onInput(e.currentTarget.value)}
+                  spellcheck={false}
+                />
+              }
             >
               <select value={text()} onChange={(e) => onInput(e.currentTarget.value)}>
-                <For each={props.def.options}>{(o) => <option value={o}>{o}</option>}</For>
+                <Show when={optional()}>
+                  <option value="">non impostato</option>
+                </Show>
+                <For each={options()}>{(o) => <option value={o}>{o}</option>}</For>
               </select>
             </Show>
           }
@@ -154,7 +231,16 @@ function FieldRow(props: {
             <option value="off">off</option>
           </select>
         </Show>
-        <Show when={modified()} fallback={<span class="cond">{props.def.hint ?? ""}</span>}>
+        <Show
+          when={modified()}
+          fallback={
+            <Show when={props.def.verdict} fallback={<span class="cond">{props.def.hint ?? ""}</span>}>
+              <span class="pill x" title={`${props.def.hint ?? ""} — ${M08}`}>
+                {props.def.verdict}
+              </span>
+            </Show>
+          }
+        >
           <span class="base">
             <s>{show(baseValue())}</s>
           </span>
@@ -596,6 +682,37 @@ export default function Avvio(props: {
                     </span>
                   </h2>
                   <FieldRow def={{ path: "name", label: "name · alias", kind: "text" }} base={base()} edited={p()} issues={preview()?.issues ?? []} onSet={set} />
+                  <For each={preview()?.warnings ?? []}>
+                    {(w) => (
+                      <div class="note err" style={{ "margin-top": "8px" }}>
+                        {w} Si può avviare lo stesso.
+                      </div>
+                    )}
+                  </For>
+                  <Show when={preview()?.proposals.length}>
+                    <div class="note" style={{ "margin-top": "8px" }}>
+                      <b>Le misure di M-08 suggeriscono {preview()!.proposals.length === 1 ? "una modifica" : `${preview()!.proposals.length} modifiche`}</b>{" "}
+                      per questo profilo. Il file non si tocca: si applicano sopra, le vedi nella riga di comando e le salvi tu.
+                      <table style={{ margin: "6px 0", "font-size": "12px" }}>
+                        <tbody>
+                          <For each={preview()!.proposals}>
+                            {(x) => (
+                              <tr>
+                                <td class="mono">{x.field}</td>
+                                <td class="mono">
+                                  <s>{show(x.current)}</s> → {show(x.value)}
+                                </td>
+                                <td class="cond">{x.reason}</td>
+                              </tr>
+                            )}
+                          </For>
+                        </tbody>
+                      </table>
+                      <button class="btn sm" onClick={() => preview()!.proposals.forEach((x) => set(x.field, x.value))}>
+                        Applica come modifiche
+                      </button>
+                    </div>
+                  </Show>
                   <Show when={p().notes}>
                     <div class="cond" style={{ padding: "4px 6px" }}>
                       {p().notes}

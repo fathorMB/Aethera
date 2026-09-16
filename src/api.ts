@@ -28,7 +28,10 @@ export interface Profile {
     port: number;
     ctx: number;
     n_parallel: number;
-    n_gpu_layers: number;
+    /** Assente: i layer li sceglie `--fit`. */
+    n_gpu_layers?: number | null;
+    fit?: string | null;
+    fit_target?: string | null;
     flash_attn: string;
     cache_type_k: string;
     cache_type_v: string;
@@ -37,6 +40,10 @@ export interface Profile {
     load_mode: string;
     threads?: number | null;
     threads_batch?: number | null;
+    n_cpu_moe?: number | null;
+    tensor_overrides?: string[];
+    lazy_mode?: string | null;
+    chat_template_file?: string | null;
     metrics: boolean;
     jinja: boolean;
     slot_save: boolean;
@@ -49,7 +56,13 @@ export interface Profile {
     draft_p_min?: number | null;
     draft_model?: string | null;
   };
-  cache: { cache_reuse?: number | null; ctx_checkpoints?: number | null };
+  cache: {
+    cache_reuse?: number | null;
+    ctx_checkpoints?: number | null;
+    checkpoint_min_step?: number | null;
+    cache_ram?: number | null;
+    kv_unified?: boolean | null;
+  };
   client?: { context_window: number; reserved_output_tokens: number } | null;
   sampling_by_mode?: Record<string, Sampling>;
 }
@@ -85,7 +98,45 @@ export interface Preview {
   model_path: string | null;
   model_size_gb: number | null;
   estimate: Estimate | null;
+  proposals: Proposal[];
+  warnings: string[];
 }
+
+/** Una modifica che le misure di M-08 suggeriscono: si applica sopra il profilo, non lo salva. */
+export interface Proposal {
+  field: string;
+  value: unknown;
+  current: unknown;
+  reason: string;
+}
+
+export interface Driver {
+  name: string;
+  version?: string | null;
+  date?: string | null;
+  dedicated_gib?: number | null;
+}
+
+export interface Conditions {
+  gpus?: Driver[];
+  npus?: Driver[];
+  adrenalin?: string | null;
+  power_scheme?: string | null;
+  power_overlay?: string | null;
+  weights_volume?: string | null;
+  weights_disk?: string | null;
+  weights_bus?: string | null;
+  weights_free_gb?: number | null;
+}
+
+const OVERLAYS: Record<string, string> = {
+  "ded574b5-45a0-4f42-8737-46345c09c238": "Massime prestazioni",
+  "961cc777-2547-4f9d-8174-7d86181b8a7a": "Massima efficienza energetica",
+  "00000000-0000-0000-0000-000000000000": "Bilanciato",
+};
+
+export const overlayName = (guid: string | null | undefined) =>
+  guid == null ? null : (OVERLAYS[guid.toLowerCase()] ?? guid);
 
 export interface BuildEntry {
   id: string;
@@ -125,6 +176,7 @@ export interface Overview {
   machine: MachineConfig | null;
   machine_error: string | null;
   system: SystemReport;
+  conditions: Conditions;
   exit_behavior: ExitBehavior;
   builds: ResolvedBuild[];
   builds_missing: BuildEntry[];
@@ -191,6 +243,37 @@ export interface Summary {
   prompt_processed: number;
   prompt_cached: number;
   generated: number;
+  turns: Turn[];
+  compactions: Compaction[];
+  cache_sources: string[];
+}
+
+export type TurnKind = "cold" | "extends" | "rewrites" | "summary" | "rebuilt" | "unknown";
+
+export interface Turn {
+  at: string;
+  task: number;
+  client: string | null;
+  prompt_total: number | null;
+  cache_n: number | null;
+  prompt_n: number;
+  prompt_ms: number;
+  gen_ms: number;
+  decode_tps: number | null;
+  kind: TurnKind;
+}
+
+export interface Compaction {
+  at: string;
+  tasks: number[];
+  reprocessed: number;
+  cost_ms: number;
+  client: string | null;
+}
+
+export interface Reference {
+  decode_median: number;
+  runs: number;
 }
 
 export interface Counters {
@@ -247,6 +330,9 @@ export type ReadyStatus = {
   counters: Counters | null;
   memory: MemorySection | null;
   degraded: string[];
+  conditions: Conditions | null;
+  conditions_changed: string[];
+  reference: Reference | null;
 };
 
 export type EngineStatus =
@@ -256,10 +342,27 @@ export type EngineStatus =
   | { state: "exited"; finished: Finished }
   | { state: "orphan"; orphan: Orphan; last: Finished | null };
 
+export interface Budget {
+  client: string;
+  fixed_prompt: number | null;
+  fixed_source: string | null;
+  reserved_output: number | null;
+  workspace: number | null;
+  share: number | null;
+  tight: boolean | null;
+  ctx_needed: number | null;
+}
+
 export interface ClientSnippets {
   toml: string;
   env: string;
   powershell: string;
+  opencode: string;
+  claude_code_powershell: string;
+  claude_code_bash: string;
+  chat_template: string | null;
+  claude_code_ready: boolean;
+  budgets: Budget[];
 }
 
 export interface TelemetryRecord {
@@ -302,6 +405,10 @@ export interface RunRow {
   by_user: boolean | null;
   left_running: boolean | null;
   degraded: string[];
+  conditions: Conditions | null;
+  conditions_short: string | null;
+  conditions_changed: string[];
+  reference: Reference | null;
 }
 
 export interface RunDetail {
@@ -315,6 +422,7 @@ export interface Comparison {
   b: RunRow;
   profile_diff: Override[];
   conditions: { label: string; a: string | null; b: string | null }[];
+  not_comparable: string[];
 }
 
 // --- Catalogo (M-04) ---

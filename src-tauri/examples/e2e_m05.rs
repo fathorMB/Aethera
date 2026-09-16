@@ -245,6 +245,9 @@ fn main() -> Result<(), String> {
             machine_name: machine.name.clone(),
             ram_margin_gib: machine.ram_margin_gib,
             system: probe.report(),
+            conditions: system::probe().conditions(None),
+            reference: None,
+            conditions_changed: Vec::new(),
         })?;
         println!("avviato {} pid {} · {}", run.run_id, run.pid, run.command_line);
 
@@ -279,6 +282,9 @@ fn main() -> Result<(), String> {
             client: p.client.as_ref(),
             endpoint: None,
             sampling: &p.sampling_by_mode,
+            chat_template: p.server.chat_template_file.as_deref(),
+            claude_config_dir: None,
+            fixed_prompts: &[],
         });
         println!("\n--- profile.toml per i client ---\n{}", snip.toml);
         if !p.sampling_by_mode.is_empty() {

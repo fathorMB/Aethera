@@ -394,7 +394,7 @@ fn patch(p: &mut Profile, v: &Variant) {
     set!(ubatch);
     set!(batch);
     set!(n_parallel);
-    set!(n_gpu_layers);
+    set!(opt n_gpu_layers);
     set!(flash_attn);
     set!(cache_type_k);
     set!(cache_type_v);
@@ -464,6 +464,9 @@ fn start_variant(root: &DataRoot, engine: &Engine, sc: &Scenario, v: &Variant) -
         machine_name: machine.name.clone(),
         ram_margin_gib: machine.ram_margin_gib,
         system: report,
+        conditions: system::probe().conditions(None),
+        reference: None,
+        conditions_changed: Vec::new(),
     })?;
     println!("  riga: {}", run.command_line);
 

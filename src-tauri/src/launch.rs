@@ -98,11 +98,21 @@ pub fn prepare(root: &DataRoot, m: &MachineConfig, base: &str, edited: &Profile,
             blockers.push(format!("modello draft non trovato: {}", draft.display()));
         }
     }
+    if let Some(t) = &edited.server.chat_template_file {
+        let file = root.templates().join(t);
+        if !file.is_file() {
+            blockers.push(format!(
+                "template di chat non trovato: {}. Aethera riscrive i suoi template (qwen3.6-tollerante.jinja) alla prossima apertura se mancano; gli altri vanno messi lì a mano.",
+                file.display()
+            ));
+        }
+    }
 
     let paths_for = |p: &Profile| LaunchPaths {
         model: in_models(&p.model.file).unwrap_or_else(|| PathBuf::from(&p.model.file)),
         slot_dir: p.server.slot_save.then(|| slot_dir.to_path_buf()),
         draft_model: p.speculative.draft_model.as_deref().map(|f| in_models(f).unwrap_or_else(|| PathBuf::from(f))),
+        chat_template: p.server.chat_template_file.as_deref().map(|t| root.templates().join(t)),
     };
     let args = cmdline::build_args(edited, &paths_for(edited));
     let base_args = base_profile.as_ref().map(|b| cmdline::build_args(b, &paths_for(b)));

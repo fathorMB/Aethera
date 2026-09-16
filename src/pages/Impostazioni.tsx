@@ -3,6 +3,88 @@ import { createEffect, createSignal, For, on, Show } from "solid-js";
 import * as api from "../api";
 import type { ClientSnippets, EngineStatus, ExitBehavior, MachineConfig, MachineText, Overview } from "../api";
 import { Confirm, copy, Empty, Val } from "../components";
+import { num, pct } from "../format";
+
+type ClientTab = "nonio" | "opencode" | "claude" | "env";
+const TABS: { id: ClientTab; label: string }[] = [
+  { id: "nonio", label: "Nonio" },
+  { id: "opencode", label: "OpenCode" },
+  { id: "claude", label: "Claude Code" },
+  { id: "env", label: "env per banchi" },
+];
+
+/** Quanto spazio resta a ogni client prima di compattare, sull'avvio acceso. */
+function BudgetCard(props: { sn: ClientSnippets; ctx: number | null }) {
+  return (
+    <div class="card mb">
+      <h2>
+        Budget di contesto{" "}
+        <span class="r">per client, sull'avvio acceso{props.ctx != null ? ` · ${num(props.ctx)} token serviti` : ""}</span>
+      </h2>
+      <table style={{ "font-size": "12px" }}>
+        <thead>
+          <tr>
+            <th>client</th>
+            <th class="r">prompt fisso</th>
+            <th class="r">output riservato</th>
+            <th class="r">spazio di lavoro</th>
+            <th style={{ width: "90px" }} />
+            <th>lettura</th>
+          </tr>
+        </thead>
+        <tbody>
+          <For each={props.sn.budgets}>
+            {(b) => (
+              <tr>
+                <td>{b.client}</td>
+                <td class="r" title={b.fixed_source ?? ""}>
+                  <Show when={b.fixed_prompt != null} fallback={<span class="unk">non misurato</span>}>
+                    <span class="num">{num(b.fixed_prompt)}</span>
+                  </Show>
+                </td>
+                <td class="r">
+                  <Val v={num(b.reserved_output)} />
+                </td>
+                <td class="r">
+                  <Val v={num(b.workspace)} />
+                </td>
+                <td>
+                  <Show when={b.share != null}>
+                    <div class={`bar ${b.tight ? "err" : "ok"}`} title={`${pct(b.share)} % del contesto`}>
+                      <span style={{ width: `${Math.max(b.share! * 100, 1)}%` }} />
+                    </div>
+                  </Show>
+                </td>
+                <td>
+                  <Show
+                    when={b.tight != null}
+                    fallback={
+                      <span class="cond">
+                        {b.fixed_prompt == null
+                          ? "si misura dalla sua prima richiesta a freddo, se prende il lock"
+                          : "manca l'output riservato: client.reserved_output_tokens nel profilo"}
+                      </span>
+                    }
+                  >
+                    <span class={`tag ${b.tight ? "reb" : "ext"}`}>{b.tight ? "compatta presto" : "largo"}</span>
+                    <Show when={b.tight && b.ctx_needed != null}>
+                      <div class="cond">con {num(b.ctx_needed)} token serviti lo spazio arriva al 30 %</div>
+                    </Show>
+                  </Show>
+                </td>
+              </tr>
+            )}
+          </For>
+        </tbody>
+      </table>
+      <div class="cond" style={{ "margin-top": "6px" }}>
+        Il <b>prompt fisso</b> (istruzioni e strumenti del client) è misurato, mai stimato: passa il mouse sul numero per
+        la fonte. <b>Spazio di lavoro</b> = contesto servito − prompt fisso − output riservato; rosso sotto il 30 % del
+        contesto. Più spazio vuol dire compattazioni più rare, e ognuna costa decine di secondi di prefill.
+      </div>
+    </div>
+  );
+}
 
 const input = {
   background: "var(--bg)",
@@ -23,6 +105,12 @@ export default function Impostazioni(props: { overview: Overview; status: Engine
   /** Il testo di machine.toml: serve solo quando non si lascia leggere, perché senza vederlo non si corregge. */
   const [raw, setRaw] = createSignal<MachineText | null>(null);
   const [askReset, setAskReset] = createSignal(false);
+  const [tab, setTab] = createSignal<ClientTab>("nonio");
+  const ctxServed = () => {
+    const s = props.status;
+    return s?.state === "ready" ? s.ctx_served : null;
+  };
+  const cond = () => props.overview.conditions;
 
   createEffect(() => setMachine(props.overview.machine ? structuredClone(props.overview.machine) : null));
   // Quando machine.toml non è valido l'app non ha niente da mostrare nei campi: si mostra il file.
@@ -253,29 +341,97 @@ export default function Impostazioni(props: { overview: Overview; status: Engine
             >
               {(sn) => (
                 <>
-                  <div class="mini" style={{ "margin-bottom": "4px" }}>
-                    Nonio · <code>profile.toml</code>
+                  <div class="tabs">
+                    <For each={TABS}>
+                      {(t) => (
+                        <button classList={{ on: tab() === t.id }} onClick={() => setTab(t.id)}>
+                          {t.label}
+                        </button>
+                      )}
+                    </For>
                   </div>
-                  <pre class="cmd">{sn().toml}</pre>
-                  <div class="mini" style={{ margin: "8px 0 4px" }}>
-                    Blocco d'ambiente per banchi e Diorama
-                  </div>
-                  <pre class="cmd">{sn().env}</pre>
-                  <div class="row" style={{ "margin-top": "8px" }}>
-                    <button class="btn sm" onClick={() => copy(sn().toml)}>
-                      Copia TOML
-                    </button>
-                    <button class="btn sm" onClick={() => copy(sn().env)}>
-                      Copia blocco env
-                    </button>
-                    <button class="btn sm" onClick={() => copy(sn().powershell)}>
-                      Copia come PowerShell
-                    </button>
-                  </div>
+                  <Show when={tab() === "nonio"}>
+                    <div class="mini" style={{ "margin-bottom": "4px" }}>
+                      <code>profile.toml</code> di Nonio
+                    </div>
+                    <pre class="cmd">{sn().toml}</pre>
+                    <div class="row" style={{ "margin-top": "8px" }}>
+                      <button class="btn sm" onClick={() => copy(sn().toml)}>
+                        Copia TOML
+                      </button>
+                    </div>
+                  </Show>
+                  <Show when={tab() === "opencode"}>
+                    <div class="mini" style={{ "margin-bottom": "4px" }}>
+                      <code>opencode.json</code> · provider compatibile OpenAI
+                    </div>
+                    <pre class="cmd">{sn().opencode}</pre>
+                    <div class="row" style={{ "margin-top": "8px" }}>
+                      <button class="btn sm" onClick={() => copy(sn().opencode)}>
+                        Copia JSON
+                      </button>
+                      <span class="cond right">contesto e output sono quelli dell'avvio acceso</span>
+                    </div>
+                  </Show>
+                  <Show when={tab() === "claude"}>
+                    <div class="row mb">
+                      <Show
+                        when={sn().claude_code_ready}
+                        fallback={
+                          <span class="badge err">
+                            <i />
+                            template del modello
+                          </span>
+                        }
+                      >
+                        <span class="badge ok">
+                          <i />
+                          template tollerante attivo
+                        </span>
+                      </Show>
+                      <span class="cond">
+                        <Show
+                          when={sn().claude_code_ready}
+                          fallback="Claude Code riceverà errore 500 alla seconda richiesta: avvia un profilo con chat_template_file = qwen3.6-tollerante.jinja."
+                        >
+                          l'avvio passa <code>--chat-template-file {sn().chat_template}</code>: Claude Code punta dritto al motore
+                        </Show>
+                      </span>
+                    </div>
+                    <div class="mini" style={{ "margin-bottom": "4px" }}>
+                      PowerShell · da incollare prima di <code>claude</code>
+                    </div>
+                    <pre class="cmd">{sn().claude_code_powershell}</pre>
+                    <div class="row" style={{ "margin-top": "8px" }}>
+                      <button class="btn sm" onClick={() => copy(sn().claude_code_powershell)}>
+                        Copia come PowerShell
+                      </button>
+                      <button class="btn sm" onClick={() => copy(sn().claude_code_bash)}>
+                        Copia come bash
+                      </button>
+                      <span class="cond right">alias, porta e output sono quelli dell'avvio acceso</span>
+                    </div>
+                  </Show>
+                  <Show when={tab() === "env"}>
+                    <div class="mini" style={{ "margin-bottom": "4px" }}>
+                      Blocco d'ambiente per banchi e Diorama
+                    </div>
+                    <pre class="cmd">{sn().env}</pre>
+                    <div class="row" style={{ "margin-top": "8px" }}>
+                      <button class="btn sm" onClick={() => copy(sn().env)}>
+                        Copia blocco env
+                      </button>
+                      <button class="btn sm" onClick={() => copy(sn().powershell)}>
+                        Copia come PowerShell
+                      </button>
+                    </div>
+                  </Show>
                 </>
               )}
             </Show>
           </div>
+
+          <Show when={snippets()}>{(sn) => <BudgetCard sn={sn()} ctx={ctxServed()} />}</Show>
 
           <div class="card mb">
             <h2>
@@ -321,7 +477,8 @@ export default function Impostazioni(props: { overview: Overview; status: Engine
                   <td class="mono">GET</td>
                   <td class="mono">/telemetry/recent</td>
                   <td>
-                    prefill, decode, accettazione, quota cache delle ultime <code>?n=</code> richieste
+                    prefill, decode, accettazione, quota cache, richieste con come hanno trattato la conversazione e
+                    compattazioni delle ultime <code>?n=</code>
                   </td>
                 </tr>
               </tbody>
@@ -369,7 +526,55 @@ export default function Impostazioni(props: { overview: Overview; status: Engine
                   </>
                 )}
               </For>
+              <For each={cond().gpus ?? []}>
+                {(g) => (
+                  <>
+                    <dt>Driver GPU</dt>
+                    <dd>
+                      <span class="mono">
+                        <Val v={g.version} />
+                      </span>{" "}
+                      <span class="cond">
+                        {g.date ?? ""}
+                        {cond().adrenalin ? ` · AMD Software ${cond().adrenalin}` : ""}
+                      </span>
+                    </dd>
+                  </>
+                )}
+              </For>
+              <For each={cond().npus ?? []} fallback={<><dt>NPU</dt><dd><Val v={null} /></dd></>}>
+                {(n) => (
+                  <>
+                    <dt>NPU</dt>
+                    <dd>
+                      {n.name} ·{" "}
+                      <span class="mono">
+                        <Val v={n.version} />
+                      </span>
+                    </dd>
+                  </>
+                )}
+              </For>
+              <dt>Alimentazione</dt>
+              <dd>
+                <Val v={api.overlayName(cond().power_overlay)} mono={false} /> <span class="cond">overlay dal registro</span>
+              </dd>
+              <dt>Volume dei pesi</dt>
+              <dd>
+                <span class="mono">
+                  <Val v={cond().weights_volume} />
+                </span>{" "}
+                · <Val v={cond().weights_disk} mono={false} /> <span class="cond">{cond().weights_bus ?? ""}</span>
+                <Show when={cond().weights_free_gb != null}>
+                  {" "}
+                  · <span class="num">{num(Math.round(cond().weights_free_gb!))}</span> GB liberi
+                </Show>
+              </dd>
             </dl>
+            <div class="note" style={{ "margin-top": "8px" }}>
+              Driver, alimentazione e volume finiscono nel manifest di ogni avvio: la pagina Benchmark non confronta due
+              avvii con condizioni diverse senza dirlo. Un valore che Windows non dà resta «sconosciuto».
+            </div>
           </div>
 
           <div class="card">

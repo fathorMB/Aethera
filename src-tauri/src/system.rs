@@ -1,6 +1,7 @@
 //! Letture di sistema dietro un'interfaccia: su Windows dal registro e dalle API di memoria,
 //! altrove i valori restano sconosciuti (`None`), mai stimati.
 
+use crate::conditions::Conditions;
 use serde::Serialize;
 use std::path::Path;
 
@@ -71,6 +72,11 @@ pub trait SystemProbe {
     fn file_id(&self, _path: &Path) -> Option<(u32, u64)> {
         None
     }
+
+    /// Driver, alimentazione e disco dei pesi (`weights_dir`), letti all'avvio per il manifest.
+    fn conditions(&self, _weights_dir: Option<&Path>) -> Conditions {
+        Conditions::default()
+    }
 }
 
 pub fn probe() -> Box<dyn SystemProbe> {
@@ -100,14 +106,20 @@ fn gib(bytes: u64) -> f64 {
 #[cfg(windows)]
 mod windows_probe {
     use super::*;
+    use crate::conditions::Driver;
     use windows::core::{PCWSTR, PWSTR};
     use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::NetworkManagement::IpHelper::{GetExtendedTcpTable, MIB_TCPTABLE_OWNER_PID, TCP_TABLE_OWNER_PID_LISTENER};
     use windows::Win32::Networking::WinSock::AF_INET;
     use windows::Win32::Storage::FileSystem::{
         CreateFileW, GetDiskFreeSpaceExW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_NORMAL,
-        FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+        FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
     };
+    use windows::Win32::System::Ioctl::{
+        PropertyStandardQuery, StorageDeviceProperty, IOCTL_STORAGE_QUERY_PROPERTY, STORAGE_DEVICE_DESCRIPTOR,
+        STORAGE_PROPERTY_QUERY,
+    };
+    use windows::Win32::System::IO::DeviceIoControl;
     use windows::Win32::System::Performance::{
         PdhAddEnglishCounterW, PdhCloseQuery, PdhCollectQueryData, PdhGetFormattedCounterArrayW, PdhOpenQueryW,
         PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_LARGE, PDH_HCOUNTER, PDH_HQUERY, PDH_MORE_DATA,
@@ -181,6 +193,155 @@ mod windows_probe {
 
         fn file_id(&self, path: &Path) -> Option<(u32, u64)> {
             file_id(path)
+        }
+
+        fn conditions(&self, weights_dir: Option<&Path>) -> Conditions {
+            let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+            let power = hklm.open_subkey(r"SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes").ok();
+            let power_value = |name: &str| {
+                power.as_ref().and_then(|k| k.get_value::<String, _>(name).ok()).filter(|v| !v.trim().is_empty())
+            };
+            let volume = weights_dir.and_then(volume_letter);
+            let (weights_disk, weights_bus) = volume.map(disk_of_volume).unwrap_or((None, None));
+            Conditions {
+                // Come in `gpus`: un adattatore senza memoria dichiarata è un display virtuale.
+                gpus: drivers(&hklm, GPU_CLASS).into_iter().filter(|d| d.dedicated_gib.is_some()).collect(),
+                npus: drivers(&hklm, NPU_CLASS),
+                adrenalin: adrenalin(&hklm),
+                power_scheme: power_value("ActivePowerScheme"),
+                power_overlay: power_value("ActiveOverlayAcPowerScheme"),
+                weights_volume: volume.map(|l| format!("{l}:")),
+                weights_disk,
+                weights_bus,
+                weights_free_gb: weights_dir.and_then(free_disk_bytes).map(|b| (b as f64 / 1e7).round() / 100.0),
+            }
+        }
+    }
+
+    const GPU_CLASS: &str = "{4d36e968-e325-11ce-bfc1-08002be10318}";
+    /// Classe «ComputeAccelerator» di Windows: le NPU (AMD XDNA, Intel AI Boost) stanno qui.
+    const NPU_CLASS: &str = "{f01a9d53-3ff6-48d2-9f97-c8a7004be10c}";
+
+    /// `8-17-2026` → `2026-08-17`.
+    fn driver_date(raw: &str) -> String {
+        match raw.split('-').collect::<Vec<_>>().as_slice() {
+            [m, d, y] if y.len() == 4 => format!("{y}-{m:0>2}-{d:0>2}"),
+            _ => raw.to_string(),
+        }
+    }
+
+    fn drivers(hklm: &RegKey, class: &str) -> Vec<Driver> {
+        let mut out = Vec::new();
+        let Ok(k) = hklm.open_subkey(format!(r"SYSTEM\CurrentControlSet\Control\Class\{class}")) else { return out };
+        for name in k.enum_keys().flatten() {
+            if name.len() != 4 || !name.chars().all(|c| c.is_ascii_digit()) {
+                continue;
+            }
+            let Ok(d) = k.open_subkey(&name) else { continue };
+            let Ok(desc) = d.get_value::<String, _>("DriverDesc") else { continue };
+            out.push(Driver {
+                name: desc,
+                version: d.get_value::<String, _>("DriverVersion").ok(),
+                date: d.get_value::<String, _>("DriverDate").ok().map(|s| driver_date(&s)),
+                dedicated_gib: read_u64(&d, "HardwareInformation.qwMemorySize").map(gib),
+            });
+        }
+        out
+    }
+
+    /// Versione commerciale di AMD Software, dalla sua voce di disinstallazione.
+    fn adrenalin(hklm: &RegKey) -> Option<String> {
+        let k = hklm.open_subkey(r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall").ok()?;
+        k.enum_keys().flatten().find_map(|name| {
+            let e = k.open_subkey(&name).ok()?;
+            let display: String = e.get_value("DisplayName").ok()?;
+            if display != "AMD Software" {
+                return None;
+            }
+            e.get_value::<String, _>("DisplayVersion").ok()
+        })
+    }
+
+    fn volume_letter(path: &Path) -> Option<char> {
+        let s = path.to_str()?;
+        let s = s.strip_prefix(r"\\?\").unwrap_or(s);
+        let mut c = s.chars();
+        let letter = c.next()?.to_ascii_uppercase();
+        (letter.is_ascii_alphabetic() && c.next() == Some(':')).then_some(letter)
+    }
+
+    fn bus_name(bus: i32) -> String {
+        match bus {
+            1 => "SCSI".into(),
+            3 => "ATA".into(),
+            7 => "USB".into(),
+            8 => "RAID".into(),
+            10 => "SAS".into(),
+            11 => "SATA".into(),
+            12 => "SD".into(),
+            13 => "MMC".into(),
+            15 => "file virtuale".into(),
+            16 => "Spazi di archiviazione".into(),
+            17 => "NVMe".into(),
+            other => format!("bus {other}"),
+        }
+    }
+
+    /// Modello e bus del disco sotto un volume, con `IOCTL_STORAGE_QUERY_PROPERTY`: non serve essere
+    /// amministratore, basta aprire il volume senza diritti di lettura.
+    fn disk_of_volume(letter: char) -> (Option<String>, Option<String>) {
+        unsafe {
+            let w: Vec<u16> = format!(r"\\.\{letter}:").encode_utf16().chain(std::iter::once(0)).collect();
+            let Ok(h) = CreateFileW(
+                PCWSTR(w.as_ptr()),
+                0,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                None,
+                OPEN_EXISTING,
+                FILE_FLAGS_AND_ATTRIBUTES(0),
+                None,
+            ) else {
+                return (None, None);
+            };
+            let query = STORAGE_PROPERTY_QUERY {
+                PropertyId: StorageDeviceProperty,
+                QueryType: PropertyStandardQuery,
+                AdditionalParameters: [0],
+            };
+            let mut buf = vec![0u8; 4096];
+            let mut returned = 0u32;
+            let ok = DeviceIoControl(
+                h,
+                IOCTL_STORAGE_QUERY_PROPERTY,
+                Some(&query as *const STORAGE_PROPERTY_QUERY as *const std::ffi::c_void),
+                std::mem::size_of::<STORAGE_PROPERTY_QUERY>() as u32,
+                Some(buf.as_mut_ptr().cast()),
+                buf.len() as u32,
+                Some(&mut returned),
+                None,
+            )
+            .is_ok();
+            let _ = CloseHandle(h);
+            let len = returned as usize;
+            if !ok || len < std::mem::size_of::<STORAGE_DEVICE_DESCRIPTOR>() {
+                return (None, None);
+            }
+            let desc = std::ptr::read_unaligned(buf.as_ptr() as *const STORAGE_DEVICE_DESCRIPTOR);
+            let text = |offset: u32| -> Option<String> {
+                let start = offset as usize;
+                if start == 0 || start >= len {
+                    return None;
+                }
+                let end = buf[start..len].iter().position(|b| *b == 0).map_or(len, |p| start + p);
+                let s = String::from_utf8_lossy(&buf[start..end]).trim().to_string();
+                (!s.is_empty()).then_some(s)
+            };
+            let model = match (text(desc.VendorIdOffset), text(desc.ProductIdOffset)) {
+                (Some(v), Some(p)) if !p.starts_with(&v) => Some(format!("{v} {p}")),
+                (_, Some(p)) => Some(p),
+                (v, None) => v,
+            };
+            (model, Some(bus_name(desc.BusType.0)))
         }
     }
 

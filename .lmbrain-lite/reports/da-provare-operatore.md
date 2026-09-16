@@ -80,19 +80,37 @@ finestra di Adrenalin e un riavvio, e va rimessa a 48 dopo.
       fa 17,75 tok/s, quindi la VGM a 64 serve solo a sapere se si guadagna ancora, non a farlo
       funzionare.
 
-## 6 · Due client su tre — M-08 T-10
+## 6 · Le misure nella finestra (circa 25 minuti) — M-09 T-11
 
-Il ponte che misura quanto prefisso sopravvive è pronto e funziona: **Nonio conserva il 100%** su
-ogni turno. Gli altri due dipendono da te.
+Aggiunto il 16-09 sera. Apri la versione nuova: `src-tauri\target\release\aethera.exe` (o
+l'installatore in `src-tauri\target\release\bundle\nsis\`). L'E2E l'ha già provata dal codice con
+i tre client; qui serve il tuo sguardo sulla finestra.
 
-- [ ] **OpenCode**: non è installato su questa macchina, e installarlo di notte al posto tuo non mi
-      sembrava una cosa da decidere da solo. Se lo vuoi misurare: accendi il motore
-      (`m08_hold.exe C:/AetheraData qwen3.6-35b-a3b.q4_k_m.vulkan`), poi
-      `bash .lmbrain-lite/m08/run-T10-client.sh opencode <comando>` con il client puntato su
-      `http://127.0.0.1:8081`.
-- [ ] **Claude Code**: parla solo con l'API Anthropic, non con un endpoint compatibile OpenAI, quindi
-      contro questo motore **non ci si punta affatto**. Il caso `CLAUDE_CODE_ATTRIBUTION_HEADER`
-      citato nello studio va verificato in un altro modo, e va corretto anche nello studio.
+- [ ] **Avvio → G1** (`qwen3.6-35b-a3b…`): sotto il nome compare la proposta «runtime.build
+      b10809 → b10991». «Applica come modifiche» la mette sopra il profilo senza salvarlo.
+- [ ] Nello stesso profilo scrivi `qwen3.6-tollerante.jinja` in **chat_template_file** e porta
+      **ctx** a 65536: la riga di comando mostra `--chat-template-file …\templates\…`. Guarda le
+      etichette «M-08: scartata» nella sezione Cache (il motivo è al passaggio del mouse). Avvia.
+- [ ] **Motore**: il riquadro «Condizioni dell'avvio» con driver GPU e NPU, AMD Software,
+      «Massime prestazioni», VGM e il disco Kingston.
+- [ ] **Impostazioni → Riga per i client → Claude Code**: badge verde «template tollerante attivo».
+      «Copia come PowerShell», incolla in un terminale in una cartella di prova, lancia `claude` e
+      fagli fare qualcosa di vero per qualche turno. Non deve comparire nessun errore 500.
+- [ ] Durante quella sessione, **Motore → Richiesta per richiesta**: le righe arrivano una alla
+      volta, «estende» dopo la prima. Il client resta «sconosciuto», perché Claude Code non prende
+      il lock: è previsto. Se la conversazione si allunga fino a una compattazione, compare
+      l'avviso con il tempo che è costata.
+- [ ] **Impostazioni → Budget di contesto**: Claude Code, OpenCode e Nonio con i prompt fissi
+      misurati; passa il mouse su un numero per la fonte.
+- [ ] **Benchmark**: gli avvii di oggi pomeriggio hanno la colonna delle condizioni, quelli di prima
+      dicono «condizioni sconosciute». Selezionane uno di ciascun tipo: il confronto avvisa che il Δ
+      non è del solo profilo.
+
+**Da sapere prima.** Nel primo giro dell'E2E OpenCode non ha caricato la configurazione di Aethera
+(per un difetto del banco, non della riga) ed è ricaduto sul suo modello in cloud «big-pickle»,
+mandandogli `src-tauri/src/conditions.rs`. Il banco ora forza il modello con `-m aethera/…`.
+Quando usi OpenCode a mano, controlla che l'intestazione dica `build · qwen3.6-…` e non un modello
+in cloud.
 
 ---
 

@@ -178,6 +178,9 @@ fn main() -> Result<(), String> {
         machine_name: machine.name.clone(),
         ram_margin_gib: machine.ram_margin_gib,
         system: probe.report(),
+        conditions: system::probe().conditions(None),
+        reference: None,
+        conditions_changed: Vec::new(),
     })?;
     let t = Instant::now();
     let mut code = None;

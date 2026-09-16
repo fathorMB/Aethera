@@ -3,6 +3,7 @@
 //! Un motore alla volta; nessun riavvio implicito.
 
 use crate::cmdline;
+use crate::conditions::Conditions;
 use crate::job::Job;
 use crate::machine::ResolvedBuild;
 use crate::manifest::{
@@ -11,7 +12,7 @@ use crate::manifest::{
 use crate::memory::{self, MemoryAfter, MemorySection};
 use crate::profile::{Override, Profile};
 use crate::system::{self, SystemReport};
-use crate::telemetry::{self, Counters, LogParser, LogTail, Record, Summary};
+use crate::telemetry::{self, Counters, LogParser, LogTail, Record, Reference, Summary};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -52,6 +53,11 @@ pub struct StartRequest {
     pub machine_name: String,
     pub ram_margin_gib: f64,
     pub system: SystemReport,
+    pub conditions: Conditions,
+    /// Mediana del decode degli avvii precedenti con le stesse condizioni: la soglia «degradato».
+    pub reference: Option<Reference>,
+    /// Che cosa è cambiato dall'avvio precedente sulla stessa macchina: `driver GPU a → b`.
+    pub conditions_changed: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -148,6 +154,9 @@ pub enum EngineStatus {
         counters: Option<Counters>,
         memory: Option<MemorySection>,
         degraded: Vec<String>,
+        conditions: Option<Conditions>,
+        conditions_changed: Vec<String>,
+        reference: Option<Reference>,
     },
     Exited {
         finished: Finished,
@@ -187,6 +196,8 @@ struct Running {
     slot_processing: Option<bool>,
     last_activity: Option<Instant>,
     locks: Vec<Lock>,
+    reference: Option<Reference>,
+    conditions_changed: Vec<String>,
 }
 
 #[derive(Default)]
@@ -376,6 +387,7 @@ impl Engine {
                     },
                     Phase::Ready { load_ms, ctx_served, alias_served, .. } => {
                         let uptime_s = r.started.elapsed().as_secs();
+                        let ubatch = Some(r.manifest.effective_profile.server.ubatch);
                         EngineStatus::Ready {
                             run: r.info.clone(),
                             uptime_s,
@@ -384,10 +396,13 @@ impl Engine {
                             alias_served: alias_served.clone(),
                             divergences: divergences(&r.info, *ctx_served, alias_served.as_deref(), r.manifest.memory.as_ref()),
                             usage,
-                            telemetry: telemetry::summarize(&r.records, telemetry::RECENT),
+                            telemetry: telemetry::summarize(&r.records, telemetry::RECENT, ubatch),
                             counters: r.counters,
                             memory: r.manifest.memory.clone(),
-                            degraded: telemetry::degraded(uptime_s, &r.records),
+                            degraded: telemetry::degraded(uptime_s, &r.records, r.reference.as_ref()),
+                            conditions: r.manifest.conditions.clone(),
+                            conditions_changed: r.conditions_changed.clone(),
+                            reference: r.reference.clone(),
                         }
                     }
                 }
@@ -433,7 +448,8 @@ impl Engine {
         let g = self.lock();
         let r = g.current.as_ref()?;
         let from = r.records.len().saturating_sub(n);
-        Some((r.info.run_id.clone(), telemetry::summarize(&r.records, n), r.records[from..].to_vec()))
+        let ubatch = Some(r.manifest.effective_profile.server.ubatch);
+        Some((r.info.run_id.clone(), telemetry::summarize(&r.records, n, ubatch), r.records[from..].to_vec()))
     }
 
     pub fn start(&self, req: StartRequest) -> Result<RunInfo, String> {
@@ -568,6 +584,7 @@ impl Engine {
                 ram_available_gib_before: memory_before.ram_available_gib,
             },
             memory: Some(MemorySection { before: Some(memory_before), after_load: None }),
+            conditions: Some(req.conditions.clone()),
             overrides: req.overrides.clone(),
             exit: None,
             effective_profile: req.profile.clone(),
@@ -597,6 +614,8 @@ impl Engine {
                 slot_processing: None,
                 last_activity: None,
                 locks: Vec::new(),
+                reference: req.reference.clone(),
+                conditions_changed: req.conditions_changed.clone(),
             });
         }
         let engine = self.clone();
@@ -726,9 +745,22 @@ impl Engine {
                     vec![None; timings.len()]
                 };
                 let late_none = vec![None; late.len()];
+                // Il log per primo; /slots e /metrics restano per le build che non scrivono n_tokens.
+                let client = {
+                    let t = Instant::now();
+                    let mut clients: Vec<&str> = r.locks.iter().filter(|l| l.expires > t).map(|l| l.client.as_str()).collect();
+                    clients.dedup();
+                    (clients.len() == 1).then(|| clients[0].to_string())
+                };
                 for (t, from_metrics) in timings.into_iter().zip(by_metrics).chain(late.into_iter().zip(late_none)) {
-                    let cache_n = r.slot_cache.remove(&t.task).or(from_metrics);
-                    let rec = t.into_record(now(), cache_n);
+                    let from_slots = r.slot_cache.remove(&t.task);
+                    let (cache_n, from) = match (t.cache_from_log(), from_slots, from_metrics) {
+                        (Some(c), _, _) => (Some(c), Some("log")),
+                        (None, Some(c), _) => (Some(c), Some("slots")),
+                        (None, None, Some(c)) => (Some(c), Some("metrics")),
+                        _ => (None, None),
+                    };
+                    let rec = t.into_record(now(), cache_n, from, client.clone());
                     let _ = telemetry::append(&r.run_dir, &rec);
                     r.records.push(rec);
                 }

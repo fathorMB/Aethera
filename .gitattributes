@@ -1,0 +1,2 @@
+# I template di chat finiscono nel binario e poi nel prompt: senza ritorni a capo di Windows.
+*.jinja text eol=lf
