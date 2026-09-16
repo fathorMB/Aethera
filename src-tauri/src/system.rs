@@ -214,6 +214,8 @@ mod windows_probe {
                 weights_disk,
                 weights_bus,
                 weights_free_gb: weights_dir.and_then(free_disk_bytes).map(|b| (b as f64 / 1e7).round() / 100.0),
+                // La serie di patch dipende dalla build, non dalla macchina: la mette chi avvia.
+                build_series: None,
             }
         }
     }

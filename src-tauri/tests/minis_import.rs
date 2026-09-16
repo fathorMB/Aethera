@@ -76,10 +76,9 @@ fn g1_command_line_matches_serve_ps1() {
     assert_eq!(ours, expected);
 }
 
-#[test]
-fn manifest_roundtrips_through_toml() {
+fn sample_manifest() -> manifest::Manifest {
     let p = import_known(G1).profile;
-    let m = manifest::Manifest {
+    manifest::Manifest {
         schema_version: 1,
         run: manifest::RunSection {
             id: "r-20260915-183102".into(),
@@ -98,6 +97,8 @@ fn manifest_roundtrips_through_toml() {
             build_id: "b10809-vulkan".into(),
             binary: r"X:\llama\b10809-vulkan\llama-server.exe".into(),
             version_text: Some("version: 0.4.0-dev (build 10809, commit 5266f24da)".into()),
+            provenance: None,
+            provenance_error: None,
         },
         model: manifest::ModelSection {
             file: p.model.file.clone(),
@@ -165,11 +166,91 @@ fn manifest_roundtrips_through_toml() {
             weights_disk: Some("KINGSTON OM8TAP42048K1-A00".into()),
             weights_bus: Some("NVMe".into()),
             weights_free_gb: Some(1769.02),
+            build_series: Some("ggml-org".into()),
         }),
         overrides: vec![profile::Override { field: "server.ubatch".into(), base: Some("4096".into()), value: Some("2048".into()) }],
         exit: Some(manifest::ExitSection { at: "2026-09-15T19:44:31+02:00".into(), code: None, by_user: true, left_running: false }),
         effective_profile: p,
-    };
+    }
+}
+
+fn provenance() -> aethera_lib::provenance::Provenance {
+    aethera_lib::provenance::Provenance {
+        schema_version: 1,
+        id: "b10991+moro1-vulkan".into(),
+        base: "b10991".into(),
+        commit_base: "930e2fa5995789efbf249a8bf61325bb626e417b".into(),
+        serie: 1,
+        backend: "vulkan".into(),
+        commit: "0123456789abcdef0123456789abcdef01234567".into(),
+        data: Some("2026-09-17T02:00:00+02:00".into()),
+        durata_build_s: Some(640),
+        compilatore: None,
+        patch: vec![aethera_lib::provenance::PatchBranch {
+            ramo: "patch/int8-coopmat".into(),
+            commit: "abcdef0123456789abcdef0123456789abcdef01".into(),
+            commit_della_patch: vec!["aaaa vulkan: add int8 coopmat quantized matmul shader".into()],
+        }],
+    }
+}
+
+#[test]
+fn manifest_roundtrips_through_toml() {
+    let mut m = sample_manifest();
     let text = toml::to_string_pretty(&m).unwrap();
     assert_eq!(toml::from_str::<manifest::Manifest>(&text).unwrap(), m, "{text}");
+    // M-14: la provenienza di una build del fork, con i suoi rami, fa lo stesso giro.
+    m.engine.provenance = Some(provenance());
+    let text = toml::to_string_pretty(&m).unwrap();
+    assert!(text.contains("[engine.provenance]") && text.contains("[[engine.provenance.patch]]"), "{text}");
+    assert_eq!(toml::from_str::<manifest::Manifest>(&text).unwrap(), m, "{text}");
+}
+
+#[test]
+fn benchmark_treats_the_patch_series_as_a_condition() {
+    use aethera_lib::runs;
+    let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let dir = std::env::temp_dir().join(format!("aethera-m14-runs-{n}"));
+    let write = |id: &str, started: &str, m: &manifest::Manifest| {
+        let d = dir.join(id);
+        std::fs::create_dir_all(&d).unwrap();
+        let mut m = m.clone();
+        m.run.id = id.into();
+        m.run.started = started.into();
+        manifest::write(&d.join("manifest.toml"), &m).unwrap();
+    };
+
+    // Un avvio di prima di M-14 (nessuna serie registrata), uno liscio su b10991, uno patchato.
+    let mut old = sample_manifest();
+    old.conditions.as_mut().unwrap().build_series = None;
+    write("r-20260916-100000", "2026-09-16T10:00:00+02:00", &old);
+    let mut plain = sample_manifest();
+    plain.engine.build = Some("b10991".into());
+    write("r-20260917-100000", "2026-09-17T10:00:00+02:00", &plain);
+    let mut patched = sample_manifest();
+    patched.engine.build_declared = "b10991+moro1".into();
+    patched.engine.build = Some("b10991".into()); // --version dice solo il tag
+    patched.engine.provenance = Some(provenance());
+    patched.conditions.as_mut().unwrap().build_series = Some(provenance().series());
+    write("r-20260917-110000", "2026-09-17T11:00:00+02:00", &patched);
+
+    let rows = runs::list(&dir, None);
+    assert_eq!(rows.len(), 3);
+    let (p, l, o) = (&rows[0], &rows[1], &rows[2]);
+    assert_eq!(p.build, "b10991+moro1");
+    assert_eq!(l.build, "b10991");
+    // Senza serie registrata un avvio vecchio è di ggml-org: non ne esistevano altre.
+    assert_eq!(o.conditions.as_ref().unwrap().build_series.as_deref(), Some("ggml-org"));
+    // Il separatore della tabella: fra liscio e patchato è cambiata una condizione, fra vecchio e liscio no.
+    assert_eq!(p.conditions_changed, vec!["serie di patch ggml-org → moro1 patch/int8-coopmat@abcdef012".to_string()]);
+    assert!(l.conditions_changed.is_empty(), "{:?}", l.conditions_changed);
+    assert!(p.conditions_short.as_deref().unwrap().ends_with("· moro1"));
+
+    // Il confronto lo dice, con la riga della serie.
+    let c = runs::compare(&dir, &l.id, &p.id, None).unwrap();
+    assert!(c.not_comparable.iter().any(|x| x.starts_with("serie di patch ggml-org")), "{:?}", c.not_comparable);
+    let row = c.conditions.iter().find(|x| x.label == "Serie di patch").unwrap();
+    assert_eq!(row.a.as_deref(), Some("ggml-org"));
+    assert_eq!(row.b.as_deref(), Some("moro1 patch/int8-coopmat@abcdef012"));
+    let _ = std::fs::remove_dir_all(&dir);
 }

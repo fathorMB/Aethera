@@ -182,25 +182,65 @@ pub const BUILTIN_TEMPLATES: &[(&str, &str)] =
 /// Backend di llama.cpp riconosciuti dentro l'id di una build.
 pub const BACKENDS: &[&str] = &["vulkan", "cuda", "hip", "sycl", "musa", "cann", "opencl", "metal", "blas", "cpu"];
 
-/// Da `b10809-win-vulkan-x64` a («b10809», «vulkan»): la build è il pezzo `b<numero>`, il backend
-/// il primo pezzo riconosciuto. Serve a proporre valori a un profilo nuovo, non a risolvere.
+/// Etichetta di una build letta da un pezzo del suo id: `b10991` è ggml-org, `b10991+moro1` è la
+/// serie 1 del fork locale (M-14) sopra quel tag.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BuildTag {
+    /// Il tag di ggml-org, per esempio `b10991`.
+    pub base: String,
+    /// La serie di patch del fork locale: `None` per una build di ggml-org.
+    pub series: Option<u32>,
+}
+
+fn is_tag_number(s: &str) -> bool {
+    s.len() > 1 && s.starts_with('b') && s[1..].chars().all(|c| c.is_ascii_digit())
+}
+
+/// `b10991` → base senza serie; `b10991+moro1` → base e serie 1; tutto il resto → `None`.
+pub fn parse_build_tag(piece: &str) -> Option<BuildTag> {
+    let (base, rest) = match piece.split_once('+') {
+        Some((b, r)) => (b, Some(r)),
+        None => (piece, None),
+    };
+    if !is_tag_number(base) {
+        return None;
+    }
+    let series = match rest {
+        None => None,
+        Some(r) => {
+            let n = r.strip_prefix("moro")?;
+            if n.is_empty() || !n.chars().all(|c| c.is_ascii_digit()) {
+                return None;
+            }
+            Some(n.parse().ok()?)
+        }
+    };
+    Some(BuildTag { base: base.to_string(), series })
+}
+
+/// Da `b10809-win-vulkan-x64` a («b10809», «vulkan»): la build è il pezzo `b<numero>` (con la serie
+/// del fork se c'è: `b10991+moro1`), il backend il primo pezzo riconosciuto. Serve a proporre valori
+/// a un profilo nuovo, non a risolvere.
 pub fn split_build_id(id: &str) -> (Option<String>, Option<String>) {
     let parts: Vec<&str> = id.split('-').collect();
-    let build = parts
-        .iter()
-        .find(|p| p.len() > 1 && p.starts_with('b') && p[1..].chars().all(|c| c.is_ascii_digit()))
-        .map(|s| s.to_string());
+    let build = parts.iter().find(|p| parse_build_tag(p).is_some()).map(|s| s.to_string());
     let backend = parts.iter().find(|p| BACKENDS.contains(&p.to_ascii_lowercase().as_str())).map(|s| s.to_ascii_lowercase());
     (build, backend)
 }
 
-/// Una build corrisponde se fra i pezzi del suo id ci sono sia la build sia il backend
-/// (`b10809-vulkan`, `b10809-win-vulkan-x64`).
+/// Un id di build soddisfa `build` e `backend` di un profilo se fra i pezzi separati da trattini ci
+/// sono esattamente l'una e l'altro. Il confronto è esatto di proposito: `b10991+moro1-vulkan` non
+/// soddisfa un profilo che chiede `b10991` (la build patchata va chiesta per nome), e
+/// `b10991-vulkan` non soddisfa un profilo che chiede `b10991+moro1`.
+pub fn build_id_matches(id: &str, build: &str, backend: &str) -> bool {
+    let parts: Vec<&str> = id.split('-').collect();
+    parts.contains(&build) && parts.contains(&backend)
+}
+
+/// La prima build che soddisfa il profilo (`b10809-vulkan`, `b10809-win-vulkan-x64`,
+/// `b10991+moro1-vulkan`): vedi [`build_id_matches`].
 pub fn resolve_build<'a>(builds: &'a [ResolvedBuild], build: &str, backend: &str) -> Option<&'a ResolvedBuild> {
-    builds.iter().find(|b| {
-        let parts: Vec<&str> = b.id.split('-').collect();
-        parts.contains(&build) && parts.contains(&backend)
-    })
+    builds.iter().find(|b| build_id_matches(&b.id, build, backend))
 }
 
 #[cfg(test)]
@@ -226,6 +266,32 @@ mod tests {
         assert_eq!(split_build_id("llama-b10809-win-cpu-x64"), (Some("b10809".into()), Some("cpu".into())));
         // Una cartella che non dice né build né backend non li inventa.
         assert_eq!(split_build_id("mia-build"), (None, None));
+        // La serie del fork resta attaccata alla build: un profilo nuovo la chiede per nome.
+        assert_eq!(split_build_id("b10991+moro1-win-vulkan-x64"), (Some("b10991+moro1".into()), Some("vulkan".into())));
+        assert_eq!(split_build_id("b10991+patch-vulkan"), (None, Some("vulkan".into())));
+    }
+
+    #[test]
+    fn build_tags_with_and_without_series() {
+        assert_eq!(parse_build_tag("b10991"), Some(BuildTag { base: "b10991".into(), series: None }));
+        assert_eq!(parse_build_tag("b10991+moro0"), Some(BuildTag { base: "b10991".into(), series: Some(0) }));
+        assert_eq!(parse_build_tag("b10991+moro12"), Some(BuildTag { base: "b10991".into(), series: Some(12) }));
+        for bad in ["b", "b10991+", "b10991+moro", "b10991+moroX", "b10991+altro1", "x10991+moro1", "b10991+moro1+moro2"] {
+            assert_eq!(parse_build_tag(bad), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn a_patched_build_is_used_only_when_the_profile_asks_for_it() {
+        let builds = [rb("b10991+moro1-vulkan"), rb("b10991+moro0-win-vulkan-x64"), rb("b10991-win-vulkan-x64")];
+        // Il profilo che chiede la build liscia prende quella di ggml-org, anche se le patchate vengono prima.
+        assert_eq!(resolve_build(&builds, "b10991", "vulkan").unwrap().id, "b10991-win-vulkan-x64");
+        assert_eq!(resolve_build(&builds, "b10991+moro1", "vulkan").unwrap().id, "b10991+moro1-vulkan");
+        assert_eq!(resolve_build(&builds, "b10991+moro0", "vulkan").unwrap().id, "b10991+moro0-win-vulkan-x64");
+        assert!(resolve_build(&builds, "b10991+moro2", "vulkan").is_none());
+        assert!(resolve_build(&builds, "b10991+moro1", "cpu").is_none());
+        // Senza la build di ggml-org, un profilo su b10991 non ricade in silenzio su una patchata.
+        assert!(resolve_build(&builds[..2], "b10991", "vulkan").is_none());
     }
 
     #[test]

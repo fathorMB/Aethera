@@ -625,7 +625,12 @@ fn start_from(state: &AppState, base: &str, edited: Profile) -> Result<RunInfo, 
     if !p.blockers.is_empty() {
         return Err(p.blockers.join("\n"));
     }
-    let conditions = system::probe().conditions(m.models_dir.as_deref());
+    let mut conditions = system::probe().conditions(m.models_dir.as_deref());
+    // M-14: la serie di patch è una condizione; va messa prima di cercare il riferimento, così la
+    // mediana di una build patchata non si mescola con quella della build liscia.
+    if let Some(b) = &p.build {
+        conditions.build_series = Some(crate::provenance::series_of(crate::provenance::read(&b.dir).as_ref()));
+    }
     let history = runs::list(&root.runs(), None);
     let reference = runs::reference(&history, &m.name, &edited.name, &edited.runtime.build, &conditions);
     let conditions_changed = runs::changed_since(&history, &m.name, &conditions);

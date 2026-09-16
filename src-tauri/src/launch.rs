@@ -46,10 +46,7 @@ pub fn prepare(root: &DataRoot, m: &MachineConfig, base: &str, edited: &Profile,
         let declared: Vec<&machine::BuildEntry> = m
             .builds
             .iter()
-            .filter(|b| {
-                let parts: Vec<&str> = b.id.split('-').collect();
-                parts.contains(&edited.runtime.build.as_str()) && parts.contains(&edited.runtime.backend.as_str())
-            })
+            .filter(|b| machine::build_id_matches(&b.id, &edited.runtime.build, &edited.runtime.backend))
             .collect();
         blockers.push(match declared.first() {
             Some(b) => format!(

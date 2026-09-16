@@ -11,6 +11,7 @@ use crate::manifest::{
 };
 use crate::memory::{self, MemoryAfter, MemorySection};
 use crate::profile::{Override, Profile};
+use crate::provenance;
 use crate::system::{self, SystemReport};
 use crate::telemetry::{self, Counters, LogParser, LogTail, Record, Reference, Summary};
 use serde::{Deserialize, Serialize};
@@ -509,6 +510,18 @@ impl Engine {
 
         let command_line = cmdline::render_line(&req.build.binary, &req.args);
         let manifest_path = req.run_dir.join("manifest.toml");
+        // M-14: la serie di patch della build entra nel manifest e fra le condizioni. Chi chiama
+        // può averla già messa (la finestra la usa per il riferimento); se manca la si legge qui.
+        let provenance = provenance::read(&req.build.dir);
+        let mut conditions = req.conditions.clone();
+        if conditions.build_series.is_none() {
+            conditions.build_series = Some(provenance::series_of(provenance.as_ref()));
+        }
+        let (provenance, provenance_error) = match provenance {
+            Some(Ok(p)) => (Some(p), None),
+            Some(Err(e)) => (None, Some(e)),
+            None => (None, None),
+        };
         let info = RunInfo {
             run_id: req.run_id.clone(),
             profile: req.profile.name.clone(),
@@ -544,6 +557,8 @@ impl Engine {
                 build_id: req.build.id.clone(),
                 binary: req.build.binary.display().to_string(),
                 version_text: Some(version.text.clone()),
+                provenance,
+                provenance_error,
             },
             model: ModelSection {
                 file: req.profile.model.file.clone(),
@@ -584,7 +599,7 @@ impl Engine {
                 ram_available_gib_before: memory_before.ram_available_gib,
             },
             memory: Some(MemorySection { before: Some(memory_before), after_load: None }),
-            conditions: Some(req.conditions.clone()),
+            conditions: Some(conditions),
             overrides: req.overrides.clone(),
             exit: None,
             effective_profile: req.profile.clone(),
