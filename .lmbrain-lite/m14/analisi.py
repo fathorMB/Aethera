@@ -51,7 +51,10 @@ def banco(path):
         print(f"  -- {w}")
         for v in order:
             rs = [r for r in good if r["variant"] == v and r["workload"] == w]
-            pp = [r["timings"]["prompt_per_second"] for r in rs]
+            if not rs:
+                print(f"     {v:10} nessun giro buono (variante interrotta)")
+                continue
+            pp =[r["timings"]["prompt_per_second"] for r in rs]
             tg = [r["timings"]["predicted_per_second"] for r in rs]
             n = rs[0]["timings"]["prompt_n"] if rs else 0
             sd = lambda xs: st.stdev(xs) if len(xs) > 1 else 0.0
