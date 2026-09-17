@@ -50,6 +50,18 @@ def main() -> int:
     for r in righe:
         ultime[(r["modello"], r["compito"], r["ripetizione"])] = r
     righe = list(ultime.values())
+    # Righe scritte prima che il runner contasse i comandi di shell falliti: si rileggono dalla traccia.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import esegui
+
+    base = Path(args.jsonl).parent
+    for r in righe:
+        if "shell_falliti" not in r:
+            tr = base / r["modello"] / f"{r['compito']}-r{r['ripetizione']}" / "nonio-stdout.jsonl"
+            if tr.is_file():
+                t = esegui.leggi_traccia(tr)
+                for k in ("shell", "shell_falliti", "shell_senza_output", "finish_respinti"):
+                    r[k] = t[k]
     per_modello = defaultdict(list)
     for r in righe:
         per_modello[r["modello"]].append(r)
@@ -73,6 +85,15 @@ def main() -> int:
             f"{fmt(rag_turno, 0)} | {fmt(med([r.get('motore_decode_tps_mediana') for r in rs]), 1)} | {fall}/{chiam} | "
             f"{sum(r.get('compattazioni') or 0 for r in rs)} | {', '.join(sorted({str(r.get('windows')) for r in rs}))} |"
         )
+    print()
+    print("| modello | al tetto di turni | finish respinti | shell | shell uscite ≠ 0 | shell mute | compiti con file protetti toccati |")
+    print("|---|---|---|---|---|---|---|")
+    for m in modelli:
+        rs = per_modello[m]
+        tetto = sum(1 for r in rs if "turn ceiling" in (r.get("stop_reason") or "") or "time ceiling" in (r.get("stop_reason") or ""))
+        print(f"| {m} | {tetto}/{len(rs)} | {sum(r.get('finish_respinti') or 0 for r in rs)} | {sum(r.get('shell') or 0 for r in rs)} | "
+              f"{sum(r.get('shell_falliti') or 0 for r in rs)} | {sum(r.get('shell_senza_output') or 0 for r in rs)} | "
+              f"{sum(1 for r in rs if r['verifica']['protetti_violati'])} |")
     print()
     print("Cause dei fallimenti:")
     for m in modelli:

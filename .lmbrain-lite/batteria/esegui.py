@@ -409,6 +409,13 @@ def leggi_traccia(percorso: Path) -> dict:
     for r in falliti:
         k = r["result"]["outcome"].get("kind", "?")
         per_tipo[k] = per_tipo.get(k, 0) + 1
+    # run_shell risponde «ok» anche quando il comando esce con errore: lo si conta a parte, e si
+    # contano i comandi usciti con 0 senza una riga di output (su Windows passano da cmd.exe).
+    shell = [r["result"]["outcome"] for r in risultati
+             if r.get("result", {}).get("name") == "run_shell" and r["result"]["outcome"].get("status") == "ok"]
+    shell_falliti = sum(1 for o in shell if (o.get("facts") or {}).get("exit_code") not in (0, None))
+    shell_muti = sum(1 for o in shell if (o.get("facts") or {}).get("exit_code") == 0 and "(no output)" in o.get("content", ""))
+    rifiuti_finish = sum(1 for r in falliti if r["result"].get("name") == "finish")
     per_strumento: dict[str, int] = {}
     for c in chiamate:
         n = c.get("call", {}).get("name", "?")
@@ -464,6 +471,10 @@ def leggi_traccia(percorso: Path) -> dict:
         "chiamate_per_strumento": per_strumento,
         "chiamate_fallite": len(falliti),
         "fallite_per_tipo": per_tipo,
+        "shell": len(shell),
+        "shell_falliti": shell_falliti,
+        "shell_senza_output": shell_muti,
+        "finish_respinti": rifiuti_finish,
         "compattazioni": compattazioni,
         "verifiche_nonio": [{"comando": e.get("command"), "esito": e.get("outcome"), "codice": e.get("exit_code")} for e in verifiche],
         "ultimo_testo": ultimo_testo[-400:],
