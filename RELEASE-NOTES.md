@@ -1,5 +1,35 @@
 # Note di rilascio
 
+## Non ancora rilasciato — la finestra v2 (M-12)
+
+Stessi dati, disposti meglio. Nessun comando nuovo verso il motore e nessuna misura nuova: cambia
+solo la finestra, secondo il mockup approvato il 16-09 (`design/aethera-v2-ui`).
+
+- **Lo stato del motore si vede da ogni pagina.** Una striscia in alto porta stato, profilo, build
+  e porta, prefill, decode e riuso, «in uso» con il motivo, la protezione e i pulsanti **Riavvia**
+  e **Ferma**, con gli stessi divieti di prima: finché il motore è in uso sono rifiutati. Il piede
+  della colonna dice la radice dati, l'avvio acceso e i lavori in corso.
+- **Ogni pagina ha le sue azioni in testa.** In Avvio una fascia che resta in cima mentre si
+  scorre porta Avvia, Scarta, Aggiorna il profilo, Salva come… e i motivi per cui l'avvio è
+  bloccato.
+- **Motore**: un solo riquadro di stato, una fascia di avvisi (degradato, divergenze, condizioni
+  cambiate, compattazione) con il pulsante giusto accanto, quattro numeri con un giudizio
+  (prefill, decode, riuso, compattazioni), la memoria come barra impilata su VGM più RAM. Riga di
+  comando e log sono a scomparsa; il log si apre da solo dopo un'uscita con errore.
+- **Avvio**: dodici leve essenziali con l'etichetta in italiano e il nome della leva in piccolo;
+  le altre in «Avanzate», chiuse, con i verdetti di M-08. Le proposte di M-08 sono un avviso con
+  «Applica». La build si sceglie fra quelle che la macchina conosce. Il nome si dà salvando.
+- **Catalogo**: tabella a sei colonne con il dettaglio a destra, filtri per stato con il
+  conteggio, ricerca, «Aggiungi da Hugging Face…» come pulsante, lavori in corso come fascia.
+  La rimozione è un dialogo della finestra, con la cancellazione del file come scelta esplicita.
+- **Benchmark**: decode e riuso con la loro scintilla nella riga, le note di stato in una colonna,
+  il dettaglio a destra con il manifest a scomparsa, e una fascia di confronto con i tre Δ appena
+  si spuntano due avvii.
+- **Impostazioni** in tre schede: Macchina, Client, App. Le soglie stanno in un posto solo;
+  l'endpoint è a scomparsa; il tema si sceglie anche da qui.
+- Le spiegazioni lunghe stanno nel «?» accanto ai titoli o in una riga «come si legge»; il testo
+  minimo sale a 12 px.
+
 ## 0.1.0 — la prima versione utilizzabile
 
 Aethera accende e spegne un `llama-server` e tiene il conto di com'è andata. Questa è la prima

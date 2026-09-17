@@ -1,252 +1,188 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { createEffect, createMemo, createSignal, For, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
 import * as api from "../api";
-import type { EngineStatus, Issue, Overview, Preview, Profile, ProfileEntry } from "../api";
-import { AskName, CommandLine, Confirm, copy, Empty, Val } from "../components";
-import { fixed, getPath, sameValue, setPath, show } from "../format";
+import type { EngineStatus, Issue, ModelRow, Overview, Preview, Profile, ProfileEntry, ResolvedBuild } from "../api";
+import { AskName, CommandLine, Confirm, copy, Dialog, Empty, Unknown, Val } from "../components";
+import { fixed, getPath, num, setPath, show } from "../format";
+import { Alerts, type AlertItem, Field, Head, Seg, Stack } from "../ui";
+import { splitBuildId } from "../ui-logic";
+import {
+  ADVANCED,
+  baseText,
+  ESSENTIAL,
+  gpuMode,
+  groupSummary,
+  type Input,
+  type Lever,
+  leverPaths,
+  M08,
+  modifiedPaths,
+  parse,
+  toText,
+} from "./leve";
 
-type Kind = "text" | "opttext" | "int" | "optint" | "optfloat" | "bool" | "optbool" | "select" | "optselect" | "list";
+const STATE_TEXT: Record<api.ModelState, string> = {
+  verified: "verificato",
+  present: "presente, da verificare",
+  mismatch: "hash diverso",
+  downloading: "in download",
+  downloadable: "scaricabile",
+  missing: "mancante",
+};
 
-interface FieldDef {
-  path: string;
-  label: string;
-  kind: Kind;
-  options?: string[];
-  cache?: boolean;
-  hint?: string;
-  /** Che cosa ne ha concluso M-08 su questa macchina: informa, non impedisce. */
-  verdict?: string;
+/** Un controllo di una leva: casella, tendina o on/off. */
+function Control(props: { input: Input; label: string; edited: Profile; onRaw: (input: Input, raw: string) => void }) {
+  const value = () => getPath(props.edited, props.input.path);
+  const optional = () => props.input.kind === "optselect" || props.input.kind === "optbool";
+  const options = () => {
+    const base = props.input.kind === "optbool" || props.input.kind === "bool" ? ["on", "off"] : (props.input.options ?? []);
+    const cur = toText(value());
+    // Un valore che la lista non conosce resta visibile: meglio vederlo che perderlo in silenzio.
+    return cur !== "" && !base.includes(cur) ? [...base, cur] : base;
+  };
+  const style = () => (props.input.width ? { width: props.input.width, flex: "none" } : { flex: "1" });
+  const aria = () => `${props.label} · ${props.input.path}`;
+  return (
+    <Show
+      when={props.input.kind === "select" || props.input.kind === "bool" || optional()}
+      fallback={
+        <input
+          style={style()}
+          aria-label={aria()}
+          value={toText(value())}
+          placeholder={props.input.placeholder ?? (props.input.kind.startsWith("opt") ? "non impostato" : "")}
+          onInput={(e) => props.onRaw(props.input, e.currentTarget.value)}
+          spellcheck={false}
+        />
+      }
+    >
+      <select
+        style={style()}
+        aria-label={aria()}
+        value={props.input.kind === "bool" ? (value() ? "on" : "off") : toText(value())}
+        onChange={(e) => props.onRaw(props.input, e.currentTarget.value)}
+      >
+        <Show when={optional()}>
+          <option value="">{props.input.placeholder ?? "non impostato"}</option>
+        </Show>
+        <For each={options()}>{(o) => <option value={o}>{o}</option>}</For>
+      </select>
+    </Show>
+  );
 }
 
-const M08 = "rapporto in .lmbrain-lite/reports/misure-motore-2026-09.md";
-
-const FLASH = ["on", "off", "auto"];
-const CACHE_TYPES = ["f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1"];
-const LOAD = ["auto", "none", "mmap", "mlock", "mmap+mlock", "dio"];
-
-const SECTIONS: { title: string; fields: FieldDef[] }[] = [
-  {
-    title: "Modello",
-    fields: [
-      { path: "model.file", label: "file", kind: "text", hint: "nella cartella pesi" },
-      { path: "model.repo", label: "repo", kind: "opttext" },
-      { path: "model.quant", label: "quant", kind: "opttext" },
-      { path: "model.size_gb", label: "size_gb", kind: "optfloat", hint: "GB decimali" },
-      { path: "model.sha256", label: "sha256", kind: "opttext" },
-    ],
-  },
-  {
-    title: "Motore",
-    fields: [
-      { path: "runtime.kind", label: "kind", kind: "text" },
-      { path: "runtime.backend", label: "backend", kind: "text" },
-      { path: "runtime.build", label: "build", kind: "text", hint: "fissata" },
-    ],
-  },
-  {
-    title: "Server",
-    fields: [
-      { path: "server.host", label: "host", kind: "text" },
-      { path: "server.port", label: "port", kind: "int", hint: "sempre esplicita" },
-      { path: "server.ctx", label: "ctx", kind: "int", cache: true, hint: "verificato su /props" },
-      { path: "server.n_parallel", label: "n_parallel", kind: "int", cache: true, hint: "MTP richiede 1" },
-      { path: "server.n_gpu_layers", label: "n_gpu_layers", kind: "optint", hint: "vuoto: decide fit" },
-      { path: "server.fit", label: "fit", kind: "optselect", options: ["on", "off"], hint: "default motore: on" },
-      { path: "server.fit_target", label: "fit_target", kind: "opttext", hint: "MiB liberi · 1024 o 1024,512" },
-      { path: "server.flash_attn", label: "flash_attn", kind: "select", options: FLASH },
-      { path: "server.cache_type_k", label: "cache_type_k", kind: "select", options: CACHE_TYPES },
-      { path: "server.cache_type_v", label: "cache_type_v", kind: "select", options: CACHE_TYPES },
-      { path: "server.load_mode", label: "load_mode", kind: "select", options: LOAD },
-      { path: "server.ubatch", label: "ubatch", kind: "int" },
-      { path: "server.batch", label: "batch", kind: "int" },
-      { path: "server.threads", label: "threads", kind: "optint", hint: "default motore" },
-      { path: "server.threads_batch", label: "threads_batch", kind: "optint", hint: "default motore" },
-      {
-        path: "server.n_cpu_moe",
-        label: "n_cpu_moe",
-        kind: "optint",
-        verdict: "M-08: peggiora",
-        hint: "M-08 T-08: sul Coder-Next ogni layer di esperti sulla CPU toglie velocità, in modo monotono",
-      },
-      { path: "server.tensor_overrides", label: "tensor_overrides", kind: "list", hint: "-ot · regex=buffer, separati da spazi" },
-      { path: "server.lazy_mode", label: "lazy_mode", kind: "optselect", options: ["auto", "on", "off"], hint: "default motore: auto" },
-      {
-        path: "server.chat_template_file",
-        label: "chat_template_file",
-        kind: "opttext",
-        hint: "vuoto: del modello · qwen3.6-tollerante.jinja per Claude Code",
-      },
-      { path: "server.metrics", label: "metrics", kind: "bool" },
-      { path: "server.jinja", label: "jinja", kind: "bool" },
-      { path: "server.slot_save", label: "slot_save", kind: "bool", hint: "runs/<id>/slots" },
-      { path: "server.extra_args", label: "extra_args", kind: "list", hint: "via di fuga" },
-    ],
-  },
-  {
-    title: "Speculazione",
-    fields: [
-      { path: "speculative.type", label: "type", kind: "text", hint: "none · draft-mtp · ngram-mod" },
-      { path: "speculative.draft_n_max", label: "draft_n_max", kind: "optint", hint: "default motore" },
-      { path: "speculative.draft_n_min", label: "draft_n_min", kind: "optint", hint: "default motore" },
-      { path: "speculative.draft_p_min", label: "draft_p_min", kind: "optfloat", hint: "default motore" },
-      { path: "speculative.draft_model", label: "draft_model", kind: "opttext" },
-    ],
-  },
-  {
-    title: "Cache e checkpoint",
-    fields: [
-      {
-        path: "cache.cache_reuse",
-        label: "cache_reuse",
-        kind: "optint",
-        cache: true,
-        verdict: "M-08: scartata",
-        hint: "M-08 T-13: con --cache-reuse 256 i turni costano come senza",
-      },
-      {
-        path: "cache.ctx_checkpoints",
-        label: "ctx_checkpoints",
-        kind: "optint",
-        cache: true,
-        verdict: "M-08: scartata",
-        hint: "M-08 T-04: stessi token riusati, turno per turno",
-      },
-      {
-        path: "cache.checkpoint_min_step",
-        label: "checkpoint_min_step",
-        kind: "optint",
-        cache: true,
-        verdict: "M-08: scartata",
-        hint: "M-08 T-04: nessun effetto sul riuso",
-      },
-      {
-        path: "cache.cache_ram",
-        label: "cache_ram",
-        kind: "optint",
-        cache: true,
-        verdict: "M-08: scartata",
-        hint: "MiB · -1 senza limite · 0 spenta. M-08 T-04: nessun effetto sul riuso",
-      },
-      {
-        path: "cache.kv_unified",
-        label: "kv_unified",
-        kind: "optbool",
-        cache: true,
-        verdict: "M-08: scartata",
-        hint: "M-08 T-04: nessun effetto sul riuso",
-      },
-    ],
-  },
-];
-
-function parse(kind: Kind, raw: string): { ok: true; value: unknown } | { ok: false } {
-  const t = raw.trim();
-  switch (kind) {
-    case "text":
-    case "select":
-      return { ok: true, value: raw };
-    case "optselect":
-      return { ok: true, value: t === "" ? null : t };
-    case "optbool":
-      return { ok: true, value: t === "" ? null : t === "on" };
-    case "opttext":
-      return { ok: true, value: t === "" ? null : t };
-    case "list":
-      return { ok: true, value: t === "" ? [] : t.split(/\s+/) };
-    case "int":
-    case "optint": {
-      if (t === "") return kind === "optint" ? { ok: true, value: null } : { ok: false };
-      return /^-?\d+$/.test(t) ? { ok: true, value: Number(t) } : { ok: false };
-    }
-    case "optfloat": {
-      if (t === "") return { ok: true, value: null };
-      const n = Number(t.replace(",", "."));
-      return Number.isFinite(n) ? { ok: true, value: n } : { ok: false };
-    }
-    default:
-      return { ok: false };
-  }
-}
-
-function FieldRow(props: {
-  def: FieldDef;
+/** Una riga del modulo: etichetta, controlli, valore di prima, suggerimento, verdetto, errori. */
+function LeverRow(props: {
+  lever: Lever;
   base: Profile | null;
   edited: Profile;
   issues: Issue[];
+  builds: ResolvedBuild[];
+  modelNote?: string | null;
   onSet: (path: string, value: unknown) => void;
 }) {
-  const [bad, setBad] = createSignal(false);
-  const value = () => getPath(props.edited, props.def.path);
-  const baseValue = () => (props.base ? getPath(props.base, props.def.path) : undefined);
-  const modified = () => props.base != null && !sameValue(baseValue(), value());
-  const issues = () => props.issues.filter((i) => i.field === props.def.path);
-  const text = () => {
-    const v = value();
-    if (v == null) return "";
-    if (typeof v === "boolean") return v ? "on" : "off";
-    return Array.isArray(v) ? v.join(" ") : String(v);
+  const [bad, setBad] = createSignal<Record<string, boolean>>({});
+  const [forceNum, setForceNum] = createSignal(false);
+  const mod = () => modifiedPaths(props.lever, props.base, props.edited).length > 0;
+  const issues = () => props.issues.filter((i) => leverPaths(props.lever).includes(i.field));
+  const anyBad = () => Object.values(bad()).some(Boolean);
+  const onRaw = (input: Input, raw: string) => {
+    const r = parse(input.kind, raw);
+    setBad({ ...bad(), [input.path]: !r.ok });
+    if (r.ok) props.onSet(input.path, r.value);
   };
-  const options = () => (props.def.kind === "optbool" ? ["on", "off"] : (props.def.options ?? []));
-  const optional = () => props.def.kind === "optselect" || props.def.kind === "optbool";
-  const onInput = (raw: string) => {
-    const r = parse(props.def.kind, raw);
-    setBad(!r.ok);
-    if (r.ok) props.onSet(props.def.path, r.value);
+
+  // Build: le coppie build · backend che la macchina conosce, più quella del profilo se manca.
+  const buildOptions = () => {
+    const seen = new Set<string>();
+    const out: { key: string; label: string }[] = [];
+    for (const b of props.builds) {
+      const { build, backend } = splitBuildId(b.id);
+      if (!build || !backend) continue;
+      const key = `${build}|${backend}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push({ key, label: `${build} · ${backend}` });
+      }
+    }
+    if (!out.length) return out;
+    const cur = `${props.edited.runtime.build}|${props.edited.runtime.backend}`;
+    if (!seen.has(cur)) out.push({ key: cur, label: `${props.edited.runtime.build} · ${props.edited.runtime.backend} (non trovata)` });
+    return out;
   };
+  const gpu = () => (forceNum() ? "num" : gpuMode(props.edited.server.n_gpu_layers));
 
   return (
     <>
-      <div class="field" classList={{ mod: modified() }} style={bad() || issues().length ? { outline: "1px solid var(--err)" } : {}}>
-        <label>
-          {props.def.label}{" "}
-          <Show when={props.def.cache}>
-            <span class="pill cache">cache</span>
-          </Show>
-        </label>
-        <Show
-          when={props.def.kind === "bool"}
-          fallback={
-            <Show
-              when={props.def.kind === "select" || optional()}
-              fallback={
-                <input
-                  value={text()}
-                  placeholder={props.def.kind.startsWith("opt") ? "non impostato" : ""}
-                  onInput={(e) => onInput(e.currentTarget.value)}
-                  spellcheck={false}
-                />
-              }
-            >
-              <select value={text()} onChange={(e) => onInput(e.currentTarget.value)}>
-                <Show when={optional()}>
-                  <option value="">non impostato</option>
-                </Show>
-                <For each={options()}>{(o) => <option value={o}>{o}</option>}</For>
-              </select>
+      <Field
+        label={props.lever.label}
+        lever={props.lever.lever}
+        mod={mod()}
+        bad={anyBad() || issues().length > 0}
+        hint={
+          <>
+            <Show when={mod()}>
+              <span class="base">{baseText(props.lever, props.base, props.edited)}</span>
             </Show>
-          }
-        >
-          <select value={value() ? "on" : "off"} onChange={(e) => props.onSet(props.def.path, e.currentTarget.value === "on")}>
-            <option value="on">on</option>
-            <option value="off">off</option>
-          </select>
-        </Show>
-        <Show
-          when={modified()}
-          fallback={
-            <Show when={props.def.verdict} fallback={<span class="cond">{props.def.hint ?? ""}</span>}>
-              <span class="pill x" title={`${props.def.hint ?? ""} — ${M08}`}>
-                {props.def.verdict}
+            <Show when={props.lever.cache}>
+              <span class="pill cache">cache</span>
+            </Show>
+            <Show when={props.modelNote}>
+              <span>{props.modelNote}</span>
+            </Show>
+            <Show when={props.lever.hint}>
+              <span>{props.lever.hint}</span>
+            </Show>
+            <Show when={props.lever.verdict}>
+              <span class="pill x" title={`${props.lever.verdictTitle ?? ""} — ${M08}`}>
+                {props.lever.verdict}
               </span>
             </Show>
+          </>
+        }
+      >
+        <Switch
+          fallback={
+            <For each={props.lever.inputs}>
+              {(inp) => <Control input={inp} label={props.lever.label} edited={props.edited} onRaw={onRaw} />}
+            </For>
           }
         >
-          <span class="base">
-            <s>{show(baseValue())}</s>
-          </span>
-        </Show>
-      </div>
-      <For each={issues()}>{(i) => <div class="cond" style={{ color: "var(--err)", "padding-left": "162px" }}>{i.message}</div>}</For>
+          <Match when={props.lever.special === "build" && buildOptions().length > 0}>
+            <select
+              aria-label={props.lever.label}
+              value={`${props.edited.runtime.build}|${props.edited.runtime.backend}`}
+              onChange={(e) => {
+                const [build, backend] = e.currentTarget.value.split("|");
+                props.onSet("runtime.build", build);
+                props.onSet("runtime.backend", backend);
+              }}
+            >
+              <For each={buildOptions()}>{(o) => <option value={o.key}>{o.label}</option>}</For>
+            </select>
+          </Match>
+          <Match when={props.lever.special === "gpu"}>
+            <Seg
+              label={props.lever.label}
+              value={gpu()}
+              options={[
+                { id: "all", label: "tutti (999)" },
+                { id: "num", label: "numero" },
+                { id: "fit", label: "decide fit" },
+              ]}
+              onChange={(m) => {
+                setForceNum(m === "num");
+                if (m === "all") props.onSet("server.n_gpu_layers", 999);
+                if (m === "fit") props.onSet("server.n_gpu_layers", null);
+              }}
+            />
+            <Show when={gpu() === "num"}>
+              <Control input={props.lever.inputs[0]} label={props.lever.label} edited={props.edited} onRaw={onRaw} />
+            </Show>
+          </Match>
+        </Switch>
+      </Field>
+      <For each={issues()}>{(i) => <div class="f-err">{i.message}</div>}</For>
     </>
   );
 }
@@ -255,7 +191,37 @@ function FieldRow(props: {
 type Ask =
   | { kind: "duplica"; name: string }
   | { kind: "rinomina"; name: string }
+  | { kind: "salva"; name: string }
+  | { kind: "importa" }
   | { kind: "elimina"; name: string; lines: string[] };
+
+/** Chiede la build da fissare nei profili importati: i JSON di minis-config non la dicono. */
+function ImportDialog(props: { value: string; onCancel: () => void; onConfirm: (build: string) => void }) {
+  const [build, setBuild] = createSignal(props.value);
+  return (
+    <Dialog
+      title="Importa da minis-config"
+      actions={
+        <>
+          <button class="btn primary" disabled={!build().trim()} onClick={() => props.onConfirm(build().trim())}>
+            Scegli i JSON…
+          </button>
+          <button class="btn" onClick={props.onCancel}>
+            Annulla
+          </button>
+        </>
+      }
+    >
+      <div class="field" style={{ "grid-template-columns": "110px 1fr" }}>
+        <label>build</label>
+        <input class="mono" autofocus value={build()} onInput={(e) => setBuild(e.currentTarget.value)} />
+      </div>
+      <div class="cond" style={{ "margin-top": "6px" }}>
+        I JSON non dicono la build: si fissa questa.
+      </div>
+    </Dialog>
+  );
+}
 
 export default function Avvio(props: {
   overview: Overview;
@@ -270,10 +236,11 @@ export default function Avvio(props: {
   const [edited, setEdited] = createSignal<Profile | null>(null);
   const [preview, setPreview] = createSignal<Preview | null>(null);
   const [message, setMessage] = createSignal<{ kind: "ok" | "err"; text: string } | null>(null);
-  const [newName, setNewName] = createSignal("");
   const [importBuild, setImportBuild] = createSignal(props.overview.builds[0]?.id.split("-")[0] ?? "b10809");
   const [busy, setBusy] = createSignal(false);
   const [ask, setAsk] = createSignal<Ask | null>(null);
+  const [search, setSearch] = createSignal("");
+  const [catalog, setCatalog] = createSignal<ModelRow[]>([]);
 
   const entry = createMemo(() => entries().find((e) => e.name === selected()) ?? null);
   const base = () => entry()?.profile ?? null;
@@ -283,7 +250,6 @@ export default function Avvio(props: {
     setSelected(name);
     const e = list.find((x) => x.name === name);
     setEdited(e?.profile ? structuredClone(e.profile) : null);
-    setNewName(e ? `${e.name}.variante` : "");
   };
 
   const reload = async (keep?: string) => {
@@ -307,7 +273,6 @@ export default function Avvio(props: {
       const p = await api.profileTemplate(modelFile);
       setSelected("");
       setEdited(p);
-      setNewName(p.name);
       setMessage({
         kind: "ok",
         text: `Profilo nuovo «${p.name}»: valori sensati, tutti espliciti. Correggi quello che serve e salvalo — finché non è salvato non si avvia, perché un avvio cita il profilo da cui è partito.`,
@@ -327,6 +292,8 @@ export default function Avvio(props: {
   };
 
   onMount(async () => {
+    // Il catalogo dice se i pesi del profilo sono verificati: se non si legge, resta «sconosciuto».
+    api.catalogList().then((v) => setCatalog(v.rows), () => setCatalog([]));
     const list = await reload();
     if (props.pendingModel) applyPending(props.pendingModel, list);
   });
@@ -372,10 +339,10 @@ export default function Avvio(props: {
       props.onStarted();
     });
 
-  const saveNew = () =>
+  const saveNew = (name: string) =>
     act(async () => {
-      const name = newName().trim();
       const saved = await api.saveProfile({ ...edited()!, name }, null);
+      setAsk(null);
       setMessage({ kind: "ok", text: `Salvato come ${saved}.` });
       await reload(saved);
     });
@@ -444,8 +411,10 @@ export default function Avvio(props: {
       setMessage({ kind: "ok", text: `Campionamento preso dal catalogo: ${modes.join(" · ")}. Salva il profilo per tenerlo.` });
     });
 
-  const importJson = () =>
+  const importJson = (build: string) =>
     act(async () => {
+      setAsk(null);
+      setImportBuild(build);
       const picked = await open({ multiple: true, filters: [{ name: "Profili minis-config", extensions: ["json"] }] });
       if (!picked) return;
       const paths = Array.isArray(picked) ? picked : [picked];
@@ -454,7 +423,7 @@ export default function Avvio(props: {
       let failed = false;
       for (const path of paths) {
         try {
-          const r = await api.importMinis(path, importBuild());
+          const r = await api.importMinis(path, build);
           last = r.name;
           lines.push(`✓ ${r.name}`, ...r.notes.map((n) => `   ${n}`));
         } catch (e) {
@@ -467,16 +436,75 @@ export default function Avvio(props: {
     });
 
   const binary = () => preview()?.binary ?? "llama-server";
-  const canStart = () =>
-    !busy() && !engineOn() && !creating() && preview() != null && preview()!.blockers.length === 0;
+  const overrides = () => preview()?.overrides.length ?? 0;
+  const canStart = () => !busy() && !engineOn() && !creating() && preview() != null && preview()!.blockers.length === 0;
+  const nameIssues = () => (preview()?.issues ?? []).filter((i) => i.field === "name" || i.field === "schema_version");
+
+  const visible = () => {
+    const q = search().trim().toLowerCase();
+    if (!q) return entries();
+    return entries().filter((e) => e.name.toLowerCase().includes(q) || (e.profile?.model.file.toLowerCase().includes(q) ?? false));
+  };
+
+  const modelRow = () => {
+    const f = edited()?.model.file.toLowerCase();
+    return f ? (catalog().find((r) => r.file.toLowerCase() === f) ?? null) : null;
+  };
+  const modelNote = () => {
+    const p = edited();
+    if (!p) return null;
+    const bits = [p.model.quant, p.model.size_gb != null ? `${fixed(p.model.size_gb, 1)} GB` : null];
+    const row = modelRow();
+    bits.push(row ? STATE_TEXT[row.state] : "fuori dal catalogo");
+    return bits.filter(Boolean).join(" · ");
+  };
+
+  const vgm = () => props.overview.system.gpus.find((g) => g.dedicated_gib)?.dedicated_gib ?? null;
+
+  const topAlerts = (): AlertItem[] => {
+    const pv = preview();
+    if (!pv) return [];
+    const out: AlertItem[] = pv.warnings.map((w, i) => ({ key: `w${i}`, tone: "err", title: "Attenzione", detail: `${w} Si può avviare lo stesso.` }));
+    if (pv.proposals.length) {
+      out.push({
+        key: "prop",
+        tone: "acc",
+        title: `Le misure di M-08 suggeriscono ${pv.proposals.length === 1 ? "una modifica" : `${pv.proposals.length} modifiche`}`,
+        detail: (
+          <>
+            <For each={pv.proposals}>
+              {(x) => (
+                <div>
+                  <span class="mono">{x.field}</span> <s>{show(x.current)}</s> → <b>{show(x.value)}</b> · {x.reason}
+                </div>
+              )}
+            </For>
+            <div>Il file non si tocca: si applicano sopra, le vedi nella riga di comando e le salvi tu.</div>
+          </>
+        ),
+        actions: (
+          <button class="btn sm" onClick={() => pv.proposals.forEach((x) => set(x.field, x.value))}>
+            Applica
+          </button>
+        ),
+      });
+    }
+    return out;
+  };
 
   return (
     <section>
-      <h1>Avvio</h1>
-      <p class="sub">
-        Scegli un profilo; ogni leva che cambi resta in sovrapposizione (●) e aggiorna la riga di comando. Puoi avviare
-        così (il manifest registra profilo + differenze) o salvare come nuovo profilo.
-      </p>
+      <Head
+        title="Avvio"
+        sub="Un profilo dice come si accende il motore. Ogni leva che cambi resta in sovrapposizione (●) e aggiorna la riga di comando: puoi avviare così (il manifest registra profilo + differenze) o salvare come profilo nuovo."
+      >
+        <button class="btn sm primary" disabled={busy()} onClick={() => newProfile(null)}>
+          Nuovo profilo…
+        </button>
+        <button class="btn sm" disabled={busy()} onClick={() => setAsk({ kind: "importa" })}>
+          Importa JSON da minis-config…
+        </button>
+      </Head>
 
       <Show when={message()}>
         {(m) => (
@@ -488,23 +516,15 @@ export default function Avvio(props: {
 
       <div class="split">
         <div>
-          <h2>Profili</h2>
-          <div class="mini mono" style={{ "word-break": "break-all", margin: "-4px 0 8px" }}>
-            {props.overview.data_root}\profiles
-          </div>
-          <div class="row" style={{ margin: "0 0 8px" }}>
-            <button class="btn sm primary" disabled={busy()} onClick={() => newProfile(null)}>
-              Nuovo profilo…
-            </button>
-            <button class="btn sm" disabled={busy() || !selected()} onClick={() => setAsk({ kind: "duplica", name: selected() })}>
-              Duplica…
-            </button>
-            <button class="btn sm" disabled={busy() || !selected()} onClick={() => setAsk({ kind: "rinomina", name: selected() })}>
-              Rinomina…
-            </button>
-            <button class="btn sm danger" disabled={busy() || !selected()} onClick={askDelete}>
-              Elimina…
-            </button>
+          <div class="row mb">
+            <input
+              class="txt mono"
+              style={{ width: "100%" }}
+              placeholder="cerca fra i profili"
+              aria-label="cerca fra i profili"
+              value={search()}
+              onInput={(e) => setSearch(e.currentTarget.value)}
+            />
           </div>
           <div class="list">
             <Show when={creating()}>
@@ -516,18 +536,34 @@ export default function Avvio(props: {
               </div>
             </Show>
             <For
-              each={entries()}
+              each={visible()}
               fallback={
                 <Show when={!creating()}>
                   <div class="cond">
-                    Nessun profilo ancora. «Nuovo profilo…» ne scrive uno con valori sensati sul modello che scegli;
-                    se vieni da minis-config, «Importa JSON…» li converte.
+                    <Show
+                      when={entries().length}
+                      fallback="Nessun profilo ancora. «Nuovo profilo…» ne scrive uno con valori sensati sul modello che scegli; se vieni da minis-config, «Importa JSON…» li converte."
+                    >
+                      Nessun profilo con «{search()}».
+                    </Show>
                   </div>
                 </Show>
               }
             >
               {(e) => (
-                <div class="it" classList={{ on: e.name === selected() }} onClick={() => select(e.name)}>
+                <div
+                  class="it"
+                  classList={{ on: e.name === selected() }}
+                  role="button"
+                  tabindex={0}
+                  onClick={() => select(e.name)}
+                  onKeyDown={(k) => {
+                    if (k.key === "Enter" || k.key === " ") {
+                      k.preventDefault();
+                      select(e.name);
+                    }
+                  }}
+                >
                   <div class="n">{e.name}</div>
                   <div class="m">
                     <Show when={e.profile?.gate}>
@@ -545,9 +581,20 @@ export default function Avvio(props: {
                         {e.issues.length} {e.issues.length === 1 ? "errore" : "errori"}
                       </span>
                     </Show>
-                    <Show when={e.name === selected() && (preview()?.overrides.length ?? 0) > 0}>
+                    <Show when={e.name === selected() && overrides() > 0}>
                       <span class="pill mod">
-                        {preview()!.overrides.length} {preview()!.overrides.length === 1 ? "modifica" : "modifiche"}
+                        {overrides()} {overrides() === 1 ? "modifica" : "modifiche"}
+                      </span>
+                    </Show>
+                    <Show when={e.name === selected() && (preview()?.proposals.length ?? 0) > 0}>
+                      <span class="pill acc">
+                        {preview()!.proposals.length} {preview()!.proposals.length === 1 ? "proposta" : "proposte"}
+                      </span>
+                    </Show>
+                    <Show when={engineOn() && api.runOf(props.status)?.profile === e.name}>
+                      <span class="badge ok tight">
+                        <i />
+                        acceso
                       </span>
                     </Show>
                   </div>
@@ -555,95 +602,22 @@ export default function Avvio(props: {
               )}
             </For>
           </div>
-          <hr />
-          <div class="card mb">
-            <h2>
-              Stima memoria <span class="r">prima dell'avvio</span>
-            </h2>
-            <Show when={preview()?.estimate} fallback={<div class="cond">Scegli un profilo per vedere la stima.</div>}>
-              {(e) => {
-                const gb = (b: number | null) => (b == null ? null : fixed(b / 1e9, 2));
-                const vgm = () => props.overview.system.gpus.find((g) => g.dedicated_gib)?.dedicated_gib ?? null;
-                const quota = () => {
-                  const t = e().total_bytes;
-                  const v = vgm();
-                  return t && v ? Math.min(100, (t / (v * 1024 ** 3)) * 100) : 0;
-                };
-                return (
-                  <>
-                    <dl class="kv">
-                      <dt>Pesi</dt>
-                      <dd class="num">
-                        <Val v={gb(e().weights_bytes)} unit="GB" />
-                      </dd>
-                      <dt>
-                        Cache KV <span class="cond">@{edited()?.server.ctx}</span>
-                      </dt>
-                      <dd class="num">
-                        <Val v={gb(e().kv_bytes)} unit="GB" />
-                      </dd>
-                      <Show when={e().state_bytes}>
-                        <dt>Stato ricorrente</dt>
-                        <dd class="num">
-                          <Val v={gb(e().state_bytes)} unit="GB" />
-                        </dd>
-                      </Show>
-                      <dt>Buffer di calcolo</dt>
-                      <dd class="num">
-                        <Val v={gb(e().compute_bytes)} unit="GB" />
-                        <Show when={e().compute_from}>
-                          <span class="cond"> misurato su {e().compute_from}</span>
-                        </Show>
-                      </dd>
-                      <dt>{e().total_is_lower_bound ? "Totale minimo" : "Totale stimato"}</dt>
-                      <dd class="num">
-                        <b>
-                          {e().total_is_lower_bound ? "≥ " : "~ "}
-                          {gb(e().total_bytes)} GB
-                        </b>
-                        <Show when={vgm()}>
-                          <span class="cond"> / {fixed(vgm()!, 0)} GiB dedicati</span>
-                        </Show>
-                      </dd>
-                    </dl>
-                    <Show when={vgm()}>
-                      <div class={`bar ${quota() > 95 ? "err" : quota() > 85 ? "warn" : "ok"}`} style={{ "margin-top": "6px" }}>
-                        <span style={{ width: `${quota()}%` }} />
-                      </div>
-                    </Show>
-                    <For each={e().notes}>
-                      {(n) => (
-                        <div class="cond" style={{ "margin-top": "4px" }}>
-                          {n}
-                        </div>
-                      )}
-                    </For>
-                    <div class="cond" style={{ "margin-top": "6px" }}>
-                      Stima, sostituita dalla misura dopo l'avvio.
-                    </div>
-                  </>
-                );
-              }}
-            </Show>
+          <div class="row" style={{ "margin-top": "8px" }}>
+            <button class="btn sm" disabled={busy() || !selected()} onClick={() => setAsk({ kind: "duplica", name: selected() })}>
+              Duplica…
+            </button>
+            <button class="btn sm" disabled={busy() || !selected()} onClick={() => setAsk({ kind: "rinomina", name: selected() })}>
+              Rinomina…
+            </button>
+            <button class="btn sm danger" disabled={busy() || !selected()} onClick={askDelete}>
+              Elimina…
+            </button>
+            <button class="btn sm" disabled={busy()} onClick={() => reload(selected())}>
+              Rileggi
+            </button>
           </div>
-
-          <div class="card">
-            <h2>Importa da minis-config</h2>
-            <div class="field" style={{ "grid-template-columns": "60px 1fr" }}>
-              <label>build</label>
-              <input value={importBuild()} onInput={(e) => setImportBuild(e.currentTarget.value)} />
-            </div>
-            <div class="cond" style={{ margin: "4px 0 8px" }}>
-              I JSON non dicono la build: si fissa questa.
-            </div>
-            <div class="row">
-              <button class="btn sm" disabled={busy()} onClick={importJson}>
-                Importa JSON…
-              </button>
-              <button class="btn sm" disabled={busy()} onClick={() => reload(selected())}>
-                Rileggi
-              </button>
-            </div>
+          <div class="cond mono" style={{ "margin-top": "8px", "word-break": "break-all" }}>
+            {props.overview.data_root}\profiles
           </div>
         </div>
 
@@ -651,9 +625,9 @@ export default function Avvio(props: {
           <Show when={!edited() && !entries().length}>
             <Empty title="Un profilo dice come si accende il motore.">
               <div>
-                Modello, contesto, tipi di cache, speculazione, porta: tutto esplicito, niente lasciato al default del
-                motore, così la riga di comando racconta per intero com'è stato avviato. Il nome del profilo è anche
-                l'alias che i client chiedono.
+                Modello, contesto, tipi di cache, speculazione, porta: tutto esplicito, niente lasciato al default del motore,
+                così la riga di comando racconta per intero com'è stato avviato. Il nome del profilo è anche l'alias che i
+                client chiedono.
               </div>
             </Empty>
           </Show>
@@ -672,188 +646,306 @@ export default function Avvio(props: {
           </Show>
 
           <Show when={edited()}>
-            {(p) => (
-              <>
-                <div class="card mb">
-                  <h2>
-                    Profilo{" "}
-                    <span class="r mono">
-                      {entry()?.file ?? `${props.overview.data_root}\\profiles\\${p().name}.toml · da salvare`}
+            {(p) => {
+              const ess = () => groupSummary(ESSENTIAL, base(), p());
+              const adv = () => groupSummary(ADVANCED, base(), p());
+              const advIssues = () => (preview()?.issues ?? []).some((i) => ADVANCED.some((l) => leverPaths(l).includes(i.field)));
+              return (
+                <>
+                  <div class="actbar">
+                    <span class="name">
+                      {p().name}
+                      <small>
+                        alias servito · {entry()?.file ?? `${props.overview.data_root}\\profiles\\${p().name}.toml · da salvare`}
+                      </small>
                     </span>
-                  </h2>
-                  <FieldRow def={{ path: "name", label: "name · alias", kind: "text" }} base={base()} edited={p()} issues={preview()?.issues ?? []} onSet={set} />
-                  <For each={preview()?.warnings ?? []}>
-                    {(w) => (
-                      <div class="note err" style={{ "margin-top": "8px" }}>
-                        {w} Si può avviare lo stesso.
-                      </div>
-                    )}
-                  </For>
-                  <Show when={preview()?.proposals.length}>
-                    <div class="note" style={{ "margin-top": "8px" }}>
-                      <b>Le misure di M-08 suggeriscono {preview()!.proposals.length === 1 ? "una modifica" : `${preview()!.proposals.length} modifiche`}</b>{" "}
-                      per questo profilo. Il file non si tocca: si applicano sopra, le vedi nella riga di comando e le salvi tu.
-                      <table style={{ margin: "6px 0", "font-size": "12px" }}>
-                        <tbody>
-                          <For each={preview()!.proposals}>
-                            {(x) => (
-                              <tr>
-                                <td class="mono">{x.field}</td>
-                                <td class="mono">
-                                  <s>{show(x.current)}</s> → {show(x.value)}
-                                </td>
-                                <td class="cond">{x.reason}</td>
-                              </tr>
-                            )}
-                          </For>
-                        </tbody>
-                      </table>
-                      <button class="btn sm" onClick={() => preview()!.proposals.forEach((x) => set(x.field, x.value))}>
-                        Applica come modifiche
-                      </button>
-                    </div>
-                  </Show>
-                  <Show when={p().notes}>
-                    <div class="cond" style={{ padding: "4px 6px" }}>
-                      {p().notes}
-                    </div>
-                  </Show>
-                </div>
-
-                <div class="grid g2 mb" style={{ "align-items": "start" }}>
-                  <For each={SECTIONS}>
-                    {(sec) => (
-                      <div class="card" style={sec.title === "Server" ? { "grid-row": "span 3" } : {}}>
-                        <h2>{sec.title}</h2>
-                        <For each={sec.fields}>
-                          {(def) => <FieldRow def={def} base={base()} edited={p()} issues={preview()?.issues ?? []} onSet={set} />}
-                        </For>
-                      </div>
-                    )}
-                  </For>
-                </div>
-
-                <div class="card mb">
-                  <h2>
-                    Campionamento consigliato <span class="r">dato del modello · non è un default del server</span>
-                    <button class="btn sm right" disabled={busy() || !p().model.file} onClick={takeSampling}>
-                      Prendi dal catalogo
-                    </button>
-                  </h2>
-                  <Show
-                    when={p().sampling_by_mode && Object.keys(p().sampling_by_mode!).length}
-                    fallback={
-                      <div class="cond">
-                        Nessuno: il catalogo lo impara dalla model card del publisher (pagina Catalogo → «Leggi la model
-                        card»), poi lo si porta qui. Quello che finisce nel profilo esce anche nelle righe per i client.
-                      </div>
-                    }
-                  >
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>modalità</th>
-                          <th class="r">temp</th>
-                          <th class="r">top_p</th>
-                          <th class="r">top_k</th>
-                          <th class="r">min_p</th>
-                          <th class="r">presence</th>
-                          <th>fonte</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <For each={Object.entries(p().sampling_by_mode!)}>
-                          {([mode, sm]) => (
-                            <tr>
-                              <td>{mode}</td>
-                              <td class="r num">{show(sm.temperature)}</td>
-                              <td class="r num">{show(sm.top_p)}</td>
-                              <td class="r num">{show(sm.top_k)}</td>
-                              <td class="r num">{show(sm.min_p)}</td>
-                              <td class="r num">{show(sm.presence_penalty)}</td>
-                              <td class="mini">
-                                {show(sm.source)}
-                                {sm.verified ? ` · ${sm.verified}` : ""}
-                              </td>
-                            </tr>
-                          )}
-                        </For>
-                      </tbody>
-                    </table>
-                    <div class="cond" style={{ "margin-top": "6px" }}>
-                      Esce anche nelle righe per i client (Impostazioni), con fonte e data: il campionamento lo manda il
-                      client a ogni richiesta, llama-server non lo applica da solo.
-                    </div>
-                  </Show>
-                </div>
-
-                <div class="card">
-                  <h2>
-                    Riga di comando{" "}
-                    <span class="r">
-                      aggiornata in tempo reale · {preview()?.overrides.length ?? 0}{" "}
-                      {preview()?.overrides.length === 1 ? "differenza" : "differenze"} dal profilo
-                    </span>
-                  </h2>
-                  <Show when={preview()}>{(pv) => <CommandLine binary={binary()} args={pv().args} />}</Show>
-                  <Show when={preview()?.invalidates_cache}>
-                    <div class="note warn" style={{ "margin-top": "8px" }}>
-                      Hai cambiato una leva marcata <span class="pill cache">cache</span>: il manifest dichiarerà l'avvio
-                      come «invalida la cache».
-                    </div>
-                  </Show>
-                  <Show when={preview()?.blockers.length}>
-                    <div class="note err" style={{ "margin-top": "8px" }}>
-                      <For each={preview()!.blockers}>{(b) => <div>{b}</div>}</For>
-                    </div>
-                  </Show>
-                  <div class="row" style={{ "margin-top": "10px" }}>
+                    <Show when={overrides() > 0}>
+                      <span class="pill mod">
+                        {overrides()} {overrides() === 1 ? "modifica" : "modifiche"}
+                      </span>
+                    </Show>
+                    <Show when={preview()?.invalidates_cache}>
+                      <span
+                        class="pill cache"
+                        title="Hai cambiato una leva marcata cache: il manifest dichiarerà l'avvio come «invalida la cache»."
+                      >
+                        invalida la cache
+                      </span>
+                    </Show>
+                    <span class="right" />
                     <button class="btn primary" disabled={!canStart()} onClick={start}>
-                      {preview()?.overrides.length ? "Avvia con le modifiche" : "Avvia"}
+                      {overrides() ? "Avvia con le modifiche" : "Avvia"}
                     </button>
-                    <button class="btn" disabled={!preview()?.overrides.length || busy()} onClick={() => select(selected())}>
-                      Scarta le modifiche
+                    <button class="btn" disabled={!overrides() || busy()} onClick={() => select(selected())}>
+                      Scarta
                     </button>
                     <button
                       class="btn"
-                      disabled={!preview()?.overrides.length || busy() || p().name !== selected() || !!preview()?.issues.length}
+                      disabled={!overrides() || busy() || p().name !== selected() || !!preview()?.issues.length}
                       onClick={update}
                     >
                       Aggiorna il profilo
                     </button>
-                    <button class="btn sm" onClick={() => copy(preview()?.line ?? "")}>
+                    <button
+                      class="btn"
+                      disabled={busy() || !!preview()?.issues.filter((i) => i.field !== "name").length}
+                      onClick={() =>
+                        setAsk({ kind: "salva", name: creating() ? p().name : `${p().name}.variante` })
+                      }
+                    >
+                      Salva come…
+                    </button>
+                    <button class="btn sm" disabled={!preview()} onClick={() => copy(preview()?.line ?? "")}>
                       Copia riga
                     </button>
+                    <Show when={preview()?.blockers.length}>
+                      <div class="full note err">
+                        <For each={preview()!.blockers}>{(b) => <div>{b}</div>}</For>
+                      </div>
+                    </Show>
+                    <For each={nameIssues()}>{(i) => <div class="full cond" style={{ color: "var(--err)" }}>{i.message}</div>}</For>
                     <Show when={creating()}>
-                      <span class="right cond">
+                      <div class="full cond">
                         Profilo non ancora salvato: un avvio cita il profilo da cui è partito, quindi prima si salva.
-                      </span>
+                      </div>
                     </Show>
                     <Show when={engineOn()}>
-                      <span class="right cond">
-                        {api.inUse(props.status)
-                          ? "Il motore acceso è IN USO: l'avvio parte solo quando torna libero e viene fermato."
-                          : "Un motore è già acceso: nella v1 se ne avvia uno alla volta."}
-                      </span>
+                      <div class="full cond">
+                        {api.inUse(props.status) ? (
+                          <>
+                            Il motore acceso è <b>IN USO</b>: l'avvio parte solo quando torna libero e viene fermato.
+                          </>
+                        ) : (
+                          "Un motore è già acceso: nella v1 se ne avvia uno alla volta."
+                        )}
+                      </div>
                     </Show>
                     <Show when={props.status?.state === "orphan"}>
-                      <span class="right cond">Un llama-server orfano occupa una porta dei profili: vedi la pagina Motore.</span>
+                      <div class="full cond">Un llama-server orfano occupa una porta dei profili: vedi la pagina Motore.</div>
+                    </Show>
+                    <Show when={p().notes}>
+                      <div class="full cond">{p().notes}</div>
                     </Show>
                   </div>
-                  <div class="row" style={{ "margin-top": "8px" }}>
-                    <input
-                      class="mono"
-                      style={{ flex: "1", "min-width": "220px", background: "var(--bg)", color: "var(--fg)", border: "1px solid var(--line)", "border-radius": "3px", padding: "4px 6px" }}
-                      value={newName()}
-                      onInput={(e) => setNewName(e.currentTarget.value)}
-                    />
-                    <button class="btn" disabled={busy() || !newName().trim() || !!preview()?.issues.length} onClick={saveNew}>
-                      Salva come nuovo profilo
-                    </button>
+
+                  <Alerts items={topAlerts()} />
+
+                  <div class="grid g2 av2 mb" style={{ "align-items": "start" }}>
+                    <div>
+                      <div class="card">
+                        <h2>
+                          Essenziali <span class="r">{ess().modified ? `${ess().modified} modificate` : ""}</span>
+                        </h2>
+                        <For each={ESSENTIAL}>
+                          {(l) => (
+                            <LeverRow
+                              lever={l}
+                              base={base()}
+                              edited={p()}
+                              issues={preview()?.issues ?? []}
+                              builds={props.overview.builds}
+                              modelNote={l.id === "model" ? modelNote() : null}
+                              onSet={set}
+                            />
+                          )}
+                        </For>
+                      </div>
+
+                      <details style={{ "margin-top": "12px" }} open={advIssues() || undefined}>
+                        <summary>
+                          Avanzate
+                          <span class="r">
+                            {adv().levers} leve ({adv().fields} campi) · {adv().modified} {adv().modified === 1 ? "modificata" : "modificate"} ·{" "}
+                            {adv().verdicts} con un verdetto di M-08
+                          </span>
+                        </summary>
+                        <div class="body">
+                          <For each={ADVANCED}>
+                            {(l) => (
+                              <LeverRow
+                                lever={l}
+                                base={base()}
+                                edited={p()}
+                                issues={preview()?.issues ?? []}
+                                builds={props.overview.builds}
+                                onSet={set}
+                              />
+                            )}
+                          </For>
+                        </div>
+                      </details>
+                    </div>
+
+                    <div class="grid" style={{ "align-items": "start" }}>
+                      <div class="card">
+                        <h2>
+                          Riga di comando{" "}
+                          <span class="r">
+                            aggiornata in tempo reale · {overrides()} {overrides() === 1 ? "differenza" : "differenze"} dal profilo
+                          </span>
+                        </h2>
+                        <Show when={preview()} fallback={<div class="cond">…</div>}>
+                          {(pv) => <CommandLine binary={binary()} args={pv().args} />}
+                        </Show>
+                        <Show when={preview()?.invalidates_cache}>
+                          <div class="note warn" style={{ "margin-top": "8px" }}>
+                            Hai cambiato una leva marcata <span class="pill cache">cache</span>: il manifest dichiarerà l'avvio
+                            come «invalida la cache».
+                          </div>
+                        </Show>
+                      </div>
+
+                      <div class="card">
+                        <h2>
+                          Stima di memoria <span class="r">prima dell'avvio · sostituita dalla misura</span>
+                        </h2>
+                        <Show when={preview()?.estimate} fallback={<div class="cond">Scegli un profilo per vedere la stima.</div>}>
+                          {(e) => {
+                            const gib = 1024 ** 3;
+                            const toGib = (b: number | null) => (b == null ? null : b / gib);
+                            const gb = (b: number | null) => (b == null ? null : fixed(b / 1e9, 2));
+                            const quota = () => {
+                              const t = e().total_bytes;
+                              const v = vgm();
+                              return t != null && v ? (t / (v * gib)) * 100 : null;
+                            };
+                            const tone = () => {
+                              const q = quota();
+                              return q == null ? "" : q > 95 ? "var(--err)" : q > 85 ? "var(--warn)" : "var(--ok)";
+                            };
+                            const ctx = () => num(p().server.ctx);
+                            const other = () =>
+                              e().state_bytes == null && e().compute_bytes == null
+                                ? null
+                                : (e().state_bytes ?? 0) + (e().compute_bytes ?? 0);
+                            return (
+                              <>
+                                <Stack
+                                  legend={false}
+                                  total={vgm()}
+                                  parts={[
+                                    { key: "w", label: "pesi", value: toGib(e().weights_bytes), cls: "ded" },
+                                    { key: "kv", label: "cache KV", value: toGib(e().kv_bytes), cls: "kv2" },
+                                    { key: "o", label: "stato + buffer", value: toGib(other()), cls: "oth" },
+                                  ]}
+                                />
+                                <dl class="kv" style={{ "margin-top": "8px" }}>
+                                  <dt>
+                                    <i class="sw" style={{ background: "var(--acc)" }} /> Pesi
+                                  </dt>
+                                  <dd>
+                                    <Val v={gb(e().weights_bytes)} unit="GB" />
+                                  </dd>
+                                  <dt>
+                                    <i class="sw" style={{ background: "var(--busy)" }} /> Cache KV <span class="cond">@{ctx()}</span>
+                                  </dt>
+                                  <dd>
+                                    <Val v={gb(e().kv_bytes)} unit="GB" />
+                                  </dd>
+                                  <Show when={e().state_bytes}>
+                                    <dt>
+                                      <i class="sw" style={{ background: "var(--fg3)" }} /> Stato ricorrente
+                                    </dt>
+                                    <dd class="num">{gb(e().state_bytes)} GB</dd>
+                                  </Show>
+                                  <dt>
+                                    <i class="sw" style={{ background: "var(--fg3)" }} /> Buffer di calcolo
+                                  </dt>
+                                  <dd>
+                                    <Val v={gb(e().compute_bytes)} unit="GB" />
+                                    <Show when={e().compute_from}>
+                                      <span class="cond"> misurato su {e().compute_from}</span>
+                                    </Show>
+                                  </dd>
+                                  <dt>{e().total_is_lower_bound ? "Totale minimo" : "Totale stimato"}</dt>
+                                  <dd class="num">
+                                    <b style={{ color: tone() }}>
+                                      {e().total_is_lower_bound ? "≥ " : "~ "}
+                                      {gb(e().total_bytes)} GB
+                                    </b>
+                                    <span class="cond">
+                                      {" "}
+                                      / <Show when={vgm()} fallback={<Unknown />}>{fixed(vgm()!, 0)}</Show> GiB dedicati
+                                    </span>
+                                  </dd>
+                                </dl>
+                                <For each={e().notes}>
+                                  {(n) => (
+                                    <div class="cond" style={{ "margin-top": "4px" }}>
+                                      {n}
+                                    </div>
+                                  )}
+                                </For>
+                                <div class="cond" style={{ "margin-top": "6px" }}>
+                                  Stima, sostituita dalla misura dopo l'avvio.
+                                </div>
+                              </>
+                            );
+                          }}
+                        </Show>
+                      </div>
+
+                      <div class="card">
+                        <h2>
+                          Campionamento consigliato <span class="r">dato del modello · non è un default del server</span>
+                          <button class="btn sm" disabled={busy() || !p().model.file} onClick={takeSampling}>
+                            Prendi dal catalogo
+                          </button>
+                        </h2>
+                        <Show
+                          when={p().sampling_by_mode && Object.keys(p().sampling_by_mode!).length}
+                          fallback={
+                            <div class="cond">
+                              Nessuno: il catalogo lo impara dalla model card del publisher (pagina Catalogo → «Leggi la model
+                              card»), poi lo si porta qui. Quello che finisce nel profilo esce anche nelle righe per i client.
+                            </div>
+                          }
+                        >
+                          <div style={{ "overflow-x": "auto" }}>
+                            <table class="compact">
+                              <thead>
+                                <tr>
+                                  <th>modalità</th>
+                                  <th class="r">temp</th>
+                                  <th class="r">top_p</th>
+                                  <th class="r">top_k</th>
+                                  <th class="r">min_p</th>
+                                  <th class="r">presence</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <For each={Object.entries(p().sampling_by_mode!)}>
+                                  {([mode, sm]) => (
+                                    <tr>
+                                      <td>
+                                        {mode}
+                                        <div class="mini">
+                                          {show(sm.source)}
+                                          {sm.verified ? ` · ${sm.verified}` : ""}
+                                        </div>
+                                      </td>
+                                      <td class="r num">{show(sm.temperature)}</td>
+                                      <td class="r num">{show(sm.top_p)}</td>
+                                      <td class="r num">{show(sm.top_k)}</td>
+                                      <td class="r num">{show(sm.min_p)}</td>
+                                      <td class="r num">{show(sm.presence_penalty)}</td>
+                                    </tr>
+                                  )}
+                                </For>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div class="cond" style={{ "margin-top": "6px" }}>
+                            Esce anche nelle righe per i client (Impostazioni), con fonte e data: il campionamento lo manda il
+                            client a ogni richiesta, llama-server non lo applica da solo.
+                          </div>
+                        </Show>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              );
+            }}
           </Show>
         </div>
       </div>
@@ -863,9 +955,9 @@ export default function Avvio(props: {
           <Switch>
             <Match when={a().kind === "duplica"}>
               <AskName
-                title={`Duplica «${a().name}»`}
+                title={`Duplica «${(a() as { name: string }).name}»`}
                 label="nome nuovo"
-                value={`${a().name}-2`}
+                value={`${(a() as { name: string }).name}-2`}
                 confirmLabel="Duplica"
                 note="Il nome del profilo è anche l'alias servito: due profili non possono chiamarsi uguale."
                 onCancel={() => setAsk(null)}
@@ -874,18 +966,33 @@ export default function Avvio(props: {
             </Match>
             <Match when={a().kind === "rinomina"}>
               <AskName
-                title={`Rinomina «${a().name}»`}
+                title={`Rinomina «${(a() as { name: string }).name}»`}
                 label="nome nuovo"
-                value={a().name}
+                value={(a() as { name: string }).name}
                 confirmLabel="Rinomina"
                 note="Cambia il file e l'alias servito. Gli avvii già registrati continuano a citare il nome vecchio: raccontano com'è andata, non puntano a un file."
                 onCancel={() => setAsk(null)}
                 onConfirm={rename}
               />
             </Match>
+            <Match when={a().kind === "salva"}>
+              <AskName
+                title="Salva come profilo nuovo"
+                label="nome"
+                value={(a() as { name: string }).name}
+                allowSame
+                confirmLabel="Salva"
+                note="Il nome del profilo è anche l'alias servito. Il profilo di partenza non si tocca."
+                onCancel={() => setAsk(null)}
+                onConfirm={saveNew}
+              />
+            </Match>
+            <Match when={a().kind === "importa"}>
+              <ImportDialog value={importBuild()} onCancel={() => setAsk(null)} onConfirm={importJson} />
+            </Match>
             <Match when={a().kind === "elimina"}>
               <Confirm
-                title={`Elimina «${a().name}»`}
+                title={`Elimina «${(a() as { name: string }).name}»`}
                 lines={(a() as { lines: string[] }).lines}
                 confirmLabel="Elimina il profilo"
                 danger

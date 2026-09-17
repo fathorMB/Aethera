@@ -1,4 +1,4 @@
-/* Token e componenti dal mockup approvato: .lmbrain-lite/design/aethera-v1/index.html */
+/* Token e componenti: mockup v1 (.lmbrain-lite/design/aethera-v1), disposizione dalla v2 (design/aethera-v2-ui). */
 :root {
   --bg: #f4f5f7; --bg2: #ffffff; --bg3: #e9ebef; --line: #d5d8de; --fg: #1a1c20; --fg2: #515866;
   /* --fg3 è il grigio delle condizioni: su fondo bianco #8a9099 arriva a 2,9:1 e a 11px non si
@@ -7,6 +7,9 @@
   /* Verde, ambra e viola sono scuriti apposta: sul fondo chiaro delle etichette (--bg3) i toni
      del tema scuro scendono sotto 4,5:1 e a 11px smettono di leggersi. */
   --acc: #2f6fed; --ok: #187038; --warn: #8f5605; --err: #c62f2f; --busy: #6f39b8; --mod: #8f5605;
+  /* v2: gli unici token nuovi, sfondi tenui per righe scelte, avvisi e campi modificati. */
+  --acc-bg: rgba(47, 111, 237, .10); --ok-bg: rgba(24, 112, 56, .10); --warn-bg: rgba(143, 86, 5, .10);
+  --err-bg: rgba(198, 47, 47, .10); --busy-bg: rgba(111, 57, 184, .10);
   --mono: "Cascadia Mono", "JetBrains Mono", Consolas, ui-monospace, monospace;
   --sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   /* Dice alla webview di che colore disegnare tendine, caselle e barre di scorrimento: senza
@@ -19,64 +22,97 @@
      più chiara: il mockup aveva #6f7680 (3,2:1) e #ef5a5a (4,4:1, il «Ferma» rosso). */
   --fg3: #8a919b;
   --acc: #5b8dff; --ok: #3ec46f; --warn: #e5a23a; --err: #f26b6b; --busy: #b287f0; --mod: #e5a23a;
+  /* Più tenui del mockup (.12): a .12 il grigio e il rosso sulle righe tinte scendevano a 4,4:1. */
+  --acc-bg: rgba(91, 141, 255, .08); --ok-bg: rgba(62, 196, 111, .08); --warn-bg: rgba(229, 162, 58, .08);
+  --err-bg: rgba(242, 107, 107, .08); --busy-bg: rgba(178, 135, 240, .08);
   color-scheme: dark;
 }
 * { box-sizing: border-box }
 html, body { margin: 0; height: 100% }
-body { background: var(--bg); color: var(--fg); font: 13px/1.45 var(--sans) }
+body { background: var(--bg); color: var(--fg); font: 13px/1.5 var(--sans) }
 code, .mono { font-family: var(--mono); font-size: 12px }
 a { color: var(--acc) }
 button { font: inherit; color: inherit }
+b { font-weight: 600 }
 
-/* shell */
-.app { display: grid; grid-template-rows: 40px 1fr; grid-template-columns: 172px 1fr; height: 100vh }
-.top { grid-column: 1/3; display: flex; align-items: center; gap: 14px; padding: 0 12px; background: var(--bg2); border-bottom: 1px solid var(--line) }
-.brand { font-weight: 600; letter-spacing: .3px }
+/* ── shell ─────────────────────────────────────────────────────────────── */
+.app { display: grid; grid-template-rows: 46px 1fr; grid-template-columns: 196px minmax(0, 1fr); height: 100vh }
+.top { grid-column: 1/3; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--bg2); border-bottom: 1px solid var(--line); min-width: 0 }
+.brand { font-weight: 600; letter-spacing: .3px; width: 182px; flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .brand small { color: var(--fg3); font-weight: 400; margin-left: 6px }
-.top .spacer { flex: 1 }
-.nav { background: var(--bg2); border-right: 1px solid var(--line); padding: 8px 0; display: flex; flex-direction: column }
+/* La striscia del motore: stato, chi, quanto va, e le due azioni. Sta su ogni pagina. */
+.strip { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0 }
+.strip .who { font-family: var(--mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 40px }
+.strip .who small { color: var(--fg3); font-family: var(--sans); margin-left: 4px; font-size: 12px }
+.strip .sep { width: 1px; height: 20px; background: var(--line); flex: none }
+.strip .speed { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap }
+.strip .speed small { color: var(--fg3); font-family: var(--sans); font-size: 11px }
+.strip .badge.busy { max-width: 240px; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 60px }
+.strip .acts { margin-left: auto; display: flex; gap: 6px; align-items: center; flex: none }
+.strip .off { color: var(--fg3); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.nav { background: var(--bg2); border-right: 1px solid var(--line); padding: 8px 0; display: flex; flex-direction: column; min-height: 0; overflow: auto }
 .nav button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 14px; background: none; border: 0; border-left: 3px solid transparent; color: var(--fg2); cursor: pointer }
 .nav button:hover { background: var(--bg3) }
 .nav button.on { color: var(--fg); border-left-color: var(--acc); background: var(--bg3) }
-.nav .k { font-family: var(--mono); color: var(--fg3); font-size: 11px; margin-left: auto }
-.nav .foot { margin-top: auto; padding: 10px 14px; color: var(--fg3); font-size: 11px; border-top: 1px solid var(--line); word-break: break-all }
-.main { overflow: auto; padding: 14px 18px }
+.nav button .k { font-family: var(--mono); color: var(--fg3); font-size: 11px; margin-left: auto }
+.nav button .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); display: inline-block }
+.nav .foot { margin-top: auto; padding: 10px 14px; color: var(--fg3); font-size: 11px; border-top: 1px solid var(--line); word-break: break-all; line-height: 1.5 }
+.nav .foot b { color: var(--fg2); font-weight: 600; display: block }
+.nav .foot .blk + .blk { margin-top: 10px }
+.main { overflow: auto; padding: 16px 20px 40px; min-width: 0; container: main / inline-size }
+
+/* Testa di pagina: titolo, una riga, e le azioni della pagina a destra. */
+.head { display: flex; align-items: flex-start; gap: 14px; margin: 0 0 14px }
+.head h1 { font-size: 17px; font-weight: 600; margin: 0 0 2px }
+.head .sub { color: var(--fg2); margin: 0; font-size: 12.5px }
+.head .acts { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; flex: 0 1 auto }
 h1 { font-size: 16px; font-weight: 600; margin: 0 0 2px }
 h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--fg2); margin: 0 0 8px }
-.sub { color: var(--fg3); margin: 0 0 14px }
+h3 { font-size: 13px; font-weight: 600; margin: 0 0 6px }
+.sub { color: var(--fg2); margin: 0 0 14px }
 
-/* atomi */
+/* ── atomi ─────────────────────────────────────────────────────────────── */
 .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; border: 1px solid var(--line); background: var(--bg3); white-space: nowrap }
-.badge i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg3); display: inline-block }
+.badge i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg3); display: inline-block; flex: none }
 .badge.ok i { background: var(--ok) } .badge.warn i { background: var(--warn) } .badge.err i { background: var(--err) } .badge.busy i { background: var(--busy) } .badge.acc i { background: var(--acc) }
 .badge.ok { color: var(--ok) } .badge.warn { color: var(--warn) } .badge.err { color: var(--err) } .badge.busy { color: var(--busy) } .badge.acc { color: var(--acc) }
 .badge.tight { padding: 0 6px }
-.pill { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; background: var(--bg3); color: var(--fg2); border: 1px solid var(--line) }
+.badge.big { font-size: 12px; padding: 4px 10px }
+.pill { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; background: var(--bg3); color: var(--fg2); border: 1px solid var(--line); white-space: nowrap }
 .pill.mod { color: var(--mod); border-color: var(--mod) }
 .pill.cache { color: var(--busy); border-color: var(--busy) }
 .pill.g { color: var(--ok); border-color: var(--ok) }
-.btn { padding: 5px 11px; border: 1px solid var(--line); background: var(--bg3); border-radius: 3px; cursor: pointer }
+.pill.x { color: var(--err); border-color: var(--err) }
+/* Il blu su --bg3 in chiaro sta a 3,8:1: il testo resta --fg, il colore lo porta il bordo. */
+.pill.acc { color: var(--fg); border-color: var(--acc) }
+.btn { padding: 5px 11px; border: 1px solid var(--line); background: var(--bg3); border-radius: 3px; cursor: pointer; white-space: nowrap }
 .btn:hover { border-color: var(--fg3) }
 .btn.primary { background: var(--acc); border-color: var(--acc); color: #fff }
 .btn.danger { color: var(--err); border-color: var(--err) }
 .btn:disabled { opacity: .45; cursor: not-allowed }
 .btn.sm { padding: 2px 8px; font-size: 12px }
+.btn.ghost { background: none }
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: 0 0 12px }
 .tabs button { padding: 6px 14px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--fg2); cursor: pointer }
 .tabs button:hover { color: var(--fg) }
 .tabs button.on { color: var(--fg); border-bottom-color: var(--acc) }
+.tabs button .n { font-family: var(--mono); font-size: 11px; color: var(--fg3); margin-left: 5px }
 .grid { display: grid; gap: 12px }
-.g2 { grid-template-columns: 1fr 1fr } .g3 { grid-template-columns: 1fr 1fr 1fr } .g4 { grid-template-columns: repeat(4, 1fr) }
-.card { background: var(--bg2); border: 1px solid var(--line); border-radius: 4px; padding: 12px }
-.card h2 { display: flex; align-items: center; gap: 8px }
-.card h2 .r { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--fg3) }
-.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; align-items: baseline; margin: 0 }
-.kv dt { color: var(--fg2) } .kv dd { margin: 0 }
+.g2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) } .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)) } .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)) }
+.g21 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) } .g12 { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) }
+.card { background: var(--bg2); border: 1px solid var(--line); border-radius: 4px; padding: 12px; min-width: 0 }
+.card h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.card h2 .r { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--fg3); font-size: 11px }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 14px; align-items: baseline; margin: 0 }
+.kv dt { color: var(--fg2) } .kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere }
+.kv.k3 { grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr) max-content minmax(0, 1fr); gap: 3px 16px; flex: 1; min-width: 0 }
 .unk { color: var(--fg3); font-style: italic }
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums }
 .big { font-family: var(--mono); font-size: 22px; line-height: 1.1 }
 .big small { font-size: 11px; color: var(--fg3); font-family: var(--sans); margin-left: 4px }
-.cond { color: var(--fg3); font-size: 11px }
+/* Il testo minimo è 12 px: le righe grigie a 11 px non si leggevano. */
+.cond { color: var(--fg3); font-size: 12px }
+.mini { font-size: 11px; color: var(--fg3) }
 .cmd { background: #0e1013; color: #d8dee6; border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-all; line-height: 1.6; margin: 0 }
 [data-theme="light"] .cmd { background: #1c1f24 }
 .cmd b { color: #e5a23a; font-weight: 600; background: rgba(229, 162, 58, .12) }
@@ -84,43 +120,45 @@ h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacin
 .log { background: #0e1013; color: #aeb6c2; border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; font-family: var(--mono); font-size: 11.5px; white-space: pre; overflow: auto; max-height: 260px; line-height: 1.5; margin: 0 }
 [data-theme="light"] .log { background: #1c1f24 }
 table { border-collapse: collapse; width: 100% }
-th { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--fg2); font-weight: 600; text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line) }
-td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--fg2); font-weight: 600; text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap }
+td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle }
 td.r, th.r { text-align: right }
-tr.sel td { background: var(--bg3) }
+td .mono, td.mono, td.num { white-space: nowrap }
+td .mini { white-space: normal }
+tr.sel td { background: var(--acc-bg) }
 tr.click { cursor: pointer }
 tr.click:hover td { background: var(--bg3) }
+tr.sel.click:hover td { background: var(--acc-bg) }
+tr.sep td { color: var(--warn); font-size: 12px; border-bottom: 1px dashed var(--warn); padding-top: 10px; background: none; white-space: normal }
 .spark { display: flex; align-items: flex-end; gap: 2px; height: 34px; margin-top: 6px }
 .spark b { flex: 1; background: var(--acc); opacity: .75; border-radius: 1px 1px 0 0; min-width: 2px }
 .spark b.lo { background: var(--err); opacity: 1 }
 .spark b.nil { height: 100%; background: transparent; border: 1px dashed var(--line); opacity: 1 }
-.bar { height: 5px; background: var(--bg3); border: 1px solid var(--line); border-radius: 3px; overflow: hidden }
+.spark.inline { width: 60px; margin: 2px 0 0 auto }
+.bar { height: 6px; background: var(--bg3); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; min-width: 60px }
 .bar span { display: block; height: 100%; background: var(--acc) }
 .bar.ok span { background: var(--ok) } .bar.warn span { background: var(--warn) } .bar.err span { background: var(--err) }
-.legend { display: inline-flex; gap: 12px; flex-wrap: wrap; color: var(--fg3); font-size: 11px }
-.legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px }
-.toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none }
-.toggle i { width: 30px; height: 16px; border-radius: 8px; background: var(--fg3); position: relative; display: inline-block }
+.bar.nil { border-style: dashed; background: transparent }
+.legend { display: inline-flex; gap: 4px 12px; flex-wrap: wrap; color: var(--fg3); font-size: 12px }
+.legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: middle }
+.legend b { color: var(--fg) }
+.sw { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 4px; vertical-align: middle }
+.toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; white-space: nowrap }
+.toggle i { width: 30px; height: 16px; border-radius: 8px; background: var(--fg3); position: relative; display: inline-block; flex: none }
 .toggle i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: .15s }
 .toggle.on i { background: var(--busy) } .toggle.on i::after { left: 16px }
 .note { border-left: 3px solid var(--acc); background: var(--bg3); padding: 8px 10px; border-radius: 0 3px 3px 0; color: var(--fg2) }
-.note.warn { border-left-color: var(--warn) } .note.busy { border-left-color: var(--busy) } .note.err { border-left-color: var(--err) }
+.note.warn { border-left-color: var(--warn) } .note.busy { border-left-color: var(--busy) } .note.err { border-left-color: var(--err) } .note.ok { border-left-color: var(--ok) }
+.note b { color: var(--fg) }
+/* Campo dei dialoghi e della prima configurazione (v1). */
 .field { display: grid; grid-template-columns: 150px 1fr max-content; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 3px }
 .field label { color: var(--fg2) }
-.field.mod { background: rgba(229, 162, 58, .08); outline: 1px solid var(--mod) }
-.field.mod label::before { content: "●"; color: var(--mod); margin-right: 5px; font-size: 9px; vertical-align: middle }
 .field input, .field select { font: inherit; font-family: var(--mono); font-size: 12px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 3px 6px; width: 100% }
-.field .base { font-family: var(--mono); font-size: 11px; color: var(--fg3) }
-.field .base s { color: var(--mod) }
-.split { display: grid; grid-template-columns: 250px 1fr; gap: 12px }
-.list { display: flex; flex-direction: column; gap: 2px }
-.list .it { padding: 8px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg2); cursor: pointer }
-.list .it.on { border-color: var(--acc); background: var(--bg3) }
-.list .it .n { font-family: var(--mono); font-size: 12px; word-break: break-all }
-.list .it .m { color: var(--fg3); font-size: 11px; margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap }
-.row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap }
+input.txt, select.txt { font: inherit; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px; min-width: 0 }
+input.txt.mono { font-family: var(--mono); font-size: 12px }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.row.nw { flex-wrap: nowrap; gap: 6px; min-width: 0 }
 .right { margin-left: auto }
-.mini { font-size: 11px; color: var(--fg3) }
 .mb { margin-bottom: 12px }
 hr { border: 0; border-top: 1px solid var(--line); margin: 10px 0 }
 .errors { margin: 6px 0 0; padding-left: 18px; color: var(--err) }
@@ -136,11 +174,11 @@ td .empty, th .empty { border: 0; background: none; padding: 10px 2px }
 .step { display: grid; grid-template-columns: 22px 1fr max-content; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 3px; border: 1px solid transparent }
 .step .n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-family: var(--mono); background: var(--bg3); color: var(--fg3); border: 1px solid var(--line) }
 .step.done .n { background: var(--ok); border-color: var(--ok); color: #fff }
-.step.now { border-color: var(--acc); background: var(--bg3) }
+.step.now { border-color: var(--acc); background: var(--acc-bg) }
 .step.now .n { border-color: var(--acc); color: var(--acc) }
 .step .t { color: var(--fg2) }
 .step.now .t, .step.done .t { color: var(--fg) }
-.step .d { font-size: 11px; color: var(--fg3) }
+.step .d { font-size: 12px; color: var(--fg3) }
 
 /* La tastiera deve vedersi: senza contorno di fuoco non si sa mai dove si è. */
 :focus-visible { outline: 2px solid var(--acc); outline-offset: 1px }
@@ -150,10 +188,102 @@ td .empty, th .empty { border: 0; background: none; padding: 10px 2px }
 .dialog { max-width: 440px; box-shadow: 0 8px 30px rgba(0, 0, 0, .4) }
 
 /* M-09: riuso del prompt, condizioni, leve misurate */
-.ev td { font-size: 12px }
+.ev td { font-size: 12px; padding: 5px 8px }
+.ev tr.cmp td { background: var(--warn-bg) }
 .tag { font-size: 11px; font-weight: 600; white-space: nowrap }
 .tag.ext { color: var(--ok) } .tag.cold { color: var(--fg2) } .tag.sum { color: var(--warn) } .tag.reb { color: var(--err) }
-.note b { color: var(--fg) }
-.pill.x { color: var(--err); border-color: var(--err) }
-tr.sep td { color: var(--warn); font-size: 11px; border-bottom: 1px dashed var(--warn); padding-top: 10px }
-.field .hint { grid-column: 2 / 4; margin-top: -2px }
+
+/* ── pezzi della v2 ────────────────────────────────────────────────────── */
+/* Avvisi: una fascia sola, una riga per avviso, con il verbo a destra. */
+.alerts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px }
+.alert { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 3px; border: 1px solid var(--line); background: var(--bg2); border-left-width: 3px }
+.alert.warn { border-left-color: var(--warn) } .alert.err { border-left-color: var(--err) } .alert.busy { border-left-color: var(--busy) } .alert.acc { border-left-color: var(--acc) } .alert.ok { border-left-color: var(--ok) }
+.alert .t { font-weight: 600; flex: 0 0 auto; max-width: 30%; overflow-wrap: anywhere }
+.alert .d { color: var(--fg2); flex: 1; min-width: 0 }
+.alert .d b { color: var(--fg) }
+.alert .a { margin-left: auto; display: flex; gap: 6px; flex: none }
+/* Numeri grandi con la loro scintilla sotto: la riga dei KPI. */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px }
+.kpi { background: var(--bg2); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; min-width: 0 }
+.kpi .l { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--fg2); font-weight: 600; display: flex; gap: 6px; align-items: center }
+.kpi .v { font-family: var(--mono); font-size: 26px; line-height: 1.15; margin-top: 4px; font-variant-numeric: tabular-nums }
+.kpi .v small { font-size: 12px; color: var(--fg3); font-family: var(--sans); margin-left: 5px }
+.kpi .v .unk { font-size: 16px; font-family: var(--sans) }
+.kpi .d { color: var(--fg3); font-size: 12px; margin-top: 2px }
+.kpi .v.ok { color: var(--ok) } .kpi .v.warn { color: var(--warn) } .kpi .v.err { color: var(--err) }
+/* Il «?»: la spiegazione lunga sta nel title, non in mezzo alla pagina. */
+.q { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--line); color: var(--fg3); font-size: 10px; font-weight: 600; cursor: help; font-family: var(--sans); text-transform: none; letter-spacing: 0; flex: none }
+.q:hover, .q:focus-visible { color: var(--acc); border-color: var(--acc) }
+/* Sezioni a scomparsa: il testo di aiuto e i pezzi tecnici stanno dietro un clic. */
+details { border: 1px solid var(--line); border-radius: 4px; background: var(--bg2) }
+details > summary { cursor: pointer; padding: 8px 12px; list-style: none; display: flex; align-items: center; gap: 8px; color: var(--fg2); user-select: none; flex-wrap: wrap }
+details > summary::-webkit-details-marker { display: none }
+details > summary::before { content: "▸"; color: var(--fg3); font-size: 11px; width: 10px }
+details[open] > summary::before { content: "▾" }
+details > summary .r { margin-left: auto; color: var(--fg3); font-size: 12px }
+details > .body { padding: 4px 12px 12px; border-top: 1px solid var(--line) }
+details.help { border-style: dashed; background: none }
+details.help > summary { font-size: 12px; padding: 5px 10px }
+details.help > .body { color: var(--fg2); font-size: 12px; border-top: 0; padding-top: 0 }
+details.help > .body b { color: var(--fg) }
+/* Barra impilata della memoria. */
+.stack { display: flex; height: 14px; border-radius: 3px; overflow: hidden; border: 1px solid var(--line); background: var(--bg3) }
+.stack.nil { border-style: dashed; background: transparent }
+.stack span { display: block; height: 100% }
+.stack .ded { background: var(--acc) } .stack .sha { background: var(--busy) } .stack .win { background: var(--fg3) }
+.stack .vfr { background: var(--acc-bg) } .stack .fre { background: transparent }
+.stack .kv2 { background: var(--busy) } .stack .oth { background: var(--fg3) }
+/* Fascia delle azioni in cima alla pagina Avvio: non si scorre per trovare «Avvia». */
+.actbar { position: sticky; top: -16px; z-index: 3; background: var(--bg2); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, .08) }
+.actbar .name { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere }
+.actbar .name small { color: var(--fg3); font-family: var(--sans); margin-left: 6px; font-size: 12px }
+.actbar .full { width: 100% }
+/* Campo con etichetta umana e il nome della leva in piccolo. */
+/* Il suggerimento sta sotto il controllo: a destra, a 1280 px, schiacciava i campi fino a tagliarne i numeri. */
+.f { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 3px 10px; align-items: center; padding: 5px 8px; border-radius: 3px }
+.f + .f { border-top: 1px solid var(--line) }
+.f > label { color: var(--fg); display: block; line-height: 1.25; grid-row: span 2; align-self: start; padding-top: 3px }
+.f > label small { display: block; color: var(--fg3); font-family: var(--mono); font-size: 11px; font-weight: 400; overflow-wrap: anywhere }
+.f input, .f select { font: inherit; font-family: var(--mono); font-size: 12px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 4px 7px; width: 100%; min-width: 0 }
+.f .row.nw > select { min-width: 110px }
+.f .h { grid-column: 2; color: var(--fg3); font-size: 12px; line-height: 1.3; display: flex; gap: 4px 8px; flex-wrap: wrap; align-items: center }
+.f .h:empty { display: none }
+.f.mod { background: var(--warn-bg); outline: 1px solid var(--mod) }
+.f.mod > label::before { content: "● "; color: var(--mod); font-size: 9px }
+.f.bad { outline: 1px solid var(--err) }
+.f .base { font-family: var(--mono); font-size: 11px; color: var(--mod); text-decoration: line-through }
+.f-err { color: var(--err); font-size: 12px; padding: 0 8px 4px 178px }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; flex: none }
+.seg button { padding: 3px 10px; font-size: 12px; background: var(--bg); border: 0; border-right: 1px solid var(--line); cursor: pointer; white-space: nowrap; color: var(--fg) }
+.seg button:last-child { border-right: 0 }
+/* Come i filtri: fondo tenue e testo pieno, perché il bianco su --acc scuro sta a 3,1:1. */
+.seg button.on { background: var(--acc-bg); color: var(--fg); box-shadow: inset 0 -2px 0 var(--acc) }
+/* Filtri a bottoni. */
+.chips { display: flex; gap: 4px; flex-wrap: wrap }
+.chip { padding: 2px 9px; border: 1px solid var(--line); border-radius: 12px; font-size: 12px; background: var(--bg2); color: var(--fg2); cursor: pointer; white-space: nowrap }
+.chip.on { background: var(--acc-bg); border-color: var(--acc); color: var(--fg) }
+.chip .n { font-family: var(--mono); font-size: 11px; color: var(--fg3); margin-left: 4px }
+/* Lista + dettaglio. */
+.md { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 12px; align-items: start }
+.md.wide { grid-template-columns: minmax(0, 2.2fr) minmax(330px, 1fr) }
+/* Nelle celle strette le pillole vanno a capo invece di allargare la tabella. */
+td .pill, td .badge { white-space: normal }
+.ev .tag { white-space: normal }
+table.compact { font-size: 12px }
+table.compact th, table.compact td { padding: 4px 5px }
+/* Sotto 1400 px di pagina Benchmark nasconde Build e Richieste: restano nel dettaglio dell'avvio. */
+@container main (max-width: 1400px) { .narrow-hide { display: none } }
+@container main (max-width: 1250px) { .narrow-hide2 { display: none } }
+/* Motore: la tabella delle richieste è la parte che serve durante una sessione, e prende più spazio. */
+.g21.lw { grid-template-columns: minmax(0, 2.3fr) minmax(300px, 1fr) }
+.card.flush { padding: 0; overflow-x: auto }
+.split { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 14px; align-items: start }
+.av2 { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) }
+.list { display: flex; flex-direction: column; gap: 3px }
+.list .it { padding: 8px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg2); cursor: pointer }
+.list .it.on { border-color: var(--acc); background: var(--acc-bg) }
+.list .it .n { font-family: var(--mono); font-size: 12px; word-break: break-all }
+.list .it .m { color: var(--fg3); font-size: 11px; margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+/* Confronto: la fascia che compare quando due avvii sono spuntati. */
+.cmpbar { position: sticky; bottom: -40px; z-index: 3; background: var(--bg2); border: 1px solid var(--acc); border-radius: 4px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; box-shadow: 0 -2px 10px rgba(0, 0, 0, .12) }
+.delta { font-family: var(--mono); font-variant-numeric: tabular-nums } .delta.up { color: var(--ok) } .delta.dn { color: var(--err) }

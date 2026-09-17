@@ -39,6 +39,43 @@ Veri, da M-08 e M-09: prefill 418 e decode 33,1 del G1 col driver nuovo, riuso 9
 - Il log del motore chiuso di default (si apre da solo dopo un'uscita con errore).
 - Impostazioni in tre schede: Macchina, Client, App. L'endpoint sta in App, a scomparsa.
 
+## Com'è andata nel codice (M-12, 17-09)
+
+Approvato così com'era (punti aperti compresi). Nel codice, branch `m12-finestra-v2`, è cambiato
+questo rispetto al mockup, e perché:
+
+- **Verdetti sulle leve.** Tenuti solo quelli con una fonte: q8_0 (M-08 T-06), mmap (T-09), e i tre
+  della v1 (n_cpu_moe, cache_reuse, checkpoint). «+21 % di prefill» su ubatch, «tutti, fino a
+  70 GB» sui layer e «negativo su A3B» sul draft esterno non stanno in nessun rapporto: tolti.
+- **Template di chat** è una casella, non una tendina: `api.ts` non elenca i template.
+- **Striscia**: profilo, build e porta, ma non il nome del modello (`RunInfo` non lo porta).
+- **Download**: niente velocità né tempo stimato (`TaskView` ha solo fatto/totale). «Togli»
+  vale per tutti i lavori finiti insieme, come l'API.
+- **Memoria** come barra su VGM + RAM vista: dedicata, VRAM non usata, condivisa, RAM di Windows e
+  altri processi (RAM vista − disponibile − condivisa), RAM disponibile. Senza VGM la barra resta
+  vuota e tratteggiata.
+- **KPI**: il prefill non ha giudizio (non c'è una mediana di riferimento per il prefill); il decode
+  è giudicato solo contro il riferimento degli avvii con le stesse condizioni.
+- **Avvio**: il nome non è più un campo; si dà con «Salva come…» (dialogo) e gli errori sul nome
+  compaiono nella fascia. «Avanzate» contiene anche fit/fit_target, runtime.kind e le note del
+  profilo, che il mockup non elencava: nessun campo della v1 sparisce (lo prova un test). La build
+  per l'importazione da minis-config si chiede in un dialogo. Il suggerimento sta sotto il
+  controllo, non a destra: a 1280 px schiacciava i campi.
+- **Catalogo**: la rimozione è un dialogo della finestra con la casella «Cancella anche il file»
+  (prima erano due `window.confirm`). I filtri mostrano solo gli stati presenti.
+- **Benchmark**: il confronto aperto compare sotto la tabella; l'accettazione, le condizioni e il
+  commit stanno nel dettaglio; sotto circa 1400 px di pagina Build e Richieste escono dalla tabella
+  (e sotto 1250 anche la VRAM), restando nel dettaglio.
+- **Impostazioni**: «Salva machine.toml» si accende solo con modifiche; un errore dell'endpoint si
+  vede fuori dalla sezione a scomparsa. Niente riga «se il contesto fosse 32k», che era
+  illustrativa.
+- **Token**: i fondi tenui del tema scuro sono a .08 invece di .12 (a .12 il grigio e il rosso sulle
+  righe tinte scendevano a 4,4:1). Il Seg attivo e la pillola «proposte» hanno testo `--fg`.
+- **Contrasto misurato** con il banco nel browser su cinque pagine, due temi, 1280/1440/1920 px:
+  nessun testo nuovo sotto 4,5:1. Restano due casi **della v1**, non toccati perché sono della
+  tavolozza: il bianco dei pulsanti primari su `--acc` scuro (3,1:1) e `badge acc` / il numero del
+  passo attivo su `--bg3` chiaro (3,8:1), più il ✓ bianco su `--ok` scuro nel Primo avvio.
+
 ## Se approvato
 
 Diventa un milestone di sola interfaccia: nessun comando Tauri nuovo, solo `App.tsx`, le cinque pagine, `components.tsx` e `styles.css`. Stima: la striscia e le teste di pagina un giorno; Avvio (essenziali/avanzate, fascia fissa) un giorno; Catalogo e Benchmark (lista + dettaglio, fascia di confronto) un giorno; Impostazioni a schede mezza giornata; banco nel browser con i dati veri e prova dell'operatore mezza giornata.
