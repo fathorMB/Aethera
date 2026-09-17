@@ -129,6 +129,36 @@ def ram_libera_gib() -> float | None:
         return None
 
 
+def build_windows() -> str | None:
+    """Build di Windows con l'UBR (per esempio 26200.9457): un aggiornamento cambia i numeri."""
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion") as k:
+            build = winreg.QueryValueEx(k, "CurrentBuildNumber")[0]
+            ubr = winreg.QueryValueEx(k, "UBR")[0]
+        return f"{build}.{ubr}"
+    except OSError:
+        return None
+
+
+def gia_fatti(jsonl: Path, agente: str) -> set[tuple[str, str, int]]:
+    """(modello, compito, ripetizione) già registrati con una riga completa: la ripresa li salta.
+
+    Le righe d'errore d'infrastruttura non contano come fatte, così un riavvio a metà si ripete."""
+    fatti = set()
+    if not jsonl.is_file():
+        return fatti
+    for line in jsonl.read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            r = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if r.get("compito") and r.get("agente") == agente and r.get("esito") in ("riuscito", "fallito"):
+            fatti.add((r["modello"], r["compito"], r["ripetizione"]))
+    return fatti
+
+
 def processi() -> set[str]:
     try:
         out = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True, errors="replace").stdout
@@ -142,8 +172,9 @@ def ostacoli(radice: Path, ram_minima: float) -> list[str]:
     if not (radice / "m14" / "M14-FINITO").is_file():
         o.append("M-14 non ha finito (manca <radice>/m14/M14-FINITO)")
     p = processi()
-    if "llama-server.exe" in p:
-        o.append("un llama-server è acceso")
+    for occupante in ("llama-server.exe", "llama-bench.exe", "m08_bench.exe", "m15_hold.exe"):
+        if occupante in p:
+            o.append(f"{occupante} è acceso")
     build = sorted(p & {"cmake.exe", "ninja.exe", "cl.exe"})
     if build:
         o.append(f"build in corso: {', '.join(build)}")
@@ -492,6 +523,7 @@ def esegui_compito(compito: dict, sigla: str, cfg: dict, pronto: dict | None, pr
         "build": (pronto or {}).get("build"),
         "ctx_servito": (pronto or {}).get("ctx_served"),
         "inizio": dt.datetime.now().isoformat(timespec="seconds"),
+        "windows": build_windows(),
         "ram_libera_gib_inizio": round(ram_libera_gib() or 0, 1) or None,
     }
 
@@ -623,9 +655,17 @@ def main() -> int:
     jsonl = cartelle["risultati"] / "risultati.jsonl"
     log(f"sessione {sessione}: {len(compiti)} compiti × {args.ripetizioni} × modelli {args.modello} → {jsonl}")
 
+    log(f"Windows {build_windows()}")
     esito_globale = 0
     for sigla in args.modello:
         cfg = MODELLI[sigla]
+        fatti = gia_fatti(jsonl, args.agente)
+        da_fare = [(rip, c) for rip in range(1, args.ripetizioni + 1) for c in compiti if (sigla, c["id"], rip) not in fatti]
+        if not da_fare:
+            log(f"{sigla}: tutti i compiti sono già nel JSONL, salto il modello")
+            continue
+        if len(da_fare) < len(compiti) * args.ripetizioni:
+            log(f"{sigla}: ripresa, {len(compiti) * args.ripetizioni - len(da_fare)} compiti già fatti, ne restano {len(da_fare)}")
         motore = None
         pronto = None
         profilo = None
@@ -652,26 +692,25 @@ def main() -> int:
                     raise RuntimeError(f"endpoint di Aethera non risponde su {ENDPOINT} (HTTP {st})")
 
             t_modello = time.monotonic()
-            for rip in range(1, args.ripetizioni + 1):
-                for c in compiti:
-                    minuti = (time.monotonic() - t_modello) / 60
-                    if minuti > args.max_minuti_modello:
-                        log(f"{sigla}: superato il tempo massimo di {args.max_minuti_modello} min, interrompo il modello")
-                        with open(jsonl, "a", encoding="utf-8") as fh:
-                            fh.write(json.dumps({"sessione": sessione, "modello": sigla, "evento": "modello_interrotto",
-                                                 "minuti": round(minuti, 1), "compito_saltato_da": c["id"], "ripetizione": rip},
-                                                ensure_ascii=False) + "\n")
-                        raise StopIteration
-                    if motore and motore.proc and motore.proc.poll() is not None:
-                        raise RuntimeError("il motore si è spento durante la batteria")
-                    log(f"{sigla} · {c['id']} r{rip} ({c['livello']}, {c['max_turni']} turni / {c['max_secondi']} s)")
-                    riga = esegui_compito(c, sigla, cfg, pronto, profilo, args.agente, rip, cartelle, sessione, congelato_ok)
+            for rip, c in da_fare:
+                minuti = (time.monotonic() - t_modello) / 60
+                if minuti > args.max_minuti_modello:
+                    log(f"{sigla}: superato il tempo massimo di {args.max_minuti_modello} min, interrompo il modello")
                     with open(jsonl, "a", encoding="utf-8") as fh:
-                        fh.write(json.dumps(riga, ensure_ascii=False) + "\n")
-                    log(f"   → {riga['esito']}{' (' + riga['causa'] + ')' if riga['causa'] else ''} · {riga['secondi']} s · "
-                        f"turni {riga.get('turni')} · richieste al motore {riga.get('motore_richieste')} · solo locale {riga.get('solo_motore_locale')}")
-                    if args.agente == "nonio" and riga.get("solo_motore_locale") is False:
-                        raise RuntimeError("una richiesta non risulta arrivata al motore locale: mi fermo")
+                        fh.write(json.dumps({"sessione": sessione, "modello": sigla, "evento": "modello_interrotto",
+                                             "minuti": round(minuti, 1), "compito_saltato_da": c["id"], "ripetizione": rip},
+                                            ensure_ascii=False) + "\n")
+                    raise StopIteration
+                if motore and motore.proc and motore.proc.poll() is not None:
+                    raise RuntimeError("il motore si è spento durante la batteria")
+                log(f"{sigla} · {c['id']} r{rip} ({c['livello']}, {c['max_turni']} turni / {c['max_secondi']} s)")
+                riga = esegui_compito(c, sigla, cfg, pronto, profilo, args.agente, rip, cartelle, sessione, congelato_ok)
+                with open(jsonl, "a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(riga, ensure_ascii=False) + "\n")
+                log(f"   → {riga['esito']}{' (' + riga['causa'] + ')' if riga['causa'] else ''} · {riga['secondi']} s · "
+                    f"turni {riga.get('turni')} · richieste al motore {riga.get('motore_richieste')} · solo locale {riga.get('solo_motore_locale')}")
+                if args.agente == "nonio" and riga.get("solo_motore_locale") is False:
+                    raise RuntimeError("una richiesta non risulta arrivata al motore locale: mi fermo")
         except StopIteration:
             pass
         except Exception as exc:  # noqa: BLE001 — il motore va spento comunque
