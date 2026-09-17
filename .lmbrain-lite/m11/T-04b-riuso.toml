@@ -1,0 +1,24 @@
+measure = "T-04b"
+title = "Flash-Coder a VGM 48: riuso del prefisso in quattro turni con una riga cambiata a meta' (come M-08 T-04 e M-10 T-09)"
+base = "qwen3.8-flash-coder.q4_k_m.vulkan"
+repetitions = 5
+warmup = 1
+
+# Turni 0 e 1 condividono tutto il prefisso; 2 e 3 cambiano una riga a meta' del prompt.
+[[variant]]
+name = "q4_k_m"
+
+[[variant]]
+name = "q8_0"
+profile = "qwen3.8-flash-coder.q8_0.vulkan"
+
+[[workload]]
+name = "turni-7k"
+kind = "turns"
+prompt = "prompt-7k.txt"
+turns = 4
+divergence_at = 0.5
+instruction = "Leggi il codice qui sopra. Elenca in italiano, in non piu' di dieci righe, le tre funzioni piu' a rischio di regressione e perche'."
+n_predict = 128
+temperature = 0.0
+seed = 1234

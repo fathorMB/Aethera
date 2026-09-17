@@ -44,7 +44,11 @@ import batteria as b
 
 ENDPOINT = "127.0.0.1:8090"
 RAM_MINIMA_GIB = 16.0
-RAM_MINIMA_FN_GIB = 39.0
+# 17-09 22:57 (M-16): la RAM tenuta dalle funzioni AI di Windows (WorkloadsSessionHost, ~6 GiB) è
+# morbida — all'avvio di FN il sistema ne ha restituiti 4,8 e il modello si è caricato con 32,5 GiB
+# disponibili, lavorando a 126 tok/s di prefill e 9,09 di decode. La soglia serve solo a evitare
+# l'avvio con la macchina già occupata da altro; durante il lavoro protegge il sorvegliante (0,8 GiB).
+RAM_MINIMA_FN_GIB = 28.0
 CTX = 32768
 SONNO_ATTESA_S = 300
 
@@ -189,7 +193,7 @@ def ostacoli(radice: Path, ram_minima: float) -> list[str]:
     for occupante in ("llama-server.exe", "llama-bench.exe", "m08_bench.exe", "m15_hold.exe"):
         if occupante in p:
             o.append(f"{occupante} è acceso")
-    build = sorted(p & {"cmake.exe", "ninja.exe", "cl.exe"})
+    build = sorted(p & {"cmake.exe", "ninja.exe", "cl.exe", "cargo.exe", "rustc.exe"})
     if build:
         o.append(f"build in corso: {', '.join(build)}")
     ram = ram_libera_gib()

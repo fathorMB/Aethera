@@ -1,0 +1,2413 @@
+// ==== src/cmdline.rs ====
+//! Composizione della riga di comando di `llama-server` da un profilo.
+//!
+//! Flag lunghi, nell'ordine di `serve.ps1` di minis-config; poi le leve che `serve.ps1` lasciava al
+//! default del motore o in `extra_args`. `--load-mode` è sempre esplicito: nessuna leva nascosta.
+
+use crate::profile::Profile;
+use serde::Serialize;
+use std::path::{Path, PathBuf};
+
+pub struct LaunchPaths {
+    pub model: PathBuf,
+    /// Presente solo se il profilo chiede il salvataggio degli slot.
+    pub slot_dir: Option<PathBuf>,
+    pub draft_model: Option<PathBuf>,
+}
+
+fn kv(a: &mut Vec<String>, flag: &str, value: impl ToString) {
+    a.push(flag.to_string());
+    a.push(value.to_string());
+}
+
+pub fn build_args(p: &Profile, paths: &LaunchPaths) -> Vec<String> {
+    let s = &p.server;
+    let mut a = Vec::new();
+    kv(&mut a, "--model", paths.model.display());
+    kv(&mut a, "--host", &s.host);
+    kv(&mut a, "--port", s.port);
+    kv(&mut a, "--ctx-size", s.ctx);
+    kv(&mut a, "--parallel", s.n_parallel);
+    kv(&mut a, "--n-gpu-layers", s.n_gpu_layers);
+    kv(&mut a, "--ubatch-size", s.ubatch);
+    kv(&mut a, "--batch-size", s.batch);
+    kv(&mut a, "--flash-attn", &s.flash_attn);
+    kv(&mut a, "--cache-type-k", &s.cache_type_k);
+    kv(&mut a, "--cache-type-v", &s.cache_type_v);
+    kv(&mut a, "--alias", &p.name);
+    if let Some(dir) = &paths.slot_dir {
+        kv(&mut a, "--slot-save-path", dir.display());
+    }
+    if s.metrics {
+        a.push("--metrics".into());
+    }
+    // --jinja è il default di questa build, ma il default può cambiare: si dichiara in entrambi i sensi.
+    a.push(if s.jinja { "--jinja" } else { "--no-jinja" }.into());
+    kv(&mut a, "--load-mode", &s.load_mode);
+    if let Some(t) = s.threads {
+        kv(&mut a, "--threads", t);
+    }
+    if let Some(t) = s.threads_batch {
+        kv(&mut a, "--threads-batch", t);
+    }
+    let sp = &p.speculative;
+    if sp.kind != "none" {
+        kv(&mut a, "--spec-type", &sp.kind);
+        if let Some(n) = sp.draft_n_max {
+            kv(&mut a, "--spec-draft-n-max", n);
+        }
+        if let Some(n) = sp.draft_n_min {
+            kv(&mut a, "--spec-draft-n-min", n);
+        }
+        if let Some(x) = sp.draft_p_min {
+            kv(&mut a, "--spec-draft-p-min", x);
+        }
+        if let Some(m) = &paths.draft_model {
+            kv(&mut a, "--spec-draft-model", m.display());
+        }
+    }
+    if let Some(n) = p.cache.cache_reuse {
+        kv(&mut a, "--cache-reuse", n);
+    }
+    if let Some(n) = p.cache.ctx_checkpoints {
+        kv(&mut a, "--ctx-checkpoints", n);
+    }
+    a.extend(s.extra_args.iter().cloned());
+    a
+}
+
+/// Riga leggibile e copiabile: gli argomenti con spazi fra virgolette, come `serve.ps1`.
+pub fn render_line(binary: &Path, args: &[String]) -> String {
+    let quoted: Vec<String> = args
+        .iter()
+        .map(|x| if x.contains(char::is_whitespace) { format!("\"{x}\"") } else { x.clone() })
+        .collect();
+    format!("\"{}\" {}", binary.display(), quoted.join(" "))
+}
+
+/// Divide una riga resa da `render_line` (o scritta da `serve.ps1`) negli argomenti.
+pub fn split_line(line: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut quoted = false;
+    let mut has = false;
+    for c in line.chars() {
+        match c {
+            '"' => {
+                quoted = !quoted;
+                has = true;
+            }
+            c if c.is_whitespace() && !quoted => {
+                if has {
+                    out.push(std::mem::take(&mut cur));
+                    has = false;
+                }
+            }
+            c => {
+                cur.push(c);
+                has = true;
+            }
+        }
+    }
+    if has {
+        out.push(cur);
+    }
+    out
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ArgStatus {
+    Same,
+    Changed,
+    Added,
+    Removed,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct ArgGroup {
+    pub flag: String,
+    pub value: Option<String>,
+    pub base: Option<String>,
+    pub status: ArgStatus,
+}
+
+fn is_value(token: &str) -> bool {
+    !token.starts_with('-') || token.parse::<f64>().is_ok()
+}
+
+/// Raggruppa gli argomenti in coppie flag → valore.
+pub fn group(args: &[String]) -> Vec<(String, Option<String>)> {
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        let flag = args[i].clone();
+        match args.get(i + 1) {
+            Some(next) if flag.starts_with('-') && is_value(next) => {
+                out.push((flag, Some(next.clone())));
+                i += 2;
+            }
+            _ => {
+                out.push((flag, None));
+                i += 1;
+            }
+        }
+    }
+    out
+}
+
+/// Confronta la riga del profilo base con quella modificata, per evidenziare le differenze.
+pub fn compare(base: &[String], edited: &[String]) -> Vec<ArgGroup> {
+    let mut base_groups: Vec<Option<(String, Option<String>)>> = group(base).into_iter().map(Some).collect();
+    let mut out = Vec::new();
+    for (flag, value) in group(edited) {
+        let hit = base_groups.iter_mut().find(|g| matches!(g, Some((f, _)) if *f == flag));
+        match hit {
+            Some(slot) => {
+                let (_, base_value) = slot.take().unwrap();
+                let status = if base_value == value { ArgStatus::Same } else { ArgStatus::Changed };
+                out.push(ArgGroup { flag, value, base: base_value, status });
+            }
+            None => out.push(ArgGroup { flag, value, base: None, status: ArgStatus::Added }),
+        }
+    }
+    for (flag, base_value) in base_groups.into_iter().flatten() {
+        out.push(ArgGroup { flag, value: None, base: base_value, status: ArgStatus::Removed });
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn s(v: &[&str]) -> Vec<String> {
+        v.iter().map(|x| x.to_string()).collect()
+    }
+
+    #[test]
+    fn split_respects_quotes() {
+        assert_eq!(split_line(r#""C:\a b\x.exe" --model "C:\m m\f.gguf" --metrics"#), s(&[r"C:\a b\x.exe", "--model", r"C:\m m\f.gguf", "--metrics"]));
+    }
+
+    #[test]
+    fn compare_marks_changes() {
+        let base = s(&["--ubatch-size", "4096", "--metrics", "--n-gpu-layers", "-1"]);
+        let edited = s(&["--ubatch-size", "2048", "--metrics", "--n-gpu-layers", "-1", "--cache-reuse", "256"]);
+        let st: Vec<ArgStatus> = compare(&base, &edited).into_iter().map(|g| g.status).collect();
+        assert_eq!(st, vec![ArgStatus::Changed, ArgStatus::Same, ArgStatus::Same, ArgStatus::Added]);
+    }
+}
+
+// ==== src/estimate.rs ====
+//! Stima di memoria prima dell'avvio, dai metadati del GGUF e dalle leve del profilo.
+//!
+//! Regola del progetto: una stima si dichiara stima, e quello che non si sa resta sconosciuto.
+//! Qui si **calcolano** i pesi (dal file, esatti), la cache KV al contesto scelto e lo stato
+//! ricorrente degli ibridi. Il **buffer di calcolo** non è derivabile in modo onesto da una
+//! formula: llama.cpp lo alloca secondo il grafo, il backend e `ubatch`. Invece di inventarlo,
+//! lo si prende dagli avvii già misurati (`runs/`) con lo stesso ubatch e backend; se non c'è,
+//! resta sconosciuto e il totale vale come **minimo**, non come previsione.
+//!
+//! Dopo il caricamento la stima non serve più: la sostituisce la misura (`memory::MemoryAfter`).
+
+use crate::gguf::ModelInfo;
+use crate::profile::Server;
+use serde::Serialize;
+
+/// Byte per valore di una cache: i quantizzati hanno il loro blocco (32 valori) più le scale.
+pub fn cache_type_bytes(name: &str) -> Option<f64> {
+    Some(match name {
+        "f32" => 4.0,
+        "f16" | "bf16" => 2.0,
+        "q8_0" => 34.0 / 32.0,
+        "q5_1" => 24.0 / 32.0,
+        "q5_0" => 22.0 / 32.0,
+        "q4_1" => 20.0 / 32.0,
+        "q4_0" | "iq4_nl" => 18.0 / 32.0,
+        _ => return None,
+    })
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct Estimate {
+    /// Pesi: la dimensione del file, non una stima.
+    pub weights_bytes: Option<u64>,
+    /// Cache KV al contesto dichiarato, con i tipi di cache del profilo.
+    pub kv_bytes: Option<u64>,
+    /// Stato dei blocchi ricorrenti: non cresce col contesto.
+    pub state_bytes: Option<u64>,
+    /// Buffer di calcolo: misurato su un avvio precedente confrontabile, oppure sconosciuto.
+    pub compute_bytes: Option<u64>,
+    /// Da quale avvio viene il buffer di calcolo.
+    pub compute_from: Option<String>,
+    /// Somma delle voci note.
+    pub total_bytes: Option<u64>,
+    /// Senza buffer di calcolo il totale è un minimo, non una previsione.
+    pub total_is_lower_bound: bool,
+    /// Blocchi ad attenzione piena: sugli ibridi solo questi tengono la KV.
+    pub full_attention_blocks: Option<u64>,
+    /// Che cosa non si è potuto calcolare e perché.
+    pub notes: Vec<String>,
+}
+
+/// Buffer di calcolo misurato su un avvio passato, già confrontabile per ubatch e backend.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MeasuredCompute {
+    pub run_id: String,
+    pub bytes: u64,
+}
+
+/// `info` assente significa GGUF non letto: si stima solo quello che si sa.
+pub fn estimate(
+    info: Option<&ModelInfo>,
+    server: &Server,
+    weights_bytes: Option<u64>,
+    compute: Option<MeasuredCompute>,
+) -> Estimate {
+    let mut e = Estimate { weights_bytes, ..Default::default() };
+    if weights_bytes.is_none() {
+        e.notes.push("pesi non trovati sul disco: dimensione sconosciuta".into());
+    }
+
+    let Some(i) = info else {
+        e.notes.push("metadati GGUF non letti: cache KV e stato non calcolabili".into());
+        e.total_bytes = weights_bytes;
+        e.total_is_lower_bound = true;
+        return e;
+    };
+
+    // Cache KV: per ogni blocco ad attenzione piena, per ogni token, le teste KV con le loro chiavi e valori.
+    let (kb, vb) = (cache_type_bytes(&server.cache_type_k), cache_type_bytes(&server.cache_type_v));
+    if kb.is_none() {
+        e.notes.push(format!("cache_type_k «{}» sconosciuto: KV non calcolabile", server.cache_type_k));
+    }
+    if vb.is_none() {
+        e.notes.push(format!("cache_type_v «{}» sconosciuto: KV non calcolabile", server.cache_type_v));
+    }
+    // Sugli ibridi l'attenzione piena è un blocco ogni N: gli altri tengono uno stato, non la KV.
+    let blocks = i.block_count;
+    e.full_attention_blocks = match (blocks, i.full_attention_interval) {
+        (Some(b), Some(n)) if n > 0 => Some(b / n),
+        (b, _) => b,
+    };
+    match (e.full_attention_blocks, i.head_count_kv, i.key_length, i.value_length, kb, vb) {
+        (Some(blk), Some(heads), Some(kl), Some(vl), Some(kb), Some(vb)) => {
+            let per_token = heads as f64 * (kl as f64 * kb + vl as f64 * vb);
+            e.kv_bytes = Some((per_token * server.ctx as f64 * blk as f64) as u64);
+        }
+        _ => e.notes.push("il GGUF non dichiara teste KV o lunghezze di chiave e valore: cache KV sconosciuta".into()),
+    }
+
+    // Stato ricorrente degli ibridi: conv + stato SSM per blocco ricorrente, in f32, indipendente dal contesto.
+    if let (Some(blocks), Some(interval), Some(inner), Some(state), Some(conv)) =
+        (blocks, i.full_attention_interval, i.ssm_inner_size, i.ssm_state_size, i.ssm_conv_kernel)
+    {
+        let recurrent = blocks.saturating_sub(blocks / interval.max(1));
+        let per_block = inner as f64 * (state as f64 + conv.saturating_sub(1) as f64) * 4.0;
+        e.state_bytes = Some((per_block * recurrent as f64 * server.n_parallel.max(1) as f64) as u64);
+    }
+
+    match compute {
+        Some(m) => {
+            e.compute_bytes = Some(m.bytes);
+            e.compute_from = Some(m.run_id);
+        }
+        None => {
+            e.total_is_lower_bound = true;
+            e.notes.push(format!(
+                "buffer di calcolo sconosciuto: nessun avvio misurato con ubatch {} su questo backend, il totale è un minimo",
+                server.ubatch
+            ));
+        }
+    }
+
+    let parts = [e.weights_bytes, e.kv_bytes, e.state_bytes, e.compute_bytes];
+    if parts.iter().any(Option::is_some) {
+        e.total_bytes = Some(parts.iter().flatten().sum());
+    }
+    if e.kv_bytes.is_none() {
+        e.total_is_lower_bound = true;
+    }
+    e
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Valori letti davvero dal GGUF del G1 (`gguf_dump`, 16-09), non inventati.
+    fn qwen36() -> ModelInfo {
+        ModelInfo {
+            arch: Some("qwen35moe".into()),
+            block_count: Some(41),
+            context_train: Some(262_144),
+            embedding_length: Some(2048),
+            head_count: Some(16),
+            head_count_kv: Some(2),
+            key_length: Some(256),
+            value_length: Some(256),
+            expert_count: Some(256),
+            expert_used_count: Some(8),
+            full_attention_interval: Some(4),
+            mtp_layers: Some(1),
+            ssm_conv_kernel: Some(4),
+            ssm_state_size: Some(128),
+            ssm_inner_size: Some(4096),
+            ssm_group_count: Some(16),
+            vocab_size: Some(248_320),
+            ..Default::default()
+        }
+    }
+
+    fn server(ctx: u32, k: &str, v: &str) -> Server {
+        Server {
+            host: "127.0.0.1".into(),
+            port: 8081,
+            ctx,
+            n_parallel: 1,
+            n_gpu_layers: 999,
+            flash_attn: "on".into(),
+            cache_type_k: k.into(),
+            cache_type_v: v.into(),
+            ubatch: 2048,
+            batch: 4096,
+            load_mode: "auto".into(),
+            threads: None,
+            threads_batch: None,
+            metrics: true,
+            jinja: true,
+            slot_save: true,
+            extra_args: Vec::new(),
+        }
+    }
+
+    const G1_WEIGHTS: u64 = 22_285_080_192;
+
+    #[test]
+    fn kv_counts_only_full_attention_blocks() {
+        let e = estimate(Some(&qwen36()), &server(32_768, "f16", "f16"), Some(G1_WEIGHTS), None);
+        // 41 blocchi con attenzione piena ogni 4 → 10 blocchi tengono la KV, non 41.
+        assert_eq!(e.full_attention_blocks, Some(10));
+        // 10 blocchi × 32.768 token × 2 teste KV × (256+256) × 2 byte = 0,67 GB
+        assert_eq!(e.kv_bytes, Some(671_088_640));
+        // Lo stato ricorrente dei 31 blocchi non ad attenzione piena non cresce col contesto.
+        assert_eq!(e.state_bytes, Some(4096 * (128 + 3) * 4 * 31));
+        // Senza un avvio misurato il buffer resta sconosciuto e il totale è un minimo.
+        assert_eq!(e.compute_bytes, None);
+        assert!(e.total_is_lower_bound);
+        assert!(e.notes.iter().any(|n| n.contains("buffer di calcolo")), "{:?}", e.notes);
+    }
+
+    #[test]
+    fn quantised_cache_costs_less_and_context_scales_it() {
+        let f16 = estimate(Some(&qwen36()), &server(32_768, "f16", "f16"), None, None).kv_bytes.unwrap();
+        let q8 = estimate(Some(&qwen36()), &server(32_768, "q8_0", "q8_0"), None, None).kv_bytes.unwrap();
+        let f16_64k = estimate(Some(&qwen36()), &server(65_536, "f16", "f16"), None, None).kv_bytes.unwrap();
+        assert!(q8 < f16 && q8 > f16 / 2, "q8_0 costa poco più della metà di f16: {q8} vs {f16}");
+        assert_eq!(f16_64k, f16 * 2);
+    }
+
+    #[test]
+    fn measured_compute_makes_the_total_a_real_estimate() {
+        let m = MeasuredCompute { run_id: "r-20260916-001040".into(), bytes: 2_200_000_000 };
+        let e = estimate(Some(&qwen36()), &server(32_768, "f16", "f16"), Some(G1_WEIGHTS), Some(m));
+        assert!(!e.total_is_lower_bound);
+        assert_eq!(e.compute_from.as_deref(), Some("r-20260916-001040"));
+        let total = e.total_bytes.unwrap();
+        // Pesi + KV + buffer: intorno ai 25 GB, come il totale del mockup.
+        assert!((25.0..26.0).contains(&(total as f64 / 1e9)), "totale {total}");
+        assert!(e.notes.is_empty(), "{:?}", e.notes);
+    }
+
+    #[test]
+    fn without_metadata_only_the_weights_are_known() {
+        let e = estimate(None, &server(32_768, "f16", "f16"), Some(G1_WEIGHTS), None);
+        assert_eq!(e.total_bytes, Some(G1_WEIGHTS));
+        assert_eq!(e.kv_bytes, None);
+        assert!(e.total_is_lower_bound);
+    }
+
+    #[test]
+    fn unknown_cache_type_is_not_guessed() {
+        let e = estimate(Some(&qwen36()), &server(32_768, "q3_k", "f16"), Some(G1_WEIGHTS), None);
+        assert_eq!(e.kv_bytes, None);
+        assert!(e.notes.iter().any(|n| n.contains("q3_k")), "{:?}", e.notes);
+        assert_eq!(cache_type_bytes("f16"), Some(2.0));
+        assert_eq!(cache_type_bytes("inventato"), None);
+    }
+}
+
+// ==== src/telemetry.rs ====
+//! Telemetria per richiesta in `runs/<id>/telemetry.jsonl`.
+//!
+//! Fonte fissata su b10809 (15-09): i tempi di ogni richiesta vengono dalle righe `print_timing` del
+//! log del server (prefill, decode, token proposti e accettati), chiuse dalla riga `release`. I token
+//! riusati dalla cache non sono nel log: si leggono da `/slots` mentre la richiesta è in corso
+//! (`id_task`, `n_prompt_tokens_cache`; a richiesta rilasciata il campo torna a zero). Per le richieste
+//! più brevi di una lettura resta la differenza di `llamacpp:prompt_tokens_cached_total`, valida solo
+//! se nessuna richiesta nuova è partita nel frattempo: quel contatore sale all'avvio della richiesta.
+//! Altrimenti i token dalla cache restano sconosciuti.
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::BTreeMap;
+use std::fs::{File, OpenOptions};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
+
+pub const FILE: &str = "telemetry.jsonl";
+/// Richieste considerate per le mediane «recenti».
+pub const RECENT: usize = 20;
+/// Sotto questa soglia di token elaborati il prefill misura l'avvio della richiesta, non la velocità.
+pub const PREFILL_MIN_TOKENS: u32 = 128;
+pub const DEGRADED_UPTIME_S: u64 = 24 * 3600;
+pub const DEGRADED_DECODE_RATIO: f64 = 0.7;
+const DEGRADED_MIN_REQUESTS: usize = 10;
+const DEGRADED_LAST: usize = 5;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Record {
+    pub at: String,
+    pub task: i64,
+    /// Token di prompt elaborati, esclusi quelli riusati dalla cache.
+    pub prompt_n: u32,
+    pub prompt_ms: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt_tps: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_n: Option<u32>,
+    pub gen_n: u32,
+    pub gen_ms: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decode_tps: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draft_n: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draft_accepted: Option<u32>,
+}
+
+impl Record {
+    pub fn prompt_total(&self) -> Option<u32> {
+        self.cache_n.map(|c| c + self.prompt_n)
+    }
+    pub fn cache_share(&self) -> Option<f64> {
+        let total = self.prompt_total()?;
+        (total > 0).then(|| self.cache_n.unwrap_or(0) as f64 / total as f64)
+    }
+}
+
+/// Tempi di una richiesta letti dal log, prima di attribuire la cache.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Timing {
+    pub task: i64,
+    pub prompt_n: u32,
+    pub prompt_ms: f64,
+    pub prompt_tps: Option<f64>,
+    pub gen_n: u32,
+    pub gen_ms: f64,
+    pub decode_tps: Option<f64>,
+    pub draft_n: Option<u32>,
+    pub draft_accepted: Option<u32>,
+}
+
+impl Timing {
+    pub fn into_record(self, at: String, cache_n: Option<u32>) -> Record {
+        Record {
+            at,
+            task: self.task,
+            prompt_n: self.prompt_n,
+            prompt_ms: self.prompt_ms,
+            prompt_tps: self.prompt_tps,
+            cache_n,
+            gen_n: self.gen_n,
+            gen_ms: self.gen_ms,
+            decode_tps: self.decode_tps,
+            draft_n: self.draft_n,
+            draft_accepted: self.draft_accepted,
+        }
+    }
+}
+
+#[derive(Default)]
+struct Partial {
+    prompt: Option<(f64, u32, Option<f64>)>,
+    eval: Option<(f64, u32, Option<f64>)>,
+    draft: Option<(u32, u32)>,
+}
+
+/// Numeri in un frammento di riga, nell'ordine: `831.87 ms / 36 tokens (...)` → 831.87, 36, ….
+fn numbers(s: &str) -> Vec<f64> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    for c in s.chars().chain(std::iter::once(' ')) {
+        if c.is_ascii_digit() || (c == '.' && !cur.is_empty()) {
+            cur.push(c);
+        } else if !cur.is_empty() {
+            if let Ok(n) = cur.trim_end_matches('.').parse() {
+                out.push(n);
+            }
+            cur.clear();
+        }
+    }
+    out
+}
+
+fn task_of(line: &str) -> Option<i64> {
+    let i = line.find("| task ")? + "| task ".len();
+    let s: String = line[i..].chars().take_while(|c| c.is_ascii_digit() || *c == '-').collect();
+    s.parse().ok()
+}
+
+fn timing_triple(segment: &str) -> Option<(f64, u32, Option<f64>)> {
+    let n = numbers(segment);
+    Some((*n.first()?, *n.get(1)? as u32, n.get(3).copied()))
+}
+
+#[derive(Default)]
+pub struct LogParser {
+    pending: BTreeMap<i64, Partial>,
+}
+
+impl LogParser {
+    /// Una riga del log; restituisce i tempi quando la richiesta è stata rilasciata.
+    pub fn feed(&mut self, line: &str) -> Option<Timing> {
+        if line.contains("print_timing:") {
+            let task = task_of(line)?;
+            let p = self.pending.entry(task).or_default();
+            if let Some(i) = line.find("prompt eval time =") {
+                p.prompt = timing_triple(&line[i + "prompt eval time =".len()..]);
+            } else if let Some(i) = line.find("| task").and_then(|t| line[t..].find(" eval time =").map(|j| t + j)) {
+                p.eval = timing_triple(&line[i + " eval time =".len()..]);
+            } else if let Some(i) = line.find("draft acceptance =") {
+                let n = numbers(&line[i..]);
+                if let (Some(acc), Some(gen)) = (n.get(1), n.get(2)) {
+                    p.draft = Some((*gen as u32, *acc as u32));
+                }
+            }
+            return None;
+        }
+        if line.contains("release:") && line.contains("stop processing") {
+            let task = task_of(line)?;
+            let p = self.pending.remove(&task)?;
+            let (prompt_ms, prompt_n, prompt_tps) = p.prompt?;
+            let (gen_ms, gen_n, decode_tps) = p.eval?;
+            return Some(Timing {
+                task,
+                prompt_n,
+                prompt_ms,
+                prompt_tps,
+                gen_n,
+                gen_ms,
+                decode_tps,
+                draft_n: p.draft.map(|d| d.0),
+                draft_accepted: p.draft.map(|d| d.1),
+            });
+        }
+        None
+    }
+}
+
+/// `slot launch_slot_: id  0 | task 68 | processing task`: una richiesta è partita.
+pub fn is_launch(line: &str) -> bool {
+    line.contains("launch_slot_") && line.contains("processing task")
+}
+
+/// Token dalla cache delle richieste in corso, per task, da `/slots`.
+pub fn slot_caches(v: &Value) -> Vec<(i64, u32)> {
+    v.as_array()
+        .into_iter()
+        .flatten()
+        .filter(|s| s["is_processing"].as_bool() == Some(true))
+        .filter_map(|s| Some((s["id_task"].as_i64().filter(|t| *t >= 0)?, s["n_prompt_tokens_cache"].as_u64()? as u32)))
+        .collect()
+}
+
+/// Legge le righe nuove di un file che cresce, tenendo da parte l'ultima riga incompleta.
+pub struct LogTail {
+    path: PathBuf,
+    offset: u64,
+    carry: String,
+}
+
+impl LogTail {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self { path: path.into(), offset: 0, carry: String::new() }
+    }
+
+    pub fn read_lines(&mut self) -> Vec<String> {
+        let Ok(mut f) = File::open(&self.path) else { return Vec::new() };
+        let len = f.metadata().map(|m| m.len()).unwrap_or(0);
+        if len < self.offset {
+            self.offset = 0;
+            self.carry.clear();
+        }
+        if len == self.offset || f.seek(SeekFrom::Start(self.offset)).is_err() {
+            return Vec::new();
+        }
+        let mut buf = Vec::new();
+        if f.take(4 * 1024 * 1024).read_to_end(&mut buf).is_err() {
+            return Vec::new();
+        }
+        self.offset += buf.len() as u64;
+        self.carry.push_str(&String::from_utf8_lossy(&buf));
+        let mut lines: Vec<String> = self.carry.split('\n').map(|l| l.trim_end_matches('\r').to_string()).collect();
+        self.carry = lines.pop().unwrap_or_default();
+        lines
+    }
+}
+
+/// Contatori senza etichette di `/metrics`, per nome senza il prefisso `llamacpp:`.
+pub fn parse_metrics(text: &str) -> BTreeMap<String, f64> {
+    text.lines()
+        .filter(|l| !l.starts_with('#') && !l.contains('{'))
+        .filter_map(|l| {
+            let (name, value) = l.trim().split_once(' ')?;
+            Some((name.trim_start_matches("llamacpp:").to_string(), value.trim().parse().ok()?))
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, PartialEq)]
+pub struct Counters {
+    pub prompt_tokens: f64,
+    pub cached_tokens: f64,
+    pub predicted_tokens: f64,
+}
+
+impl Counters {
+    pub fn from_metrics(m: &BTreeMap<String, f64>) -> Option<Self> {
+        Some(Self {
+            prompt_tokens: *m.get("prompt_tokens_total")?,
+            cached_tokens: *m.get("prompt_tokens_cached_total")?,
+            predicted_tokens: m.get("tokens_predicted_total").copied().unwrap_or(0.0),
+        })
+    }
+}
+
+/// Token dalla cache di un gruppo di richieste chiuse fra due letture di `/metrics`.
+pub fn attribute_cache(timings: &[Timing], before: Option<Counters>, now: Option<Counters>) -> Vec<Option<u32>> {
+    let (Some(b), Some(n)) = (before, now) else { return vec![None; timings.len()] };
+    let processed: u64 = timings.iter().map(|t| t.prompt_n as u64).sum();
+    let d_prompt = n.prompt_tokens - b.prompt_tokens;
+    let d_cached = n.cached_tokens - b.cached_tokens;
+    if timings.len() == 1 && d_prompt >= 0.0 && d_cached >= 0.0 && (d_prompt - processed as f64).abs() < 0.5 {
+        vec![Some(d_cached as u32)]
+    } else {
+        vec![None; timings.len()]
+    }
+}
+
+pub fn append(run_dir: &Path, r: &Record) -> Result<(), String> {
+    let path = run_dir.join(FILE);
+    let mut f = OpenOptions::new().create(true).append(true).open(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let line = serde_json::to_string(r).map_err(|e| e.to_string())?;
+    writeln!(f, "{line}").map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// Righe illeggibili si saltano: un file troncato da uno spegnimento non cancella lo storico.
+pub fn read(run_dir: &Path) -> Vec<Record> {
+    let Ok(f) = File::open(run_dir.join(FILE)) else { return Vec::new() };
+    BufReader::new(f).lines().map_while(Result::ok).filter_map(|l| serde_json::from_str(&l).ok()).collect()
+}
+
+fn percentile(values: &[f64], p: f64) -> Option<f64> {
+    if values.is_empty() {
+        return None;
+    }
+    let mut v = values.to_vec();
+    v.sort_by(|a, b| a.total_cmp(b));
+    let rank = p * (v.len() - 1) as f64;
+    let (lo, hi) = (rank.floor() as usize, rank.ceil() as usize);
+    Some(v[lo] + (v[hi] - v[lo]) * (rank - lo as f64))
+}
+
+pub fn median(values: &[f64]) -> Option<f64> {
+    percentile(values, 0.5)
+}
+
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+pub struct Summary {
+    pub requests: usize,
+    /// Richieste su cui sono calcolate mediane e quote.
+    pub window: usize,
+    pub prefill_median: Option<f64>,
+    pub decode_median: Option<f64>,
+    pub decode_p10: Option<f64>,
+    pub decode_p90: Option<f64>,
+    pub acceptance: Option<f64>,
+    pub cache_share: Option<f64>,
+    /// Quota di cache per richiesta nella finestra, dalla più vecchia.
+    pub cache_series: Vec<Option<f64>>,
+    pub decode_series: Vec<Option<f64>>,
+    pub last_prompt: Option<u32>,
+    pub draft_n: u64,
+    pub draft_accepted: u64,
+    pub prompt_processed: u64,
+    pub prompt_cached: u64,
+    pub generated: u64,
+}
+
+/// `window` = ultime N richieste; `usize::MAX` per l'intero avvio.
+pub fn summarize(records: &[Record], window: usize) -> Summary {
+    let from = records.len().saturating_sub(window);
+    let w = &records[from..];
+    let prefill: Vec<f64> = w.iter().filter(|r| r.prompt_n >= PREFILL_MIN_TOKENS).filter_map(|r| r.prompt_tps).collect();
+    let decode: Vec<f64> = w.iter().filter_map(|r| r.decode_tps).collect();
+    let draft_n: u64 = w.iter().filter_map(|r| r.draft_n).map(u64::from).sum();
+    let draft_accepted: u64 = w.iter().filter_map(|r| r.draft_accepted).map(u64::from).sum();
+    let known: Vec<&Record> = w.iter().filter(|r| r.cache_n.is_some()).collect();
+    let cached: u64 = known.iter().filter_map(|r| r.cache_n).map(u64::from).sum();
+    let processed_known: u64 = known.iter().map(|r| r.prompt_n as u64).sum();
+    Summary {
+        requests: records.len(),
+        window: w.len(),
+        prefill_median: median(&prefill),
+        decode_median: median(&decode),
+        decode_p10: percentile(&decode, 0.1),
+        decode_p90: percentile(&decode, 0.9),
+        acceptance: (draft_n > 0).then(|| draft_accepted as f64 / draft_n as f64),
+        cache_share: (cached + processed_known > 0).then(|| cached as f64 / (cached + processed_known) as f64),
+        cache_series: w.iter().map(Record::cache_share).collect(),
+        decode_series: w.iter().map(|r| r.decode_tps).collect(),
+        last_prompt: records.last().and_then(Record::prompt_total),
+        draft_n,
+        draft_accepted,
+        prompt_processed: w.iter().map(|r| r.prompt_n as u64).sum(),
+        prompt_cached: cached,
+        generated: w.iter().map(|r| r.gen_n as u64).sum(),
+    }
+}
+
+/// Motivi per cui un motore acceso è «degradato»: tempo di accensione o decode recente crollato.
+pub fn degraded(uptime_s: u64, records: &[Record]) -> Vec<String> {
+    let mut out = Vec::new();
+    if uptime_s > DEGRADED_UPTIME_S {
+        out.push(format!("acceso da più di {} h: prima di una misura conviene riavviare", DEGRADED_UPTIME_S / 3600));
+    }
+    let decode: Vec<f64> = records.iter().filter_map(|r| r.decode_tps).collect();
+    if decode.len() >= DEGRADED_MIN_REQUESTS {
+        let all = median(&decode);
+        let last = median(&decode[decode.len() - DEGRADED_LAST..]);
+        if let (Some(all), Some(last)) = (all, last) {
+            if last < all * DEGRADED_DECODE_RATIO {
+                out.push(format!(
+                    "decode delle ultime {DEGRADED_LAST} richieste {last:.1} tok/s, sotto il {:.0} % della mediana dell'avvio ({all:.1})",
+                    DEGRADED_DECODE_RATIO * 100.0
+                ));
+            }
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Righe vere di b10809 (G1, 15-09): una richiesta senza cache e una con 14.034 token dalla cache.
+    const LOG: &str = "\
+5.03.785.100 I slot launch_slot_: id  0 | task 73 | processing task, is_child = 0
+5.49.221.560 I slot print_timing: id  0 | task 73 | prompt eval time =   45118.68 ms / 14057 tokens (    3.21 ms per token,   311.56 tokens per second)
+5.49.221.564 I slot print_timing: id  0 | task 73 |        eval time =     318.28 ms /     8 tokens (   45.47 ms per token,    21.99 tokens per second)
+5.49.221.566 I slot print_timing: id  0 | task 73 |       total time =   45436.96 ms / 14065 tokens
+5.49.221.573 I slot print_timing: id  0 | task 73 | draft acceptance = 0.66667 (    4 accepted /     6 generated), mean len =  3.00
+5.49.221.873 I slot      release: id  0 | task 73 | stop processing: n_tokens = 14064, truncated = 0
+5.49.422.855 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.999 (> 0.100 thold), f_keep = 0.999
+5.52.100.000 I slot print_timing: id  0 | task 85 | n_gen =    102, tg =  29.76 t/s, tg_3s =  30.05 t/s
+5.52.232.436 I slot print_timing: id  0 | task 85 | prompt eval time =    2492.18 ms /    23 tokens (  108.36 ms per token,     9.23 tokens per second)
+5.52.232.442 I slot print_timing: id  0 | task 85 |        eval time =     316.94 ms /     8 tokens (   45.28 ms per token,    22.09 tokens per second)
+5.52.232.641 I slot      release: id  0 | task 85 | stop processing: n_tokens = 14064, truncated = 0
+";
+
+    fn parse_all() -> Vec<Timing> {
+        let mut p = LogParser::default();
+        LOG.lines().filter_map(|l| p.feed(l)).collect()
+    }
+
+    #[test]
+    fn parses_b10809_print_timing() {
+        let t = parse_all();
+        assert_eq!(t.len(), 2);
+        assert_eq!(t[0].task, 73);
+        assert_eq!(t[0].prompt_n, 14057);
+        assert_eq!(t[0].prompt_tps, Some(311.56));
+        assert_eq!((t[0].gen_n, t[0].decode_tps), (8, Some(21.99)));
+        assert_eq!((t[0].draft_n, t[0].draft_accepted), (Some(6), Some(4)));
+        assert_eq!((t[1].prompt_n, t[1].draft_n), (23, None));
+    }
+
+    #[test]
+    fn cache_is_attributed_only_when_counters_match() {
+        let t = parse_all();
+        let before = Some(Counters { prompt_tokens: 14126.0, cached_tokens: 0.0, predicted_tokens: 0.0 });
+        let now = Some(Counters { prompt_tokens: 14149.0, cached_tokens: 14034.0, predicted_tokens: 0.0 });
+        assert_eq!(attribute_cache(&t[1..], before, now), vec![Some(14034)]);
+        // Una richiesta successiva ha già elaborato token: la differenza non è attribuibile.
+        let later = Some(Counters { prompt_tokens: 14200.0, cached_tokens: 28000.0, predicted_tokens: 0.0 });
+        assert_eq!(attribute_cache(&t[1..], before, later), vec![None]);
+        assert_eq!(attribute_cache(&t, before, now), vec![None, None]);
+    }
+
+    #[test]
+    fn slot_cache_only_while_processing() {
+        // Letture vere durante due richieste di seguito (16-09): a slot libero il campo è già zero.
+        let busy: Value = serde_json::from_str(r#"[{"id":0,"is_processing":true,"id_task":64,"n_prompt_tokens_processed":18,"n_prompt_tokens_cache":3973}]"#).unwrap();
+        let idle: Value = serde_json::from_str(r#"[{"id":0,"is_processing":false,"id_task":64,"n_prompt_tokens_processed":0,"n_prompt_tokens_cache":0}]"#).unwrap();
+        let fresh: Value = serde_json::from_str(r#"[{"id":0,"n_ctx":32768,"speculative":true,"is_processing":false}]"#).unwrap();
+        assert_eq!(slot_caches(&busy), vec![(64, 3973)]);
+        assert!(slot_caches(&idle).is_empty() && slot_caches(&fresh).is_empty());
+        assert!(is_launch("0.41.816.708 I slot launch_slot_: id  0 | task 68 | processing task, is_child = 0"));
+        assert!(!is_launch("0.41.800.217 I slot      release: id  0 | task 3 | stop processing: n_tokens = 9271"));
+    }
+
+    #[test]
+    fn metrics_and_summary() {
+        let m = parse_metrics("# HELP x\nllamacpp:prompt_tokens_total 69\nllamacpp:prompt_tokens_cached_total 0\nllamacpp:spec_decode_num_accepted_tokens_per_pos_total{position=\"0\"} 60\n");
+        assert_eq!(Counters::from_metrics(&m).unwrap().prompt_tokens, 69.0);
+        let t = parse_all();
+        let recs = vec![t[0].clone().into_record("a".into(), Some(0)), t[1].clone().into_record("b".into(), Some(14034))];
+        let s = summarize(&recs, RECENT);
+        assert_eq!(s.prefill_median, Some(311.56), "il prefill da 23 token non entra nella mediana");
+        assert_eq!(s.last_prompt, Some(14057));
+        assert!((s.cache_share.unwrap() - 14034.0 / 28114.0).abs() < 1e-9);
+        assert_eq!(s.acceptance, Some(4.0 / 6.0));
+    }
+
+    #[test]
+    fn degraded_by_uptime_and_decode() {
+        let rec = |d: f64| Record {
+            at: String::new(),
+            task: 0,
+            prompt_n: 10,
+            prompt_ms: 1.0,
+            prompt_tps: None,
+            cache_n: None,
+            gen_n: 10,
+            gen_ms: 1.0,
+            decode_tps: Some(d),
+            draft_n: None,
+            draft_accepted: None,
+        };
+        let mut recs: Vec<Record> = (0..10).map(|_| rec(23.0)).collect();
+        assert!(degraded(3600, &recs).is_empty());
+        assert_eq!(degraded(25 * 3600, &recs).len(), 1);
+        recs.extend((0..5).map(|_| rec(12.0)));
+        assert_eq!(degraded(3600, &recs).len(), 1);
+    }
+}
+
+// ==== src/memory.rs ====
+//! Memoria prima e dopo il caricamento: dispositivi da `llama-server --list-devices`, contatori del
+//! processo dall'interfaccia di sistema. Un valore non letto resta `None`, mai stimato.
+
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+use std::process::{Command, Stdio};
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+/// Working set oltre questa quota dei pesi: il processo tiene una seconda copia in RAM.
+pub const DOUBLE_COPY_RATIO: f64 = 0.5;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Device {
+    pub id: String,
+    pub name: String,
+    pub total_mib: u64,
+    pub free_mib: u64,
+}
+
+/// `  Vulkan0: AMD Radeon(TM) 890M Graphics (73548 MiB, 69870 MiB free)`
+pub fn parse_devices(text: &str) -> Vec<Device> {
+    text.lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            let (id, rest) = line.split_once(": ")?;
+            if id.contains(' ') || !id.chars().last()?.is_ascii_digit() {
+                return None;
+            }
+            let open = rest.rfind('(')?;
+            let inner = rest[open + 1..].strip_suffix(')')?;
+            let (total, free) = inner.split_once(", ")?;
+            Some(Device {
+                id: id.to_string(),
+                name: rest[..open].trim().to_string(),
+                total_mib: total.strip_suffix(" MiB")?.trim().parse().ok()?,
+                free_mib: free.strip_suffix(" MiB free")?.trim().parse().ok()?,
+            })
+        })
+        .collect()
+}
+
+pub fn list_devices(binary: &Path) -> Result<Vec<Device>, String> {
+    let mut cmd = Command::new(binary);
+    cmd.arg("--list-devices").stdin(Stdio::null());
+    #[cfg(windows)]
+    cmd.creation_flags(0x0800_0000);
+    let out = cmd.output().map_err(|e| format!("{} --list-devices: {e}", binary.display()))?;
+    let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    Ok(parse_devices(&text))
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct MemoryBefore {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vram_total_mib: Option<u64>,
+    /// Memoria libera dell'heap DEVICE_LOCAL secondo il backend, subito prima dell'avvio.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vram_free_mib: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ram_available_gib: Option<f64>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct MemoryAfter {
+    pub at: String,
+    /// Millisecondi dall'avvio del processo alla lettura.
+    pub after_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vram_dedicated_gib: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vram_shared_gib: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub working_set_gib: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ram_available_gib: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub double_copy: Option<bool>,
+    pub ram_margin_gib: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub margin_ok: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct MemorySection {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub before: Option<MemoryBefore>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after_load: Option<MemoryAfter>,
+}
+
+pub fn before(devices: &[Device], ram_available_gib: Option<f64>) -> MemoryBefore {
+    // Con più dispositivi conta quello con più memoria: è quello su cui va il modello con -ngl 999.
+    let d = devices.iter().max_by_key(|d| d.total_mib);
+    MemoryBefore {
+        device: d.map(|d| format!("{}: {}", d.id, d.name)),
+        vram_total_mib: d.map(|d| d.total_mib),
+        vram_free_mib: d.map(|d| d.free_mib),
+        ram_available_gib,
+    }
+}
+
+pub fn double_copy(working_set_gib: Option<f64>, model_size_bytes: u64) -> Option<bool> {
+    let ws = working_set_gib?;
+    if model_size_bytes == 0 {
+        return None;
+    }
+    let weights_gib = model_size_bytes as f64 / (1u64 << 30) as f64;
+    Some(ws >= weights_gib * DOUBLE_COPY_RATIO)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_list_devices() {
+        let text = "ggml_vulkan: Found 1 Vulkan devices:\nAvailable devices:\n  Vulkan0: AMD Radeon(TM) 890M Graphics (73548 MiB, 69870 MiB free)\n";
+        let d = parse_devices(text);
+        assert_eq!(
+            d,
+            vec![Device { id: "Vulkan0".into(), name: "AMD Radeon(TM) 890M Graphics".into(), total_mib: 73548, free_mib: 69870 }]
+        );
+        assert_eq!(before(&d, Some(45.1)).vram_free_mib, Some(69870));
+        assert!(parse_devices("Available devices:\n").is_empty());
+    }
+
+    #[test]
+    fn double_copy_from_working_set() {
+        let g1 = 22_285_080_192;
+        assert_eq!(double_copy(Some(2.0), g1), Some(false));
+        assert_eq!(double_copy(Some(21.5), g1), Some(true));
+        assert_eq!(double_copy(None, g1), None);
+    }
+}
+
+// ==== src/diagnose.rs ====
+//! Da un guasto a una frase che dice **cosa è successo e cosa fare**.
+//!
+//! Due sorgenti di guasti hanno bisogno di essere tradotte prima di arrivare a chi guarda: il log
+//! di `llama-server`, che quando il motore esce con errore contiene la riga che lo spiega in mezzo
+//! a centinaia che non c'entrano, e gli errori del sistema operativo, che dicono «errore 112»
+//! invece di «il disco è pieno».
+//!
+//! Qui si riconosce e si suggerisce, non si indovina: una riga che non corrisponde a niente di
+//! noto resta com'è, e un codice di uscita senza nessuna riga riconoscibile viene dichiarato tale.
+//! Un suggerimento sbagliato manda a cercare nel posto sbagliato, ed è peggio di nessun suggerimento.
+
+use serde::Serialize;
+
+/// Una riga di log che spiega un guasto, con il consiglio quando la riga è riconosciuta.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Reason {
+    pub line: String,
+    pub hint: Option<String>,
+}
+
+/// Parole che in un log di llama.cpp segnalano un guasto, non un avanzamento.
+const ALARM: &[&str] = &[
+    "error",
+    "failed",
+    "failure",
+    "cannot",
+    "unable",
+    "not supported",
+    "unsupported",
+    "unknown argument",
+    "unrecognized",
+    "invalid",
+    "no such file",
+    "out of memory",
+    "insufficient",
+    "assert",
+    "abort",
+    "terminate called",
+    "panic",
+    "exception",
+    "denied",
+];
+
+/// Righe che contengono una parola d'allarme ma raccontano un funzionamento normale.
+const NOT_ALARM: &[&str] = &["error_rate", "n_errors = 0", "0 errors", "--no-", "error: 0"];
+
+/// Consigli per i guasti che si ripetono: la riga riconosciuta e che cosa farne.
+/// Ogni voce è (parole che devono esserci tutte, consiglio).
+const HINTS: &[(&[&str], &str)] = &[
+    (
+        &["vulkan", "allocation"],
+        "la memoria del dispositivo non basta a quello che il profilo chiede: abbassa il contesto, usa una cache KV quantizzata (q8_0) o scegli pesi più piccoli. La stima che la pagina Avvio mostra prima dell'avvio dice quanto serve.",
+    ),
+    (
+        &["outofdevicememory"],
+        "la memoria del dispositivo è finita: il modello e la cache al contesto chiesto non ci stanno. Abbassa il contesto, quantizza la cache KV o scegli pesi più piccoli.",
+    ),
+    (
+        &["out of memory"],
+        "la memoria non basta a quello che il profilo chiede: abbassa il contesto o quantizza la cache KV. Guarda la stima sulla pagina Avvio e la VRAM libera.",
+    ),
+    (
+        &["invalid argument"],
+        "questa build non conosce la leva che il profilo usa: è più vecchia di quello che il profilo chiede, oppure la leva è scritta male in extra_args. Cambia build dal Catalogo o correggi la leva.",
+    ),
+    (
+        &["unknown argument"],
+        "questa build non conosce la leva che il profilo usa: è più vecchia di quello che il profilo chiede. Cambia build dal Catalogo o togli la leva.",
+    ),
+    (
+        &["unrecognized"],
+        "questa build non conosce la leva che il profilo usa: cambia build dal Catalogo o togli la leva da extra_args.",
+    ),
+    (
+        &["error loading model"],
+        "i pesi non si caricano: il file può essere incompleto (verifica lo SHA-256 dal Catalogo) o di un'architettura che questa build non supporta.",
+    ),
+    (
+        &["failed to load model"],
+        "i pesi non si caricano: verifica lo SHA-256 dal Catalogo, e se è giusto prova una build più recente.",
+    ),
+    (
+        &["no such file"],
+        "un percorso citato dalla riga di comando non esiste più: pesi spostati o cartella rinominata. Il Catalogo dice dove li cerca Aethera.",
+    ),
+    (
+        &["address", "use"],
+        "la porta del profilo è già occupata, probabilmente da un altro llama-server: cambia porta nel profilo o ferma l'altro (la pagina Motore riconosce gli orfani).",
+    ),
+    (
+        &["bind"],
+        "la porta del profilo non si è potuta aprire: è occupata o l'host dichiarato non esiste su questa macchina.",
+    ),
+    (
+        &["denied"],
+        "permessi: Aethera non può leggere o scrivere dove sta provando. Controlla la cartella dei pesi e la radice dati.",
+    ),
+    (
+        &["unsupported"],
+        "questa build non supporta quello che il profilo chiede: cambia build dal Catalogo, o togli la leva.",
+    ),
+];
+
+fn alarming(low: &str) -> bool {
+    ALARM.iter().any(|w| low.contains(w)) && !NOT_ALARM.iter().any(|w| low.contains(w))
+}
+
+fn hint_for(low: &str) -> Option<String> {
+    HINTS.iter().find(|(words, _)| words.iter().all(|w| low.contains(w))).map(|(_, h)| h.to_string())
+}
+
+/// Le righe del log che spiegano perché il motore è uscito, dalla più recente all'indietro, senza
+/// ripetere due volte la stessa riga. Vuoto vuol dire che il log non dice niente di riconoscibile:
+/// allora resta il codice di uscita, e lo si dichiara invece di inventare una causa.
+pub fn engine_failure(log: &str, max: usize) -> Vec<Reason> {
+    let mut out: Vec<Reason> = Vec::new();
+    for line in log.lines().rev() {
+        let t = line.trim();
+        if t.is_empty() {
+            continue;
+        }
+        let low = t.to_ascii_lowercase();
+        if !alarming(&low) {
+            continue;
+        }
+        if out.iter().any(|r| r.line == t) {
+            continue;
+        }
+        out.push(Reason { line: t.to_string(), hint: hint_for(&low) });
+        if out.len() >= max {
+            break;
+        }
+    }
+    out
+}
+
+/// Il disco è pieno: Windows lo dice con 39 o 112, i sistemi POSIX con ENOSPC.
+pub fn is_disk_full(e: &std::io::Error) -> bool {
+    matches!(e.raw_os_error(), Some(39) | Some(112) | Some(28))
+}
+
+/// Il volume non c'è più: chiavetta staccata, disco di rete caduto, lettera sparita.
+pub fn is_volume_gone(e: &std::io::Error) -> bool {
+    // ERROR_NOT_READY(21), ERROR_BAD_NETPATH(53), ERROR_DEV_NOT_EXIST(55), ERROR_INVALID_DRIVE(15)
+    matches!(e.raw_os_error(), Some(15) | Some(21) | Some(53) | Some(55))
+}
+
+/// Un errore del sistema tradotto in una frase che dice che cosa fare, quando lo si riconosce.
+/// Quello che non si riconosce non si traduce: il messaggio originale è già meglio di una perifrasi.
+pub fn io_hint(e: &std::io::Error) -> Option<&'static str> {
+    use std::io::ErrorKind::*;
+    if is_disk_full(e) {
+        return Some("il disco è pieno: libera spazio e riprova, quello che è già stato scritto non si perde");
+    }
+    if is_volume_gone(e) {
+        return Some("il disco non risponde: se è esterno o di rete, ricollegalo e riprova");
+    }
+    match e.kind() {
+        PermissionDenied => Some("permessi: Aethera non può scrivere qui. Scegli un'altra cartella o cambia i permessi di questa"),
+        NotFound => Some("il percorso non esiste più: è stato spostato o rinominato"),
+        _ => None,
+    }
+}
+
+/// Messaggio completo per un errore di scrittura su un file: che cosa non è riuscito, perché, e
+/// che cosa fare. `what` è che cosa si stava facendo, in una parola («scrittura», «copia»).
+pub fn write_error(what: &str, path: &std::path::Path, e: &std::io::Error) -> String {
+    match io_hint(e) {
+        Some(h) => format!("{what} di {} non riuscita: {e} — {h}", path.display()),
+        None => format!("{what} di {} non riuscita: {e}", path.display()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Un log vero di llama-server che non riesce ad allocare sulla GPU.
+    const VULKAN_OOM: &str = r#"
+load_tensors: offloading 41 repeating layers to GPU
+load_tensors: offloaded 42/42 layers to GPU
+llama_kv_cache: Vulkan0 KV buffer size = 10240.00 MiB
+ggml_vulkan: Device memory allocation of size 2147483648 failed
+ggml_vulkan: vk::Device::allocateMemory: ErrorOutOfDeviceMemory
+llama_init_from_model: failed to initialize the context
+common_init_from_params: failed to create context with model 'C:\pesi\M.gguf'
+"#;
+
+    #[test]
+    fn picks_the_lines_that_explain_the_exit_newest_first() {
+        let r = engine_failure(VULKAN_OOM, 3);
+        assert_eq!(r.len(), 3);
+        assert!(r[0].line.starts_with("common_init_from_params"), "{r:?}");
+        assert!(r.iter().any(|x| x.line.contains("allocateMemory")));
+        // Le righe generiche restano com'erano; quella riconosciuta porta il consiglio.
+        assert!(r[0].hint.is_none(), "«failed to create context» non dice da solo che cosa fare");
+        let vram = r.iter().find(|x| x.hint.is_some()).expect("almeno una riga riconosciuta");
+        assert!(vram.line.contains("OutOfDeviceMemory"), "{r:?}");
+        assert!(vram.hint.as_deref().unwrap().contains("contesto"));
+    }
+
+    #[test]
+    fn a_vulkan_allocation_failure_says_what_to_lower() {
+        let r = engine_failure("ggml_vulkan: Device memory allocation of size 2147483648 failed", 5);
+        assert_eq!(r.len(), 1);
+        assert!(r[0].hint.as_deref().unwrap().contains("contesto"), "{r:?}");
+    }
+
+    #[test]
+    fn a_lever_the_build_does_not_know_says_it_is_the_build() {
+        // La forma vera con cui b10809 rifiuta una leva che non conosce.
+        let r = engine_failure("error: invalid argument: --questa-leva-non-esiste", 5);
+        assert_eq!(r.len(), 1);
+        assert!(r[0].hint.as_deref().unwrap().contains("build"), "{r:?}");
+    }
+
+    #[test]
+    fn an_old_build_that_does_not_know_a_lever_says_so() {
+        let r = engine_failure("error: invalid argument: --spec-draft-n-max\nerror while handling argument \"--spec-draft-n-max\": unknown argument", 5);
+        assert!(r.iter().any(|x| x.hint.as_deref().is_some_and(|h| h.contains("build"))), "{r:?}");
+    }
+
+    #[test]
+    fn a_log_that_explains_nothing_produces_nothing() {
+        let quiet = "main: server is listening on http://127.0.0.1:8080\nsrv  update_slots: all slots are idle\n";
+        assert!(engine_failure(quiet, 5).is_empty(), "meglio il codice di uscita di una causa inventata");
+    }
+
+    #[test]
+    fn normal_lines_that_contain_an_alarm_word_are_not_failures() {
+        assert!(engine_failure("srv  log_server_r: error_rate = 0.0\n", 5).is_empty());
+        assert!(engine_failure("main: --no-warmup\n", 5).is_empty());
+    }
+
+    #[test]
+    fn the_same_line_repeated_is_reported_once() {
+        let log = "ggml_vulkan: allocation failed\nggml_vulkan: allocation failed\nggml_vulkan: allocation failed\n";
+        assert_eq!(engine_failure(log, 5).len(), 1);
+    }
+
+    #[test]
+    fn a_full_disk_is_said_in_words() {
+        let full = std::io::Error::from_raw_os_error(112);
+        assert!(is_disk_full(&full));
+        assert!(io_hint(&full).unwrap().contains("disco è pieno"));
+        let denied = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "accesso negato");
+        assert!(io_hint(&denied).unwrap().contains("permessi"));
+        // Quello che non si riconosce non si traduce.
+        assert_eq!(io_hint(&std::io::Error::other("qualcosa")), None);
+        let msg = write_error("scrittura", std::path::Path::new(r"D:\pesi\M.gguf.part"), &full);
+        assert!(msg.contains(r"D:\pesi\M.gguf.part") && msg.contains("disco è pieno"), "{msg}");
+    }
+
+    #[test]
+    fn a_disconnected_volume_is_not_confused_with_a_full_one() {
+        let gone = std::io::Error::from_raw_os_error(21);
+        assert!(is_volume_gone(&gone) && !is_disk_full(&gone));
+        assert!(io_hint(&gone).unwrap().contains("ricollegalo"));
+    }
+}
+
+// ==== src/catalog.rs ====
+//! Catalogo dei modelli: che cosa c'è su questa macchina, con quale hash e quali metadati.
+//!
+//! Due sorgenti si incontrano qui: `catalog.toml` nella radice dati (le voci dichiarate, con
+//! repo, hash atteso e campionamento della model card) e la cartella dei pesi di `machine.toml`
+//! (i file che ci sono davvero). Un file senza voce diventa una voce scoperta; una voce senza
+//! file è scaricabile. Il riconoscimento è per nome del file e, quando l'hash è stato calcolato,
+//! per hash: lo stesso file può essere un hard link creato da un altro strumento.
+//!
+//! I metadati GGUF costano ~1 s a file: si leggono una volta e si tengono in `catalog.toml`
+//! con dimensione e data del file come marcatore di validità. Se il file cambia, si rileggono.
+
+use crate::estimate::{self, Estimate, MeasuredCompute};
+use crate::gguf::{self, ModelInfo};
+use crate::machine::{DataRoot, MachineConfig};
+use crate::profile::{Profile, Sampling, Server};
+use crate::system::SystemProbe;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+pub const CATALOG_FILE: &str = "catalog.toml";
+pub const CATALOG_SCHEMA: u32 = 1;
+/// Estensione di un download a metà: il file non è utilizzabile finché non è verificato.
+pub const PART_SUFFIX: &str = ".part";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Catalog {
+    pub schema_version: u32,
+    #[serde(default, rename = "model", skip_serializing_if = "Vec::is_empty")]
+    pub models: Vec<Entry>,
+}
+
+impl Default for Catalog {
+    fn default() -> Self {
+        Self { schema_version: CATALOG_SCHEMA, models: Vec::new() }
+    }
+}
+
+/// Una voce dichiarata: quello che sappiamo del modello a prescindere dal disco.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Entry {
+    /// Nome corto del modello, per esempio `qwen3.6-35b-a3b`.
+    pub id: String,
+    /// Repository sul publisher, per esempio `bartowski/Qwen_Qwen3.6-35B-A3B-GGUF`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repo: Option<String>,
+    pub file: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quant: Option<String>,
+    /// GB decimali come li scrive il publisher.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size_gb: Option<f64>,
+    /// Hash atteso: l'oid LFS di Hugging Face, o quello dichiarato in un profilo.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
+    /// Hash calcolato davvero sul file, con quando è stato fatto.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha256_verified: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verified_at: Option<String>,
+    /// Campionamento consigliato dalla model card, per modalità: dato del modello, non del server.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub sampling_by_mode: BTreeMap<String, Sampling>,
+    /// Metadati GGUF già letti, validi finché il file non cambia.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gguf: Option<CachedInfo>,
+}
+
+impl Entry {
+    pub fn discovered(file: &str) -> Self {
+        Entry {
+            id: id_from_file(file),
+            repo: None,
+            file: file.to_string(),
+            quant: None,
+            size_gb: None,
+            sha256: None,
+            sha256_verified: None,
+            verified_at: None,
+            sampling_by_mode: BTreeMap::new(),
+            gguf: None,
+        }
+    }
+}
+
+/// Metadati letti dal GGUF, con il marcatore del file da cui vengono.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CachedInfo {
+    pub size_bytes: u64,
+    /// Data di modifica del file al momento della lettura.
+    pub modified: String,
+    pub info: ModelInfo,
+}
+
+/// `Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf` → `qwen_qwen3.6-35b-a3b-q4_k_m`.
+fn id_from_file(file: &str) -> String {
+    file.trim_end_matches(".gguf").trim_end_matches(".GGUF").to_ascii_lowercase()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum State {
+    /// Hash calcolato e uguale a quello atteso.
+    Verified,
+    /// Il file c'è, l'hash non è stato ricalcolato (minuti su 20 GB).
+    Present,
+    /// Hash calcolato e **diverso** da quello atteso: file sbagliato o corrotto.
+    Mismatch,
+    /// C'è solo un `.part`: download da riprendere.
+    Downloading,
+    /// Dichiarato con un repository, ma non presente sul disco.
+    Downloadable,
+    /// Dichiarato senza repository e non presente: non si sa dove prenderlo.
+    Missing,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ModelRow {
+    pub id: String,
+    pub repo: Option<String>,
+    pub file: String,
+    pub quant: Option<String>,
+    /// Dichiarata dal publisher, in GB decimali.
+    pub size_gb: Option<f64>,
+    /// Misurata sul disco.
+    pub size_bytes: Option<u64>,
+    pub path: Option<String>,
+    pub state: State,
+    pub sha256: Option<String>,
+    pub sha256_verified: Option<String>,
+    pub verified_at: Option<String>,
+    pub info: Option<ModelInfo>,
+    /// Stima al contesto del profilo che lo usa: assente se nessun profilo lo cita.
+    pub estimate: Option<Estimate>,
+    pub estimate_ctx: Option<u32>,
+    pub estimate_profile: Option<String>,
+    /// Quanti nomi puntano allo stesso file: più di uno significa hard link di un altro strumento.
+    pub hard_links: Option<u32>,
+    /// Byte già scaricati in un `.part`.
+    pub part_bytes: Option<u64>,
+    pub profiles: Vec<String>,
+    pub sampling_by_mode: BTreeMap<String, Sampling>,
+    /// Quando il file di questa voce non c'è più: i file presenti che potrebbero essere lui
+    /// rinominato, perché misurano quanto diceva il publisher. È un sospetto, non una certezza:
+    /// solo lo SHA-256 lo trasforma in una risposta.
+    pub renamed_candidates: Vec<String>,
+}
+
+pub fn path(root: &DataRoot) -> PathBuf {
+    root.path.join(CATALOG_FILE)
+}
+
+/// Legge `catalog.toml`; se non c'è, il catalogo è vuoto (non è un errore).
+pub fn load(root: &DataRoot) -> Result<Catalog, String> {
+    let file = path(root);
+    if !file.exists() {
+        return Ok(Catalog::default());
+    }
+    let text = fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))?;
+    let c: Catalog = toml::from_str(&text).map_err(|e| format!("{}: {e}", file.display()))?;
+    if c.schema_version != CATALOG_SCHEMA {
+        return Err(format!(
+            "{}: schema_version {} non supportata (attesa {CATALOG_SCHEMA})",
+            file.display(),
+            c.schema_version
+        ));
+    }
+    Ok(c)
+}
+
+pub fn save(root: &DataRoot, c: &Catalog) -> Result<(), String> {
+    let file = path(root);
+    let text = toml::to_string_pretty(c).map_err(|e| e.to_string())?;
+    fs::write(&file, text).map_err(|e| format!("{}: {e}", file.display()))
+}
+
+fn modified_at(md: &fs::Metadata) -> String {
+    md.modified()
+        .map(|t| chrono::DateTime::<chrono::Local>::from(t).to_rfc3339_opts(chrono::SecondsFormat::Secs, false))
+        .unwrap_or_default()
+}
+
+/// I file `.gguf` presenti nella cartella dei pesi, con quelli a metà (`.part`).
+fn files_in(dir: &Path) -> (BTreeMap<String, fs::Metadata>, BTreeMap<String, u64>) {
+    let (mut files, mut parts) = (BTreeMap::new(), BTreeMap::new());
+    let Ok(entries) = fs::read_dir(dir) else { return (files, parts) };
+    for e in entries.flatten() {
+        let Ok(md) = e.metadata() else { continue };
+        if !md.is_file() {
+            continue;
+        }
+        let name = e.file_name().to_string_lossy().to_string();
+        if let Some(stem) = name.strip_suffix(PART_SUFFIX) {
+            parts.insert(stem.to_string(), md.len());
+        } else if name.to_ascii_lowercase().ends_with(".gguf") {
+            files.insert(name, md);
+        }
+    }
+    (files, parts)
+}
+
+/// Rilegge i metadati GGUF se mancano o se il file è cambiato. Ritorna `true` se ha letto.
+fn refresh_info(entry: &mut Entry, path: &Path, md: &fs::Metadata) -> bool {
+    let modified = modified_at(md);
+    if entry.gguf.as_ref().is_some_and(|c| c.size_bytes == md.len() && c.modified == modified) {
+        return false;
+    }
+    match gguf::read_info(path) {
+        Ok(info) => {
+            entry.gguf = Some(CachedInfo { size_bytes: md.len(), modified, info });
+            true
+        }
+        // Un file non leggibile (download a metà rinominato, file diverso) non cancella quello che sapevamo.
+        Err(_) => false,
+    }
+}
+
+/// Stato di una voce dal confronto fra hash atteso, hash calcolato e presenza sul disco.
+fn state_of(entry: &Entry, on_disk: bool, part: bool) -> State {
+    if !on_disk {
+        return match (part, &entry.repo) {
+            (true, _) => State::Downloading,
+            (false, Some(_)) => State::Downloadable,
+            (false, None) => State::Missing,
+        };
+    }
+    match (&entry.sha256, &entry.sha256_verified) {
+        (Some(a), Some(b)) if a.eq_ignore_ascii_case(b) => State::Verified,
+        (Some(_), Some(_)) => State::Mismatch,
+        // Senza hash atteso, un hash calcolato è comunque una verifica di integrità del file.
+        (None, Some(_)) => State::Verified,
+        _ => State::Present,
+    }
+}
+
+pub struct ScanInput<'a> {
+    pub machine: &'a MachineConfig,
+    pub profiles: &'a [Profile],
+    /// Buffer di calcolo misurato per (ubatch, backend): chiave `<ubatch>|<backend>`.
+    pub compute: &'a BTreeMap<String, MeasuredCompute>,
+    pub probe: &'a dyn SystemProbe,
+}
+
+/// Unisce voci dichiarate e file presenti. Aggiorna il catalogo in memoria (metadati letti):
+/// il chiamante decide se salvarlo.
+pub fn scan(catalog: &mut Catalog, input: &ScanInput) -> Vec<ModelRow> {
+    let dir = input.machine.models_dir.clone();
+    let (files, parts) = dir.as_ref().map(|d| files_in(d)).unwrap_or_default();
+
+    // I file senza voce diventano voci scoperte, così il catalogo dice tutto quello che c'è.
+    for name in files.keys() {
+        if !catalog.models.iter().any(|e| e.file.eq_ignore_ascii_case(name)) {
+            catalog.models.push(Entry::discovered(name));
+        }
+    }
+
+    // I file presenti, per misurare i candidati al ricollegamento di una voce sparita.
+    let present: BTreeMap<String, u64> = files.iter().map(|(name, md)| (name.clone(), md.len())).collect();
+
+    let mut rows: Vec<ModelRow> = Vec::with_capacity(catalog.models.len());
+    for entry in catalog.models.iter_mut() {
+        let md = files.get(&entry.file).or_else(|| files.iter().find(|(k, _)| k.eq_ignore_ascii_case(&entry.file)).map(|(_, v)| v));
+        let full = dir.as_ref().map(|d| d.join(&entry.file));
+        if let (Some(md), Some(p)) = (md, full.as_ref()) {
+            refresh_info(entry, p, md);
+        }
+        let info = entry.gguf.as_ref().map(|c| c.info.clone());
+
+        // La stima vale al contesto di un profilo vero: senza profilo non si inventa un contesto.
+        let using: Vec<&Profile> = input.profiles.iter().filter(|p| p.model.file.eq_ignore_ascii_case(&entry.file)).collect();
+        let (mut est, mut est_ctx, mut est_profile) = (None, None, None);
+        if let Some(p) = using.first() {
+            let compute = compute_for(input.compute, &p.server, &p.runtime.backend);
+            est = Some(estimate::estimate(info.as_ref(), &p.server, md.map(|m| m.len()), compute));
+            est_ctx = Some(p.server.ctx);
+            est_profile = Some(p.name.clone());
+        }
+
+        let state = state_of(entry, md.is_some(), parts.contains_key(&entry.file));
+        rows.push(ModelRow {
+            renamed_candidates: match state {
+                State::Downloadable | State::Missing => renamed_candidates(entry.size_gb, &present),
+                _ => Vec::new(),
+            },
+            state,
+            id: entry.id.clone(),
+            repo: entry.repo.clone(),
+            quant: entry.quant.clone(),
+            size_gb: entry.size_gb,
+            size_bytes: md.map(|m| m.len()),
+            hard_links: full.as_ref().filter(|_| md.is_some()).and_then(|p| input.probe.hard_links(p)),
+            path: full.map(|p| p.display().to_string()),
+            sha256: entry.sha256.clone(),
+            sha256_verified: entry.sha256_verified.clone(),
+            verified_at: entry.verified_at.clone(),
+            info,
+            estimate: est,
+            estimate_ctx: est_ctx,
+            estimate_profile: est_profile,
+            part_bytes: parts.get(&entry.file).copied(),
+            profiles: using.iter().map(|p| p.name.clone()).collect(),
+            sampling_by_mode: entry.sampling_by_mode.clone(),
+            file: entry.file.clone(),
+        });
+    }
+    rows.sort_by(|a, b| a.id.cmp(&b.id));
+    rows
+}
+
+/// I file presenti che pesano quanto la voce dichiara: candidati a essere lo stesso modello
+/// rinominato. Tolleranza dello 0,5 %, perché `size_gb` del publisher è arrotondato.
+fn renamed_candidates(declared_gb: Option<f64>, present: &BTreeMap<String, u64>) -> Vec<String> {
+    let Some(gb) = declared_gb.filter(|g| *g > 0.0) else { return Vec::new() };
+    present
+        .iter()
+        .filter(|(_, bytes)| ((**bytes as f64 / 1e9) - gb).abs() / gb <= 0.005)
+        .map(|(name, _)| name.clone())
+        .collect()
+}
+
+/// Chiave di confrontabilità del buffer di calcolo: stesso ubatch e stesso backend.
+pub fn compute_key(ubatch: u32, backend: &str) -> String {
+    format!("{ubatch}|{backend}")
+}
+
+const GIB: f64 = (1u64 << 30) as f64;
+
+/// Ricava il buffer di calcolo dagli avvii già misurati, invece di stimarlo con una formula:
+/// è la VRAM dedicata misurata meno i pesi, la cache KV e lo stato di quell'avvio.
+///
+/// `info_for` dà i metadati GGUF del file di quell'avvio: senza, la KV non è calcolabile e
+/// l'avvio si salta. Per ogni coppia (ubatch, backend) vince l'avvio più recente.
+pub fn measured_compute(
+    runs_dir: &Path,
+    info_for: &dyn Fn(&str) -> Option<ModelInfo>,
+) -> BTreeMap<String, MeasuredCompute> {
+    let mut best: BTreeMap<String, (String, u64)> = BTreeMap::new();
+    let Ok(entries) = fs::read_dir(runs_dir) else { return BTreeMap::new() };
+    let mut dirs: Vec<PathBuf> = entries.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
+    dirs.sort();
+    for dir in dirs {
+        let Ok(m) = crate::manifest::read(&dir.join("manifest.toml")) else { continue };
+        let Some(dedicated) = m.memory.as_ref().and_then(|x| x.after_load.as_ref()).and_then(|a| a.vram_dedicated_gib)
+        else {
+            continue;
+        };
+        let info = info_for(&m.model.file);
+        let p = &m.effective_profile;
+        let e = estimate::estimate(info.as_ref(), &p.server, Some(m.model.size_bytes), None);
+        // Senza la KV la differenza non direbbe niente: meglio nessun dato che un dato inventato.
+        let (Some(kv), Some(weights)) = (e.kv_bytes, e.weights_bytes) else { continue };
+        let known = weights + kv + e.state_bytes.unwrap_or(0);
+        let measured = (dedicated * GIB) as u64;
+// ==== src/commands.rs ====
+//! Comandi chiamati dalla finestra (e dalla tray).
+
+use crate::adopt;
+use crate::builds::{self, Release};
+use crate::catalog::{self, Catalog, ModelRow, ScanInput};
+use crate::clients::{self, ClientSnippets, RunFacts};
+use crate::diagnose::{self, Reason};
+use crate::cmdline::{self, ArgGroup};
+use crate::download::{self, Request as DownloadRequest};
+use crate::engine::{self, EngineStatus, RunInfo, StartRequest, Usage};
+use crate::estimate::{self, Estimate};
+use crate::gguf::ModelInfo;
+use crate::hash;
+use crate::import;
+use crate::launch;
+use crate::machine::{self, BuildEntry, DataRoot, MachineConfig, ResolvedBuild};
+use crate::modelcard;
+use crate::profile::{self, Issue, Override, Profile};
+use crate::proposals;
+use crate::runs::{self, Comparison, RunDetail, RunRow};
+use crate::settings::ExitBehavior;
+use crate::conditions::Conditions;
+use crate::system::{self, SystemReport};
+use crate::tasks::{Kind, TaskView};
+use crate::AppState;
+use serde::Serialize;
+use std::collections::BTreeMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
+use std::time::{Duration, Instant};
+use tauri::{AppHandle, Manager, State};
+
+#[derive(Serialize)]
+pub struct Overview {
+    pub data_root: Option<String>,
+    /// Perché la radice dati scelta non è utilizzabile: disco staccato, cartella sparita, sola
+    /// lettura. Finché è piena, Aethera non può fare niente e lo dice invece di fallire un gesto
+    /// alla volta.
+    pub data_root_error: Option<String>,
+    pub machine: Option<MachineConfig>,
+    pub machine_error: Option<String>,
+    pub system: SystemReport,
+    /// Driver, alimentazione e disco dei pesi come li vede adesso Windows.
+    pub conditions: Conditions,
+    pub exit_behavior: ExitBehavior,
+    pub builds: Vec<ResolvedBuild>,
+    pub builds_missing: Vec<BuildEntry>,
+    pub endpoint: Option<String>,
+    pub endpoint_error: Option<String>,
+}
+
+fn data_root(state: &AppState) -> Result<DataRoot, String> {
+    state.settings().data_root.clone().map(DataRoot::new).ok_or_else(|| "radice dati non ancora scelta".to_string())
+}
+
+fn root_and_machine(state: &AppState) -> Result<(DataRoot, MachineConfig), String> {
+    let root = data_root(state)?;
+    let machine = root.load_machine()?;
+    Ok((root, machine))
+}
+
+fn build_overview(state: &AppState) -> Overview {
+    let settings = state.settings().clone();
+    let mut o = Overview {
+        data_root: settings.data_root.as_ref().map(|p| p.display().to_string()),
+        data_root_error: None,
+        machine: None,
+        machine_error: None,
+        system: system::probe().report(),
+        conditions: system::probe().conditions(None),
+        exit_behavior: settings.exit_behavior,
+        builds: Vec::new(),
+        builds_missing: Vec::new(),
+        endpoint: state.endpoint.as_ref().ok().cloned(),
+        endpoint_error: state.endpoint.as_ref().err().cloned(),
+    };
+    if let Some(path) = settings.data_root {
+        let root = DataRoot::new(path);
+        // Prima la cartella, poi il contenuto: un disco staccato e un machine.toml sbagliato sono
+        // due guasti diversi e si riparano in due modi diversi.
+        if let Err(e) = fs::create_dir_all(&root.path)
+            .map_err(|e| diagnose::write_error("creazione", &root.path, &e))
+            .and_then(|_| root.check_writable())
+        {
+            o.data_root_error = Some(e);
+            return o;
+        }
+        match root.ensure(&o.system) {
+            Ok(m) => {
+                o.conditions = system::probe().conditions(m.models_dir.as_deref());
+                o.builds = root.builds_available(&m);
+                o.builds_missing =
+                    m.builds.iter().filter(|b| !b.path.join(machine::server_binary_name()).is_file()).cloned().collect();
+                o.machine = Some(m);
+            }
+            Err(e) => o.machine_error = Some(e),
+        }
+    }
+    o
+}
+
+#[tauri::command]
+pub fn overview(state: State<AppState>) -> Overview {
+    build_overview(&state)
+}
+
+#[tauri::command]
+pub fn set_data_root(state: State<AppState>, path: String) -> Result<Overview, String> {
+    let path = PathBuf::from(path.trim());
+    if !path.is_absolute() {
+        return Err("serve un percorso assoluto".into());
+    }
+    let root = DataRoot::new(&path);
+    root.ensure(&system::probe().report())?;
+    root.check_writable()?;
+    {
+        let mut s = state.settings();
+        s.data_root = Some(path);
+        s.save()?;
+    }
+    Ok(build_overview(&state))
+}
+
+#[tauri::command]
+pub fn save_machine(state: State<AppState>, machine: MachineConfig) -> Result<Overview, String> {
+    if machine.name.trim().is_empty() {
+        return Err("il nome della macchina è obbligatorio".into());
+    }
+    data_root(&state)?.save_machine(&machine)?;
+    Ok(build_overview(&state))
+}
+
+#[derive(Serialize)]
+pub struct MachineText {
+    pub path: String,
+    /// Il testo com'è sul disco: quando non si lascia leggere, si mostra invece di sparire.
+    pub text: Option<String>,
+    pub error: Option<String>,
+}
+
+/// `machine.toml` così com'è. Serve quando non è valido: senza vederlo non lo si corregge.
+#[tauri::command]
+pub fn machine_text(state: State<AppState>) -> Result<MachineText, String> {
+    let root = data_root(&state)?;
+    let path = root.machine_file();
+    let (text, error) = match fs::read_to_string(&path) {
+        Ok(t) => (Some(t), root.load_machine().err()),
+        Err(e) => (None, Some(diagnose::write_error("lettura", &path, &e))),
+    };
+    Ok(MachineText { path: path.display().to_string(), text, error })
+}
+
+/// Rimette un `machine.toml` nuovo quando quello che c'è non si lascia leggere. Il vecchio non si
+/// perde: viene messo da parte con la data, perché dentro poteva esserci la cartella dei pesi e
+/// l'elenco delle build, e ritrovarli è più facile che riscriverli.
+#[tauri::command]
+pub fn machine_reset(state: State<AppState>) -> Result<Overview, String> {
+    let root = data_root(&state)?;
+    let path = root.machine_file();
+    if path.is_file() {
+        let backup = root.path.join(format!("machine.toml.{}.bak", chrono::Local::now().format("%Y%m%d-%H%M%S")));
+        fs::rename(&path, &backup).map_err(|e| diagnose::write_error("messa da parte", &backup, &e))?;
+    }
+    root.ensure(&system::probe().report())?;
+    Ok(build_overview(&state))
+}
+
+#[tauri::command]
+pub fn set_exit_behavior(state: State<AppState>, behavior: ExitBehavior) -> Result<(), String> {
+    let mut s = state.settings();
+    s.exit_behavior = behavior;
+    s.save()
+}
+
+/// Un passo della prima configurazione: che cos'è, se è fatto, e dove si fa.
+#[derive(Serialize)]
+pub struct Step {
+    pub id: &'static str,
+    pub title: &'static str,
+    /// Che cosa fare, in una frase. È la stessa frase che compare negli stati vuoti della pagina.
+    pub what: &'static str,
+    pub done: bool,
+    /// Che cosa c'è già, quando c'è: il passo fatto si legge, non si ricontrolla.
+    pub detail: Option<String>,
+    pub page: &'static str,
+}
+
+#[derive(Serialize)]
+pub struct Setup {
+    pub steps: Vec<Step>,
+    pub complete: bool,
+}
+
+fn step(id: &'static str, title: &'static str, what: &'static str, page: &'static str, detail: Option<String>) -> Step {
+    Step { id, title, what, done: detail.is_some(), detail, page }
+}
+
+/// Dove sta la prima configurazione: dalla radice dati al primo avvio, nell'ordine in cui i passi
+/// dipendono l'uno dall'altro. Un passo è fatto quando c'è la cosa che deve esserci, non quando
+/// qualcuno l'ha spuntato: così la guida dice sempre la verità anche se si arriva da metà strada.
+#[tauri::command]
+pub fn setup(state: State<AppState>) -> Setup {
+    let o = build_overview(&state);
+    let root_ok = o.data_root.is_some() && o.data_root_error.is_none() && o.machine.is_some();
+    let mut steps = vec![step(
+        "radice",
+        "Radice dati",
+        "Scegli la cartella dove Aethera tiene machine.toml, i profili, le build e gli avvii.",
+        "impostazioni",
+        root_ok.then(|| o.data_root.clone().unwrap_or_default()),
+    )];
+
+    let root = data_root(&state).ok();
+    let machine = o.machine.clone();
+    steps.push(step(
+        "pesi",
+        "Cartella dei pesi",
+        "Dì dove tieni i .gguf: i profili li citano per nome file, la cartella è della macchina.",
+        "impostazioni",
+        machine
+            .as_ref()
+            .and_then(|m| m.models_dir.clone())
+            .filter(|d| d.is_dir())
+            .map(|d| d.display().to_string()),
+    ));
+    steps.push(step(
+        "build",
+        "Una build di llama.cpp",
+        "Scaricane una dal Catalogo, o dichiara una cartella che hai già.",
+        "catalogo",
+        (!o.builds.is_empty()).then(|| {
+            o.builds.iter().map(|b| b.id.clone()).collect::<Vec<_>>().join(" · ")
+        }),
+    ));
+
+    let models: Vec<String> = match (&root, &machine) {
+        (Some(r), Some(m)) => {
+            let probe = system::probe();
+            let mut cat = catalog::load(r).unwrap_or_default();
+            let empty = BTreeMap::new();
+            catalog::scan(&mut cat, &ScanInput { machine: m, profiles: &[], compute: &empty, probe: probe.as_ref() })
+                .into_iter()
+                .filter(|x| x.size_bytes.is_some())
+                .map(|x| x.id)
+                .collect()
+        }
+        _ => Vec::new(),
+    };
+    steps.push(step(
+        "modello",
+        "Un modello",
+        "Aggiungi i pesi da Hugging Face e scaricali, oppure registra un .gguf che hai già sul disco.",
+        "catalogo",
+        (!models.is_empty()).then(|| format!("{} sul disco: {}", models.len(), models.join(" · "))),
+    ));
+
+    let profiles: Vec<String> = root
+        .as_ref()
+        .and_then(|r| read_profiles(r).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|e| e.profile.is_some())
+        .map(|e| e.name)
+        .collect();
+    steps.push(step(
+        "profilo",
+        "Un profilo",
+        "Dalla pagina Avvio, «Nuovo profilo…»: nasce con valori sensati sul modello che scegli.",
+        "avvio",
+        (!profiles.is_empty()).then(|| profiles.join(" · ")),
+    ));
+
+    let runs = root.as_ref().map(|r| runs::list(&r.runs(), None).len()).unwrap_or(0);
+    steps.push(step(
+        "avvio",
+        "Il primo avvio",
+        "Scegli il profilo e premi Avvia: da qui in poi la pagina Motore misura quello che succede.",
+        "avvio",
+        (runs > 0 || state.engine.is_running())
+            .then(|| if runs > 0 { format!("{runs} avvii registrati") } else { "motore acceso".into() }),
+    ));
+
+    let complete = steps.iter().all(|s| s.done);
+    Setup { steps, complete }
+}
+
+#[derive(Serialize)]
+pub struct ProfileEntry {
+    pub name: String,
+    pub file: String,
+    pub profile: Option<Profile>,
+    pub issues: Vec<Issue>,
+}
+
+fn read_profiles(root: &DataRoot) -> Result<Vec<ProfileEntry>, String> {
+    let dir = root.profiles();
+    let mut files: Vec<PathBuf> = fs::read_dir(&dir)
+        .map_err(|e| format!("{}: {e}", dir.display()))?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|x| x == "toml"))
+        .collect();
+    files.sort();
+    Ok(files
+        .into_iter()
+        .map(|path| {
+            let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+            let (profile, issues) = match fs::read_to_string(&path) {
+                Ok(text) => profile::load(&text, &stem),
+                Err(e) => (None, vec![Issue { field: String::new(), message: e.to_string() }]),
+            };
+            ProfileEntry { name: stem, file: path.display().to_string(), profile, issues }
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub fn list_profiles(state: State<AppState>) -> Result<Vec<ProfileEntry>, String> {
+    read_profiles(&data_root(&state)?)
+}
+
+/// Host e porte dichiarati dai profili: dove può stare un `llama-server` orfano.
+pub fn profile_endpoints(state: &AppState) -> Vec<(String, u16)> {
+    let mut out: Vec<(String, u16)> = data_root(state)
+        .and_then(|r| read_profiles(&r))
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|e| e.profile.map(|p| (p.server.host, p.server.port)))
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+#[derive(Serialize)]
+pub struct Preview {
+    pub issues: Vec<Issue>,
+    pub overrides: Vec<Override>,
+    pub invalidates_cache: bool,
+    pub blockers: Vec<String>,
+    pub args: Vec<ArgGroup>,
+    pub line: String,
+    pub binary: Option<String>,
+    pub model_path: Option<String>,
+    pub model_size_gb: Option<f64>,
+    /// Stima di memoria alle leve correnti: si aggiorna mentre si cambiano contesto e cache.
+    pub estimate: Option<Estimate>,
+    /// Modifiche che le misure di M-08 suggeriscono per questo profilo: si applicano a mano.
+    pub proposals: Vec<proposals::Proposal>,
+    /// Avvisi che non impediscono l'avvio.
+    pub warnings: Vec<String>,
+}
+
+/// Stima per l'anteprima. Usa **solo** i metadati GGUF già in catalogo: leggerli dal file costa
+/// oltre un secondo su 22 GB e l'anteprima si aggiorna a ogni tasto. Se il catalogo non li ha
+/// ancora (basta aprire la pagina Catalogo), restano note i soli pesi e il totale è un minimo.
+fn estimate_for(root: &DataRoot, p: &Profile, model_size: Option<u64>) -> Estimate {
+    let cat = catalog::load(root).unwrap_or_default();
+    let known: BTreeMap<String, ModelInfo> =
+        cat.models.iter().filter_map(|e| e.gguf.as_ref().map(|g| (e.file.clone(), g.info.clone()))).collect();
+    let info = known.get(&p.model.file).cloned();
+    let compute = catalog::measured_compute(&root.runs(), &|file| known.get(file).cloned());
+    let measured = compute.get(&catalog::compute_key(p.server.ubatch, &p.runtime.backend)).cloned();
+    estimate::estimate(info.as_ref(), &p.server, model_size, measured)
+}
+
+#[tauri::command]
+pub fn preview(state: State<AppState>, base: String, edited: Profile) -> Result<Preview, String> {
+    let (root, m) = root_and_machine(&state)?;
+    let p = launch::prepare(&root, &m, &base, &edited, &root.runs().join("{run}").join("slots"));
+    let binary = p.build.as_ref().map(|b| b.binary.clone()).unwrap_or_else(|| PathBuf::from(machine::server_binary_name()));
+    let vgm = system::probe().report().gpus.iter().filter_map(|g| g.dedicated_gib).reduce(f64::max);
+    Ok(Preview {
+        proposals: proposals::for_profile(&edited, &root.builds_available(&m)),
+        warnings: proposals::warnings(&edited, p.model_size, vgm),
+        args: cmdline::compare(p.base_args.as_deref().unwrap_or(&p.args), &p.args),
+        line: cmdline::render_line(&binary, &p.args),
+        binary: p.build.map(|b| b.binary.display().to_string()),
+        model_path: p.model_path.map(|x| x.display().to_string()),
+        model_size_gb: p.model_size.map(|b| (b as f64 / 1e7).round() / 100.0),
+        estimate: Some(estimate_for(&root, &edited, p.model_size)),
+        issues: p.issues,
+        overrides: p.overrides,
+        invalidates_cache: p.invalidates_cache,
+        blockers: p.blockers,
+    })
+}
+
+#[tauri::command]
+pub fn save_profile(state: State<AppState>, profile: Profile, replace: Option<String>) -> Result<String, String> {
+    let issues = profile::validate(&profile);
+    if !issues.is_empty() {
+        return Err(issues.iter().map(|i| format!("{}: {}", i.field, i.message)).collect::<Vec<_>>().join("\n"));
+    }
+    let path = data_root(&state)?.profiles().join(format!("{}.toml", profile.name));
+    if path.exists() && replace.as_deref() != Some(profile.name.as_str()) {
+        return Err(format!("esiste già un profilo «{}»: scegli un altro nome", profile.name));
+    }
+    let text = toml::to_string_pretty(&profile).map_err(|e| e.to_string())?;
+    fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(profile.name)
+}
+
+#[derive(Serialize)]
+pub struct ImportReport {
+    pub name: String,
+    pub notes: Vec<String>,
+}
+
+#[tauri::command]
+pub fn import_minis(state: State<AppState>, path: String, build: String) -> Result<ImportReport, String> {
+    let root = data_root(&state)?;
+    let source = PathBuf::from(&path);
+    let text = fs::read_to_string(&source).map_err(|e| format!("{path}: {e}"))?;
+    let label = source.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or(path.clone());
+    let imported = import::import_minis_json(&text, &label, build.trim())?;
+    let issues = profile::validate(&imported.profile);
+    if !issues.is_empty() {
+        return Err(issues.iter().map(|i| format!("{}: {}", i.field, i.message)).collect::<Vec<_>>().join("\n"));
+    }
+    let target = root.profiles().join(format!("{}.toml", imported.profile.name));
+    if target.exists() {
+        return Err(format!("esiste già {}: non lo sovrascrivo", target.display()));
+    }
+    let toml_text = toml::to_string_pretty(&imported.profile).map_err(|e| e.to_string())?;
+    fs::write(&target, toml_text).map_err(|e| format!("{}: {e}", target.display()))?;
+    Ok(ImportReport { name: imported.profile.name, notes: imported.notes })
+}
+
+// ---------------------------------------------------------------------------------------------
+// Profili dalla finestra (M-05): crearne uno da zero, duplicarlo, rinominarlo, cancellarlo.
+//
+// Il nome del profilo è il nome del file **ed è l'alias servito**: rinominare vuol dire spostare
+// il file e riscrivere il campo `name`, non una cosa sola delle due. Gli avvii già registrati
+// citano il profilo per nome nel loro manifest e non si toccano: un manifest racconta com'è
+// andato quell'avvio, non punta a un file che deve ancora esistere.
+// ---------------------------------------------------------------------------------------------
+
+fn profile_file(root: &DataRoot, name: &str) -> PathBuf {
+    root.profiles().join(format!("{name}.toml"))
+}
+
+/// Prima porta non dichiarata da nessun profilo, dalla 8080 in su.
+fn free_port(taken: &[u16]) -> u16 {
+    (8080..8180).find(|p| !taken.contains(p)).unwrap_or(8080)
+}
+
+/// Nome libero: `nuovo-profilo`, poi `nuovo-profilo-2`, `nuovo-profilo-3`…
+fn unique_name(root: &DataRoot, wanted: &str) -> String {
+    if !profile_file(root, wanted).exists() {
+        return wanted.to_string();
+    }
+    (2..1000)
+        .map(|n| format!("{wanted}-{n}"))
+        .find(|n| !profile_file(root, n).exists())
+        .unwrap_or_else(|| wanted.to_string())
+}
+
+/// Il profilo da cui è stato acceso il motore che sta girando: non si rinomina né si cancella
+/// sotto i piedi di un motore acceso, perché «Riavvia» tornerebbe a cercarlo.
+fn refuse_if_running(state: &AppState, name: &str) -> Result<(), String> {
+    let Some(m) = state.engine.manifest() else { return Ok(()) };
+    if state.engine.is_running() && m.run.profile == name {
+        return Err(format!("il motore acceso ({}) è partito da questo profilo: fermalo prima", m.run.id));
+    }
+    Ok(())
+}
+
+fn read_profile(root: &DataRoot, name: &str) -> Result<Profile, String> {
+    let path = profile_file(root, name);
+    let text = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let (p, issues) = profile::load(&text, name);
+    p.ok_or_else(|| {
+        format!("{}: {}", path.display(), issues.first().map(|i| i.message.clone()).unwrap_or_else(|| "illeggibile".into()))
+    })
+}
+
+fn write_profile(root: &DataRoot, p: &Profile) -> Result<(), String> {
+    let issues = profile::validate(p);
+    if !issues.is_empty() {
+        return Err(issues.iter().map(|i| format!("{}: {}", i.field, i.message)).collect::<Vec<_>>().join("\n"));
+    }
+    let path = profile_file(root, &p.name);
+    let text = toml::to_string_pretty(p).map_err(|e| e.to_string())?;
+    fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// Un profilo nuovo con valori sensati, già pieno di quello che la macchina e il catalogo sanno.
+/// Non scrive niente: la finestra lo mostra, lo si corregge e si salva.
+#[tauri::command]
+pub fn profile_template(state: State<AppState>, model_file: Option<String>) -> Result<Profile, String> {
+    let (root, machine) = root_and_machine(&state)?;
+    let taken: Vec<u16> =
+        read_profiles(&root)?.iter().filter_map(|e| e.profile.as_ref().map(|p| p.server.port)).collect();
+
+    // La build proposta è la prima installata: fissarla è una scelta dichiarata, non un automatismo.
+    let builds = root.builds_available(&machine);
+    let (build, backend) = builds.first().map(|b| machine::split_build_id(&b.id)).unwrap_or((None, None));
+
+    let file = model_file.unwrap_or_default().trim().to_string();
+    let wanted = if file.is_empty() { "nuovo-profilo".to_string() } else { profile::name_from_file(&file) };
+    let mut p = profile::template(
+        &unique_name(&root, &wanted),
+        &file,
+        build.as_deref().unwrap_or_default(),
+        backend.as_deref().unwrap_or("vulkan"),
+        free_port(&taken),
+    );
+
+    // Quello che il catalogo sa già del modello non si chiede una seconda volta a chi crea il profilo.
+    if !file.is_empty() {
+        if let Some(e) = catalog::load(&root)?.models.into_iter().find(|e| e.file.eq_ignore_ascii_case(&file)) {
+            p.model.file = e.file;
+            p.model.repo = e.repo;
+            p.model.quant = e.quant.or_else(|| e.gguf.as_ref().and_then(|g| g.info.dominant_type.clone()));
+            p.model.size_gb = e.size_gb;
+            p.model.sha256 = e.sha256_verified.or(e.sha256);
+            p.sampling_by_mode = e.sampling_by_mode;
+        }
+    }
+    Ok(p)
+}
+
+/// Copia un profilo con un altro nome. L'alias segue il nome: due profili con lo stesso alias
+/// servirebbero lo stesso modello sotto lo stesso nome e un client non li distinguerebbe.
+#[tauri::command]
+pub fn profile_duplicate(state: State<AppState>, name: String, new_name: String) -> Result<String, String> {
+    let root = data_root(&state)?;
+    let wanted = new_name.trim().to_string();
+    if wanted == name {
+        return Err("il nome nuovo è uguale a quello vecchio".into());
+    }
+    if profile_file(&root, &wanted).exists() {
+        return Err(format!("esiste già un profilo «{wanted}»: scegli un altro nome"));
+    }
+    let mut p = read_profile(&root, &name)?;
+    p.name = wanted.clone();
+    write_profile(&root, &p)?;
+    Ok(wanted)
+}
+
+/// Rinomina un profilo: file e campo `name` insieme, e il vecchio file sparisce solo quando il
+/// nuovo è stato scritto davvero.
+#[tauri::command]
+pub fn profile_rename(state: State<AppState>, name: String, new_name: String) -> Result<String, String> {
+    let root = data_root(&state)?;
+    let wanted = new_name.trim().to_string();
+    if wanted == name {
+        return Ok(name);
+    }
+    refuse_if_running(&state, &name)?;
+    if profile_file(&root, &wanted).exists() {
+        return Err(format!("esiste già un profilo «{wanted}»: scegli un altro nome"));
+    }
+    let mut p = read_profile(&root, &name)?;
+    p.name = wanted.clone();
+    write_profile(&root, &p)?;
+    let old = profile_file(&root, &name);
+    fs::remove_file(&old).map_err(|e| format!("{}: {e} (il profilo «{wanted}» è stato scritto)", old.display()))?;
+    Ok(wanted)
+}
+
+#[derive(Serialize)]
+pub struct DeletionPlan {
+    pub name: String,
+    pub file: String,
+    /// Avvii già registrati che citano questo profilo: restano dove sono.
+    pub runs: usize,
+    pub warnings: Vec<String>,
+}
+
+/// Che cosa comporta cancellare un profilo: lo si dice prima, non dopo.
+#[tauri::command]
+pub fn profile_deletion_plan(state: State<AppState>, name: String) -> Result<DeletionPlan, String> {
+    let root = data_root(&state)?;
+    let file = profile_file(&root, &name);
+    if !file.is_file() {
+        return Err(format!("nessun profilo «{name}»"));
+    }
+    let runs = runs::list(&root.runs(), None).into_iter().filter(|r| r.profile == name).count();
+    let mut warnings = Vec::new();
+    if let Err(e) = refuse_if_running(&state, &name) {
+        warnings.push(e);
+    }
+    if runs > 0 {
+        warnings.push(format!(
+            "{runs} avvii registrati citano «{name}»: restano nello storico con il loro profilo effettivo, ma il file da cui sono partiti non ci sarà più"
+        ));
+    }
+    Ok(DeletionPlan { name, file: file.display().to_string(), runs, warnings })
+}
+
+/// Cancella il file del profilo. Gli avvii già registrati non si toccano: il manifest di ognuno
+/// porta dentro il profilo effettivo, quindi resta leggibile e confrontabile anche senza il file.
+#[tauri::command]
+pub fn profile_delete(state: State<AppState>, name: String) -> Result<(), String> {
+    let root = data_root(&state)?;
+    refuse_if_running(&state, &name)?;
+    let file = profile_file(&root, &name);
+    if !file.is_file() {
+        return Err(format!("nessun profilo «{name}»"));
+    }
+    fs::remove_file(&file).map_err(|e| format!("{}: {e}", file.display()))
+}
+
+/// Campionamento consigliato che il catalogo conosce per i pesi di un profilo: si porta nel
+/// profilo con un gesto, invece di ricopiarlo a mano dalla pagina Catalogo.
+#[tauri::command]
+pub fn catalog_sampling(state: State<AppState>, file: String) -> Result<BTreeMap<String, profile::Sampling>, String> {
+    let root = data_root(&state)?;
+    Ok(catalog::load(&root)?
+        .models
+        .into_iter()
+        .find(|e| e.file.eq_ignore_ascii_case(file.trim()))
+        .map(|e| e.sampling_by_mode)
+        .unwrap_or_default())
+}
+
+fn start_from(state: &AppState, base: &str, edited: Profile) -> Result<RunInfo, String> {
+    let (root, m) = root_and_machine(state)?;
+    let run_id = chrono::Local::now().format("r-%Y%m%d-%H%M%S").to_string();
+    let run_dir = root.runs().join(&run_id);
+    let p = launch::prepare(&root, &m, base, &edited, &run_dir.join("slots"));
+    if !p.blockers.is_empty() {
+        return Err(p.blockers.join("\n"));
+    }
+    let conditions = system::probe().conditions(m.models_dir.as_deref());
+    let history = runs::list(&root.runs(), None);
+    let reference = runs::reference(&history, &m.name, &edited.name, &edited.runtime.build, &conditions);
+    let conditions_changed = runs::changed_since(&history, &m.name, &conditions);
+    state.engine.start(StartRequest {
+        run_id,
+        run_dir,
+        base: base.to_string(),
+        profile: edited,
+        profile_file: p.base_file,
+        overrides: p.overrides,
+        invalidates_cache: p.invalidates_cache,
+        build: p.build.expect("build risolta"),
+        model_path: p.model_path.expect("pesi risolti"),
+        model_size: p.model_size.unwrap_or(0),
+        args: p.args,
+        machine_name: m.name,
+        ram_margin_gib: m.ram_margin_gib,
+        system: system::probe().report(),
+        conditions,
+        reference,
+        conditions_changed,
+    })
+}
+
+#[tauri::command]
+pub fn engine_start(state: State<AppState>, base: String, edited: Profile) -> Result<RunInfo, String> {
+    start_from(&state, &base, edited)
+}
+
+/// «Riavvia con la stessa riga»: stesso profilo e stesse differenze, nuovo avvio. Rifiutato se in uso.
+pub fn restart(state: &AppState) -> Result<RunInfo, String> {
+    let (base, profile) = state.engine.source().ok_or("nessun avvio da ripetere in questa sessione")?;
+    if state.engine.is_running() {
+        state.engine.stop()?;
+    }
+    // La porta si libera qualche istante dopo la fine del processo.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match start_from(state, &base, profile.clone()) {
+            Err(e) if e.contains("risponde già") && Instant::now() < deadline => std::thread::sleep(Duration::from_millis(250)),
+            other => return other,
+        }
+    }
+}
+
+#[tauri::command]
+pub fn engine_restart(state: State<AppState>) -> Result<RunInfo, String> {
+    restart(&state)
+}
+
+#[tauri::command]
+pub fn engine_stop(state: State<AppState>) -> Result<(), String> {
+    state.engine.stop()
+}
+
+#[tauri::command]
+pub fn engine_protect(state: State<AppState>, on: bool) -> Usage {
+    state.engine.set_protected(on);
+    state.engine.usage()
+}
+
+#[tauri::command]
+pub fn engine_status(state: State<AppState>) -> EngineStatus {
+    state.engine.status()
+}
+
+#[tauri::command]
+pub fn engine_log(state: State<AppState>, lines: usize) -> Result<String, String> {
+    match state.engine.log_path() {
+        Some(p) => engine::read_tail(&p, lines.clamp(1, 2000)),
+        None => Ok(String::new()),
+    }
+}
+
+/// Le righe del log che spiegano l'uscita con errore, invece del solo codice di uscita.
+#[tauri::command]
+pub fn engine_failure(state: State<AppState>) -> Vec<Reason> {
+    let Some(path) = state.engine.log_path() else { return Vec::new() };
+    let Ok(text) = engine::read_tail(&path, 400) else { return Vec::new() };
+    diagnose::engine_failure(&text, 6)
+}
+
+#[tauri::command]
+pub fn orphan_terminate(state: State<AppState>, pid: u32) -> Result<(), String> {
+    state.engine.terminate_orphan(pid)
+}
+
+pub fn snippets_for(state: &AppState) -> Option<ClientSnippets> {
+    let m = state.engine.manifest()?;
+    let base_url = format!("http://{}:{}", m.server.host, m.server.port);
+    // Prompt fissi: quelli misurati da M-08, più la prima richiesta a freddo di ogni client che in
+    // questo avvio ha preso il lock (solo così il log sa chi è).
+    let mut fixed = clients::measured_fixed_prompts();
+    if let Some((_, summary, _)) = state.engine.recent(usize::MAX) {
+        for f in clients::fixed_from_turns(&summary.turns, &m.run.id) {
+            fixed.retain(|x| x.client != f.client);
+            fixed.push(f);
+        }
+    }
+    let claude_config_dir = data_root(state).ok().map(|r| r.path.join("clients").join("claude-code").display().to_string());
+    Some(clients::snippets(&RunFacts {
+        run_id: &m.run.id,
+        base_url: &base_url,
+        alias: &m.server.alias,
+        ctx_declared: m.server.ctx_declared,
+        ctx_served: m.server.ctx_served,
+        client: m.effective_profile.client.as_ref(),
+        endpoint: state.endpoint.as_ref().ok().map(String::as_str),
+        // Il campionamento è quello del profilo **avviato**, non quello del file su disco:
+        // le righe devono valere per il motore che sta rispondendo adesso.
+        sampling: &m.effective_profile.sampling_by_mode,
+        chat_template: m.effective_profile.server.chat_template_file.as_deref(),
+        claude_config_dir,
+        fixed_prompts: &fixed,
+    }))
+}
+
+#[tauri::command]
+pub fn client_snippets(state: State<AppState>) -> Option<ClientSnippets> {
+    snippets_for(&state)
+}
+
+fn current_run(state: &AppState) -> Option<String> {
+    state.engine.manifest().map(|m| m.run.id)
+}
+
+#[tauri::command]

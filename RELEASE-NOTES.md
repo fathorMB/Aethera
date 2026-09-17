@@ -47,6 +47,14 @@ dal punto giusto, anche dopo aver chiuso l'app), motore che esce con errore (le 
 spiegano, messe in evidenza), chiusura con un lavoro in corso (si chiede, e si aspetta che i file
 vengano chiusi), radice dati su un disco che non risponde.
 
+**Quello che le misure hanno insegnato.** Il manifest di ogni avvio registra le condizioni della
+macchina (driver, build e serie di patch, overlay di alimentazione, VGM) e Benchmark avvisa quando due
+avvii non sono confrontabili. Il riuso del prompt e le compattazioni si leggono dal log del motore,
+richiesta per richiesta. Lo schema dei profili conosce le leve misurate (checkpoint, cache su RAM,
+lettura pigra, override dei tensori), e una build locale con patch (`b<numero>+moro<n>`) serve un
+profilo solo se il profilo la chiede per nome. Le schede dei client danno le righe da incollare e il
+budget di contesto; per Claude Code c'è un template di chat tollerante.
+
 ### Che cosa serve
 
 Windows 10 o 11 a 64 bit con WebView2, una build di `llama.cpp` e un modello GGUF. Né Rust né Node:
@@ -67,6 +75,22 @@ quelli servono solo per compilare.
   che arrivano da un browser, ma chiunque possa eseguire codice su questo computer può usarlo.
 - La lettura della model card riconosce le forme più comuni; un publisher che scrive il
   campionamento in un modo inconsueto non viene letto, e lo dichiara invece di inventare valori.
+
+### Che cosa non è stato guardato da una persona
+
+Questa versione è un punto fermo messo il 18-09-2026 per scelta dell'operatore, prima di cambiare
+direzione al progetto. L'uso normale della finestra è stato guardato e va. Questi pezzi invece sono
+coperti solo dalle prove automatiche (91 unitarie e gli E2E reali, che li simulano tutti), e nessuno
+li ha visti dalla finestra:
+
+- i cinque guasti provocati: dialogo d'uscita con un download in corso, pagina «la radice dati non
+  risponde», riquadro «Perché è uscito», «Ricollega…», riparazione di `machine.toml`;
+- il riquadro «Condizioni dell'avvio», la riga del riuso durante una sessione vera con un client e
+  Claude Code lanciato dalla riga copiata;
+- l'installazione su una macchina senza Rust né Node: provata solo su una macchina che li ha, su un
+  percorso pulito e con una radice dati nuova.
+
+La finestra ridisegnata (v2) non è in questa versione: arriva subito dopo.
 
 ## Installatore non firmato e Windows SmartScreen
 

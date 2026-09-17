@@ -1,0 +1,17 @@
+measure = "verifica-fn"
+title = "FN IQ3_XXS a VGM 48 (none): Windows restituisce la memoria tenuta dalle funzioni AI?"
+base = "qwen3.8-flash-next.iq3_xxs.vulkan"
+repetitions = 1
+warmup = 0
+
+[[variant]]
+name = "none"
+note = "ricetta di M-10 T-04: la tabella n-gram sta in RAM, servono ~38,4 GiB"
+
+[[workload]]
+name = "codice-7k"
+prompt = "../m08/prompt-7k.txt"
+instruction = "Rispondi solo: pronto."
+n_predict = 16
+temperature = 0.0
+seed = 1234
