@@ -37,9 +37,9 @@ come `LEGGIMI-MORO.md` (escluso da git con `.git/info/exclude`).
 ## Regola di fedeltà (M-16)
 
 Il testo identico a temperatura 0 **non è più un requisito**. M-16 ha misurato che cambiare solo
-l'ubatch, a parità di build, cambia già le distribuzioni dei token (e sul Coder-Next anche il
-testo): un criterio che scarta ogni cambiamento numerico scarterebbe anche un cambio di profilo
-innocuo. Il testo si registra comunque (banco con `fixed_nonce` e `save_text`), come informazione.
+l'ubatch, a parità di build, cambia già le distribuzioni dei token e il testo generato (G1 e G3:
+quasi sempre 0 giri identici su 3, spesso allo stesso carattere in cui diverge la patch): un
+criterio che scarta ogni cambiamento numerico scarterebbe anche un cambio di profilo innocuo. Il testo si registra comunque (banco con `fixed_nonce` e `save_text`), come informazione.
 
 **Come si misura.** `llama-perplexity` della base con `--kl-divergence-base`, poi con
 `--kl-divergence` (script `.lmbrain-lite/m16/sequenza.py`, fase `kld-*`): prompt congelato da 21k,
@@ -48,27 +48,39 @@ profilo. Per ogni modello si misurano:
 
 - **pavimento**: la base contro se stessa (deve dare KLD 0 e 100 % di stesso primo token; se no la
   base non è deterministica e la misura non vale);
-- **metro**: la base con un altro ubatch (G1 512 invece di 4096, G3 2048 invece di 512);
+- **metro dell'ubatch**: la base con un altro ubatch (G1 512 invece di 4096, G3 2048 invece di 512).
+  Misura quanto cambiano i conti con gli stessi kernel tagliati diversamente;
+- **metro del backend**, quando il modello sta in RAM: la stessa base calcolata dal backend CPU
+  (`-dev none -ngl 0`, fase `cpu-g1`). Misura quanto differiscono due implementazioni corrette.
+  Una patch che cambia il percorso numerico (int8 invece di f16) va confrontata con questo, non solo
+  con l'ubatch: sul G1 il metro dell'ubatch è minuscolo perché i kernel restano gli stessi;
 - **patch**: la build patchata all'ubatch del profilo (e, per controllo, all'altro ubatch);
 - **picco**: per la patch, `kld_per_token.py` sui token peggiori (dove cadono, se sono isolati o a
-  gruppi, se sono quasi-pareggi).
+  gruppi, se sono quasi-pareggi) e `nll_zona.py` sulla zona (quale calcolo segue meglio il testo
+  vero dove i calcoli non sono d'accordo).
 
-**Soglie** (per modello, patch contro base allo stesso ubatch):
+**Soglie** (per modello, patch contro base allo stesso ubatch; «metro» è il più grande dei due metri
+disponibili):
 
 | misura | soglia | perché |
 |---|---|---|
 | Δ perplessità | dentro 2 σ, o negativa | una patch che peggiora la perplessità non entra |
-| KLD media | ≤ 2 × metro, e comunque ≤ 0,02 | il metro è quanto la base cambia da sola con un ubatch diverso |
+| KLD media | ≤ 2 × metro, e comunque ≤ 0,02 | il metro è quanto la base cambia da sola senza che nessuno la consideri sbagliata |
 | KLD al 99 % | ≤ 2 × metro al 99 % | le code contano più della media: sono i token dove la risposta si biforca |
-| KLD massima | ≤ 1,0, oppure spiegata dall'analisi per token come quasi-pareggio | un token con KLD ≥ 1 è una distribuzione diversa, non un arrotondamento |
+| KLD massima | ≤ 1,0, oppure in una zona dove anche il metro del backend si discosta dalla base e dove la NLL del token vero con la patch non è peggiore di quella della base | un token con KLD ≥ 1 è una distribuzione diversa, non un arrotondamento: va spiegato |
 | stesso primo token | ≥ metro − 1 punto | |
-| batteria di M-15 | riusciti ≥ riferimento − 2 su 15, nessun file protetto toccato, nessuna causa di fallimento nuova | un giro solo ha rumore di ±1–2 compiti |
+| batteria di M-15 | riusciti ≥ riferimento − 2 su 15, nessun file protetto toccato, nessuna causa di fallimento nuova; riferimento sulla stessa base e con lo stesso ubatch | un giro solo ha rumore di ±1–2 compiti |
 
-Con i numeri di M-16 (rapporto `reports/int8-coopmat-2026-09.md`) il metro vale:
-- G1: KLD media 0,00066, al 99 % 0,0064, massimo 0,020, stesso primo token 98,9 %;
-- G3: KLD media 0,0065, al 99 % 0,082, massimo 0,88, stesso primo token 97,2 %.
+Con i numeri di M-16 (rapporto `reports/int8-coopmat-2026-09.md`, prompt da 21k, 8.190 token):
 
-Le soglie si ricalcolano quando cambia il tag di base: il metro va rimisurato sul tag nuovo.
+| modello | metro | KLD media | KLD 99 % | KLD max | stesso primo token |
+|---|---|---:|---:|---:|---:|
+| G1 | ubatch 512 contro 4096 | 0,00066 | 0,0064 | 0,020 | 98,9 % |
+| G1 | CPU contro Vulkan (moro0) | 0,018 | 0,101 | 12,8 | 97,5 % |
+| G3 | ubatch 2048 contro 512 | 0,0065 | 0,082 | 0,88 | 97,2 % |
+| G3 | CPU | non misurabile: 48,5 GB di pesi, 34 GiB di RAM libera | | | |
+
+Le soglie si ricalcolano quando cambia il tag di base: i metri vanno rimisurati sul tag nuovo.
 
 ## Regola di adozione
 
