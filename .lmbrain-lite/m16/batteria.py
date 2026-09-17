@@ -10,7 +10,11 @@ Stessi tetti di notte-1 (quelli di compiti.toml), sessione nuova (int8-1), un gi
 Ogni fase aspetta che il motore sia libero (esegui.py --attendi: nessun llama-server, nessuna build,
 RAM libera > 16 GiB).
 
-Uso: python batteria.py [--sessione int8-1] [--g1] [--max-minuti-modello 120]
+Secondo giro (int8-2): stesso runner, ordine invertito (--ordine g3-moro0,g3-int8), perché nel primo
+il giro int8 è andato più piano del previsto per 45 minuti; carico.ps1 registra il carico della
+macchina in <radice>/m16/carico-<sessione>.tsv.
+
+Uso: python batteria.py [--sessione int8-1] [--g1] [--ordine a,b] [--max-minuti-modello 120]
 Ambiente: AETHERA_RADICE; AETHERA_NONIO_EXE (Nonio, come in notte-1); AETHERA_M15_HOLD facoltativo.
 """
 
@@ -32,6 +36,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sessione", default="int8-1")
     ap.add_argument("--g1", action="store_true")
+    ap.add_argument("--ordine", help="fasi separate da virgole, per esempio g3-moro0,g3-int8")
     ap.add_argument("--max-minuti-modello", default="120")
     args = ap.parse_args()
     radice = b.radice()
@@ -57,10 +62,18 @@ def main() -> int:
         scrivi("aspetto la fine di sequenza.py (T-01, T-02)")
         time.sleep(120)
 
-    sequenza = [("g3-int8", "G3-int8"), ("g3-moro0", "G3-moro0")] + ([("g1-int8", "G1-int8")] if args.g1 else [])
+    fasi_note = {"g3-int8": "G3-int8", "g3-moro0": "G3-moro0", "g1-int8": "G1-int8"}
+    ordine = args.ordine.split(",") if args.ordine else ["g3-int8", "g3-moro0"] + (["g1-int8"] if args.g1 else [])
+    sequenza = [(n, fasi_note[n]) for n in ordine]
+
+    # Registro del carico della macchina (carico.ps1), per riconoscere un disturbo esterno.
+    stop_carico = radice / "stop-m16-carico"
+    carico = subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(QUI / "carico.ps1"),
+                               "-Log", str(radice / "m16" / f"carico-{args.sessione}.tsv"), "-StopFile", str(stop_carico)])
     esito = 0
     for nome, sigla in sequenza:
-        segno = fasi / f"batteria-{nome}"
+        # int8-1 è nata prima che il segno portasse il nome della sessione
+        segno = fasi / (f"batteria-{nome}" if args.sessione == "int8-1" else f"batteria-{args.sessione}-{nome}")
         if segno.exists():
             scrivi(f"fase {nome}: già fatta ({segno.read_text(encoding='utf-8').strip()})")
             continue
@@ -77,6 +90,11 @@ def main() -> int:
         else:
             scrivi(f"fase {nome}: uscita {codice} dopo {minuti:.0f} min")
             esito = 1
+    stop_carico.write_text("", encoding="utf-8")
+    try:
+        carico.wait(timeout=180)
+    except subprocess.TimeoutExpired:
+        carico.kill()
     scrivi("batteria finita")
     return esito
 
