@@ -1,26 +1,25 @@
 ---
-updated: 2026-09-17
+updated: 2026-09-18
 by: lead
 ---
-**Notte 16→17-09 chiusa (13:30).** Report per l'operatore: https://claude.ai/artifact/67FX2ZCpZfx6Vqkvxh6uwu
+**Sessione chiusa il 18-09 alle 00:10.** Macchina libera: motore spento, VGM 48, nessun banco in corso.
 
-**GitHub** `main` = `6050cc4`: PR #1–#5 unite; bozza e tag v0.1.0-rc.1 restano fino alla v0.1.0.
+## Su GitHub (`main` = `9994f6d` più commit locali)
+PR #1–#6 unite. Repo pubblico, percorsi fuori. Bozza e tag `v0.1.0-rc.1` fino alla v0.1.0.
 
-## Risultati
-- **Batteria (M-15)**, compiti riusciti:
-  - G1 (35B): 12/15, 22,4 riusciti per ora;
-  - G3 (Coder-Next): 12/15, 12,1 per ora;
-  - FC (Flash-Coder): 0/15;
-  - FN (Flash-Next): non eseguito, RAM 34,9 GiB invece di 41,3 dopo il riavvio.
-- **Patch int8 coopmat (M-14)**: prefill +3% su G1 e +27/33% su G3; testo a temperatura 0 diverso, perplessità invariata.
+## Chiuso in questa sessione
+- **M-16**: la patch int8 coopmat entra; regola di fedeltà nuova (KL contro i metri ubatch e CPU, non il testo identico); report in `design/int8-coopmat-2026-09`.
+- **Profilo standard G3** su `b10991+moro1` e ubatch 2048, verificato: prefill 281,8 · decode 18,7 (copia `.prima-di-m16`).
+- **M-10 T-09 e M-15 T-06**: i checkpoint non recuperano il riuso dopo una modifica a metà prompt (71% con prompt identico, 0 dopo una divergenza).
 
-## Decisioni dell'operatore
-1. RAM sparita (~6 GiB) oppure VGM 64 per FN e M-15 T-06.
-2. Firma del codice prima della v0.1.0 (Smart App Control).
-3. Patch int8 su G3: regola del testo identico o della perplessità.
-4. Prova della finestra v2 (M-12, gruppo 6b) e merge di `m12-finestra-v2`.
-5. Correggere Nonio (`finish` respinto, virgolette di `cmd /C`), poi batteria con 3 giri.
-6. Sospendere Windows Update nelle notti di banco.
+## Da sapere sulla macchina
+- **Riavviare prima di una sessione di misure**: dopo 12 ore di banchi il decode del denso cala del 13% e il G3 dimezza il prefill.
+- I ~6 GiB delle funzioni AI di Windows sono morbidi: il sistema li restituisce.
+- FN a VGM 48 con `none` fa crescere il file di paging: la batteria su FN si fa a **VGM 64 con mmap**, in una sessione dedicata (circa 2 ore e mezza).
 
-## Da correggere in Aethera
-- Telemetria: compattazioni false all'inizio di ogni compito nuovo.
+## Aperto, per l'operatore
+1. Prova della finestra v2 (M-12 T-10, gruppo 6b), poi merge di `m12-finestra-v2` e parte finestra di M-14 T-07.
+2. Tag `v0.1.0` (M-13 T-07).
+3. Milestone da aprire sul costo fisso di 1,5 s per richiesta (vale per G1 e G3).
+4. Rapporti di chiusura di M-10 (T-13) e M-11 (T-06); profilo G1 con la patch solo dopo il merge upstream.
+5. Commit locali non pubblicati: stato del kit e soglia della batteria.

@@ -1,0 +1,16 @@
+measure = "verifica-g3"
+title = "Profilo standard G3 dopo M-16: si avvia, la riga porta la build del fork e ubatch 2048"
+base = "qwen3-coder-next.q4_k_m.vulkan"
+repetitions = 2
+warmup = 1
+
+[[variant]]
+name = "standard"
+
+[[workload]]
+name = "codice-7k"
+prompt = "../m08/prompt-7k.txt"
+instruction = "Rispondi solo: pronto."
+n_predict = 16
+temperature = 0.0
+seed = 1234
