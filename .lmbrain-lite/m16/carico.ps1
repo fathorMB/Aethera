@@ -33,16 +33,21 @@ $core = [Environment]::ProcessorCount
 $prima = @{}
 Get-Process | ForEach-Object { $prima[$_.Id] = $_.CPU }
 while (-not (Test-Path $StopFile)) {
-    $c = Get-Counter -Counter $contatori -SampleInterval 2 -MaxSamples 1 -ErrorAction SilentlyContinue
+    # CPU, RAM e disco dalle classi CIM (i nomi dei contatori sono localizzati: su Windows in
+    # italiano '\Processor(_Total)\...' non esiste); la GPU con Get-Counter, che risponde in inglese.
     $v = @{}
-    if ($c) {
-        foreach ($s in $c.CounterSamples) {
-            $k = ($s.Path -split '\\')[-1]
-            if (-not $v.ContainsKey($k)) { $v[$k] = 0 }
-            $v[$k] += $s.CookedValue
-        }
-    }
-    Start-Sleep -Seconds ([Math]::Max(1, $Secondi - 2))
+    try {
+        $v['% processor time'] = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor -Filter "Name='_Total'").PercentProcessorTime
+        $v['available mbytes'] = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory).AvailableMBytes
+        $d = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'"
+        $v['disk read bytes/sec'] = $d.DiskReadBytesPersec
+        $v['disk write bytes/sec'] = $d.DiskWriteBytesPersec
+    } catch { }
+    try {
+        $c = Get-Counter -Counter $contatori[1] -MaxSamples 1 -ErrorAction Stop
+        $v['utilization percentage'] = ($c.CounterSamples | Measure-Object -Property CookedValue -Sum).Sum
+    } catch { }
+    Start-Sleep -Seconds ([Math]::Max(1, $Secondi - 5))
     $ora = @{}
     $delta = @()
     foreach ($p in Get-Process) {
