@@ -328,6 +328,17 @@ def nonio_toml(compito: dict, cfg: dict, ctx: int) -> str:
     )
 
 
+def cancella(cartella: Path) -> None:
+    """rmtree che toglie la sola lettura: gli oggetti di git su Windows la hanno."""
+    import stat
+
+    def rendi_scrivibile(funzione, percorso, _exc):
+        os.chmod(percorso, stat.S_IWRITE)
+        funzione(percorso)
+
+    shutil.rmtree(cartella, onexc=rendi_scrivibile)
+
+
 def git(ws: Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         ["git", "-c", "user.name=m15", "-c", "user.email=m15@localhost", "-c", "core.autocrlf=false", *args],
@@ -497,7 +508,7 @@ def esegui_compito(compito: dict, sigla: str, cfg: dict, pronto: dict | None, pr
     ws = cartelle["lavoro"] / sigla / nome
     art = cartelle["risultati"] / sigla / nome
     if ws.exists():
-        shutil.rmtree(ws, ignore_errors=True)
+        cancella(ws)
     art.mkdir(parents=True, exist_ok=True)
     ctx = (pronto or {}).get("ctx_served") or CTX
     prepara_lavoro(compito, cfg, ws, ctx)
