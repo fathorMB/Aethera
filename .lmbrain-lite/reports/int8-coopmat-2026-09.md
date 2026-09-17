@@ -1,6 +1,6 @@
 # int8 coopmat: fedeltà numerica, ubatch e compiti riusciti
 
-> **M-16, 17-09-2026.** Misure dalle 13:49 alle @@FINE@@, Windows 26200.9457, VGM 48, Smart App
+> **M-16, 17-09-2026.** Misure dalle 13:49 alle 20:37, Windows 26200.9457, VGM 48, Smart App
 > Control spento (ultimi eventi CodeIntegrity 3033/3077 alle 07:46, prima dello spegnimento), driver
 > invariati. Build `b10991+moro0` (tag liscio compilato qui) e `b10991+moro1` (più la PR
 > ggml-org/llama.cpp#27952, commit 8253abef6), le stesse di M-14. Sigle in fondo.
@@ -20,7 +20,12 @@
 - **Cambiare solo l'ubatch cambia già il testo a temperatura 0**, su G1 e G3, spesso allo stesso
   carattere dove diverge la patch. La regola «stesso testo» era mal posta: è riscritta con soglie di
   KLD nel README del fork (sezione 4).
-- **Batteria (un giro):** @@BATTERIA-BREVE@@
+- **Batteria (un giro):** **due giri per configurazione.** G3 con la patch 10 e 10 compiti su 15;
+  il controllo senza patch, stessa base e stesso ubatch, 11 e 10. La differenza è dentro il rumore
+  (fra due giri della stessa configurazione cambiano 1–3 compiti), nessun file protetto è stato
+  toccato e non compaiono cause di fallimento nuove. **Nel lavoro con l'agente il tempo non
+  migliora**: il prefill effettivo passa da 113 a 122 tok/s (+8 %), non +35 %, perché ogni richiesta
+  paga circa 1,5 s fissi e porta solo 314 token nuovi (sezione 3.3)
 - **Un prompt a freddo da 16.822 token** (il prompt fisso di Claude Code) sul G3 passa da circa
   **104 s a 69 s** (−35 s). Sul G1 da 47,8 a 46,1 s.
 
@@ -218,7 +223,96 @@ primo token incerto.
 
 ## 3. Batteria (T-03)
 
-@@BATTERIA@@
+### 3.1 Come
+
+`esegui.py` di M-15 con l'orchestrazione `.lmbrain-lite/m16/batteria.py`, sessioni nuove
+(`int8-1`, `int8-2`), stessi 15 compiti e stessi tetti di `notte-1`, un giro per sessione, Nonio
+`C:\Git\Nonio\target\release\nonio.exe` (lo stesso binario di `notte-1`, invariato dal 15-09).
+
+Due configurazioni, tutte e due su profili di prova (i profili standard non sono toccati):
+- **G3-int8**: `qwen3-coder-next.q4_k_m.vulkan.int8` — `b10991+moro1`, ubatch 2048;
+- **G3-moro0**: `qwen3-coder-next.q4_k_m.vulkan.moro0` — `b10991+moro0`, ubatch 2048.
+
+Il controllo serve perché `notte-1` girava su **b10809 con ubatch 512**: senza di esso la patch non
+si separa dal tag e dall'ubatch.
+
+**Perché due giri.** Nel primo (`int8-1`, la patch per prima) il giro con la patch è andato più
+piano del previsto per 45 minuti: costo marginale del prefill 141–160 tok/s invece dei circa 300
+attesi, mentre il controllo, subito dopo, stava a 225–239. Non si è capito che cosa disturbasse la
+macchina (candidati: la scansione dei 22 GB di file dei logit appena scritti, la coda della corsa
+CPU di T-01). Il secondo giro (`int8-2`) è stato fatto a ordine invertito, senza altro lavoro in
+parallelo e con un registro del carico (`.lmbrain-lite/m16/carico.ps1`,
+`<radice>\m16\carico-int8-2.tsv`): lì la patch dà 281–322 tok/s marginali contro 220–241 del
+controllo, come il banco prevede. I due giri con la patch danno comunque lo stesso punteggio.
+
+### 3.2 Compiti riusciti
+
+| configurazione | giro | riusciti | ore di macchina | al tetto dei turni | file protetti | cause dei fallimenti |
+|---|---|---:|---:|---:|---:|---|
+| `notte-1` (b10809, ubatch 512) | 1 | 12/15 | 0,99 | 9/15 | 0 | tetto turni 2, tetto tempo 1 |
+| G3-moro0 (b10991+moro0, ub 2048) | int8-1 | 11/15 | 1,02 | 6/15 | 0 | test falliti 2, output troncato 1, tetto turni 1 |
+| G3-moro0 | int8-2 | 10/15 | 0,83 | 4/15 | 0 | test falliti 4, tetto turni 1 |
+| **G3-int8** (b10991+moro1, ub 2048) | int8-1 | **10/15** | 0,87 | 4/15 | 0 | test falliti 3, tetto turni 2 |
+| **G3-int8** | int8-2 | **10/15** | 0,99 | 7/15 | 0 | tetto turni 2, test falliti 2, output troncato 1 |
+
+Compito per compito (✓ riuscito, ✗ fallito):
+
+| compito | livello | notte-1 | moro0 1 · 2 | int8 1 · 2 |
+|---|---|---|---|---|
+| rs-durata-en | facile | ✓ | ✓ · ✓ | ✓ · ✓ |
+| py-slug | facile | ✓ | ✓ · ✓ | ✗ · ✗ |
+| ts-giorni | facile | ✗ | ✓ · ✓ | ✓ · ✓ |
+| rs-durata-it | facile | ✓ | ✓ · ✓ | ✓ · ✓ |
+| rs-lru | media | ✓ | ✓ · ✓ | ✓ · ✓ |
+| rs-calc | difficile | ✗ | ✗ · ✗ | ✓ · ✗ |
+| rs-report | media | ✓ | ✓ · ✓ | ✓ · ✓ |
+| py-intervals | media | ✓ | ✗ · ✗ | ✗ · ✓ |
+| py-ledger | difficile | ✓ | ✓ · ✓ | ✗ · ✗ |
+| py-config-en | media | ✓ | ✓ · ✓ | ✓ · ✓ |
+| py-config-it | media | ✓ | ✓ · ✓ | ✓ · ✓ |
+| py-csvreport | media | ✓ | ✓ · ✗ | ✗ · ✓ |
+| ts-eventi-en | media | ✓ | ✗ · ✗ | ✓ · ✗ |
+| ts-eventi-it | media | ✗ | ✗ · ✗ | ✗ · ✗ |
+| ts-carrello | difficile | ✓ | ✓ · ✓ | ✓ · ✓ |
+
+**Come leggerlo.**
+- **Il rumore è grande.** Fra i due giri della *stessa* configurazione cambiano 1 compito (moro0) e
+  4 compiti (int8): il campionamento del G3 è a temperatura 1,0. Nove compiti su quindici danno lo
+  stesso esito in tutti e quattro i giri.
+- **La patch non fa perdere compiti in modo riconoscibile**: 10 e 10 contro 11 e 10. La soglia della
+  regola (riferimento − 2, cioè ≥ 9) è rispettata in tutti e due i giri.
+- **Le cause sono quelle già note di M-15**: test nascosti falliti e tetto dei turni. Nessun file
+  protetto toccato in nessun giro. Gli errori si ripetono fra configurazioni: py-slug fallisce con
+  la patch per lo stesso `slugify("Straße")` → `stra-e` che in `notte-1` aveva sbagliato il G1;
+  ts-eventi-it fallisce in tutti e quattro i giri.
+- **Due compiti (py-slug e py-ledger) falliscono in tutti e due i giri con la patch e riescono in
+  tutti e due senza.** Le cause però sono diverse ogni volta, e sono quelle dell'harness: in
+  `int8-1` un test nascosto (`slugify("Straße")`) e turni finiti a inseguire `python -c`; in
+  `int8-2` il tetto dei turni con un `python` rimasto appeso 300 s e, su py-ledger, trenta turni di
+  `apply_patch` con diff illeggibili. Non c'è un filo numerico: con due giri per configurazione non
+  si distingue da una coincidenza, e per dirlo servirebbero più giri (pass^k).
+- **`notte-1` a 12/15 sta sopra tutti**, ma è un giro solo, su un altro tag e un altro ubatch:
+  con questo rumore non se ne ricava niente.
+- `solo_motore_locale` è vero in tutte le 60 righe nuove: nessuna ricaduta sul cloud.
+
+### 3.3 Perché il tempo non migliora
+
+| configurazione | giro | richieste | token elaborati (per richiesta) | prefill | prefill effettivo | costo fisso per richiesta | costo marginale |
+|---|---|---:|---:|---:|---:|---:|---:|
+| G3-moro0 | int8-2 | 239 | 80.474 (337) | 713 s (24 %) | 113 tok/s | ~1,5 s | 4,2–4,6 ms/token (220–241 tok/s) |
+| G3-int8 | int8-2 | 241 | 75.744 (314) | 620 s (17 %) | 122 tok/s | ~1,5 s | 3,1–3,6 ms/token (281–322 tok/s) |
+
+Con l'agente il motore vede **tante richieste piccole**: la mediana è sotto i 60 token nuovi, e solo
+una decina per giro supera i mille. Ogni richiesta paga un costo fisso di circa **1,5 secondi**
+(misurato con una regressione di `prompt_ms` su `prompt_n`; a 22 token nuovi il server dichiara
+1.520 ms, cioè 69 ms per token), che la patch non tocca: su 240 richieste sono circa 6 minuti per
+giro, metà del tempo di prefill.
+
+Il costo fisso non è spiegato dal log a verbosità 3. Il candidato è il salvataggio e il ripristino
+dei checkpoint dello stato ricorrente dei modelli ibridi (M-15, sezione 6). **Vale anche per il
+G1**: nell'avvio di `notte-1` è 1,45 s per richiesta, con un costo marginale di 2,3–2,4 ms/token.
+È il numero più grande trovato qui dopo il prefill a freddo, e merita un milestone suo: vale per
+ogni sessione con un agente, con o senza patch.
 
 ## 4. La regola (T-04)
 
@@ -247,14 +341,36 @@ Riscritta in `.lmbrain-lite/fork/README.md`, sezione «Regola di fedeltà»:
 | KLD 99 % | 0,066 ≤ 0,20 ✓ | 0,113 ≤ 0,165 ✓ |
 | KLD massima | 12,2: zona fragile, anche la CPU diverge, NLL della patch migliore ✓ | 3,7: token incerto, NLL della zona uguale alla base (1,018 contro 1,015). Non c'è CPU: ✓ con riserva |
 | stesso primo token | 97,9 % ≥ 96,5 % ✓ | 97,1 % ≥ 96,2 % ✓ |
-| batteria | non eseguita: l'ubatch del profilo non cambia (T-03) | @@BATTERIA-SOGLIA@@ |
+| batteria | non eseguita: l'ubatch del profilo non cambia (T-03) | 10/15 e 10/15 contro il riferimento moro0 allo stesso ubatch (11 e 10): ≥ 9 ✓ |
 
 Le note di M-14 vanno aggiornate dalla sessione principale (dal worktree i file del kit non si
 committano): la regola di coerenza di M-14 («stesso testo a temperatura 0») è superata da questa.
 
 ## 5. Verdetto e profili di prova (T-05)
 
-@@VERDETTO@@
+**La patch entra.** `patch/int8-coopmat` (PR ggml-org#27952) resta nella serie `moro1`
+e la serie diventa la base consigliata per il G3.
+
+**Motivi.**
+1. **Fedeltà**: tutte le soglie della regola nuova sono rispettate, su G1 e su G3 (sezione 4). La
+   perplessità migliora di poco su tutti e due; il picco del G1 è spiegato ed è a favore della
+   patch.
+2. **Velocità**: sul G3 il prefill guadagna il 26–33 % a parità di ubatch, e il 50–57 % se si
+   cambia anche l'ubatch (512 → 2048). Sul G1 il 4 %.
+3. **Compiti**: la batteria non peggiora oltre il rumore (sezione 3).
+4. **Costi**: decode, memoria e tempo di caricamento non cambiano; il ramo ribasa senza conflitti.
+
+**Con due riserve, da scrivere accanto al numero:**
+- **Nel lavoro con l'agente il guadagno è piccolo** (+8 % di prefill effettivo, cioè il 2 % del
+  tempo di un compito), perché il prefill degli agenti è fatto di richieste piccole con un costo
+  fisso che la patch non tocca. Il guadagno grande si vede sui **prompt a freddo** (−35 s su 16,8k
+  token, sezione 6): prima richiesta, riaperture, compattazioni.
+- **Sul G1 non conviene di per sé** (+4 %): il profilo di prova del G1 serve solo se si vuole
+  passare comunque a b10991.
+
+**Che cosa resta della regola di M-14.** La frase «una patch che cambia le risposte più di quanto il
+backend cambi da solo non entra» resta, ma «di quanto il backend cambi da solo» ora si misura con
+l'ubatch e con un altro backend, non con l'uguaglianza del testo.
 
 ### moro-ai
 
@@ -357,7 +473,24 @@ risposta precedente (M-08 T-14: sul G1 a 7k, 16,4 s invece di 6 per turno).
 
 ## 7. Cosa resta all'operatore
 
-@@RESTA@@
+1. **Decidere sui profili standard.** I profili di prova sono pronti e misurati; i
+   comandi per quelli standard sono nella sezione 5. Consiglio: G3 sì (build e ubatch), G1 no per
+   ora.
+2. **Revisione e merge del branch `m16-int8-coopmat`.** Niente push: il branch è solo locale.
+3. **Note del milestone.** Dalla sessione principale: riportare nelle note di M-14 e M-16 che la
+   regola di coerenza è cambiata (il testo identico a temperatura 0 non è più un requisito) e che
+   `moro-ai` contiene la patch.
+4. **Sorvegliare la PR #27952**: quando viene fusa, seguire i sette passi della sezione 5. La testa
+   della PR è già stata ribasata su un master che divide `ggml-vulkan.cpp`: il ramo locale va
+   ripreso dalla PR prima del prossimo tag.
+5. **Il costo fisso di 1,5 s per richiesta** (sezione 3.3) merita un milestone suo: vale per il G1 e
+   per il G3, in ogni sessione con un agente.
+6. **Il disturbo del primo giro della batteria** (sezione 3.1) non è stato identificato. Se ricapita,
+   il registro del carico (`carico.ps1`) ora c'è.
+7. **File sulla macchina:** i file dei logit (22 GiB) sono stati cancellati; restano le uscite
+   testuali in `<radice>\m16\`, le righe dei banchi (`T-02a.jsonl`, `T-02b.jsonl`), i risultati
+   delle batterie in `<radice>\m15\risultati\int8-1` e `int8-2`, e i tre profili di prova in
+   `<radice>\profiles` (quello `.moro0` si può cancellare).
 
 ## Sigle
 
