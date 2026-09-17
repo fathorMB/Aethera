@@ -4,6 +4,9 @@ Fasi (ognuna lascia un segno in <radice>/m16/fasi/ e non si ripete):
   kld-g1, kld-g3   T-01: llama-perplexity con --kl-divergence-base sulla base moro0 all'ubatch del
                    profilo, poi --kl-divergence per: la stessa base ripetuta (rumore), la base con un
                    altro ubatch (metro), la patch moro1 all'ubatch del profilo e all'altro ubatch
+  picco            T-01, indagine: i logit di moro1 e della base con l'altro ubatch salvati anche
+                   loro come file «base», poi kld_per_token.py token per token contro la base
+                   (dove cade il massimo di KLD, se è un token solo o un gruppo, che token è)
   t02-g1, t02-g3   T-02: m08_bench con gli scenari T-02a.toml e T-02b.toml (--riprendi)
 
 Opzioni di llama-perplexity come run-T06-perplexity.sh di M-14: prompt congelato da 21k, contesto
@@ -117,6 +120,37 @@ def main() -> int:
                 scrivi(f"{sigla}: file dei logit base {base.stat().st_size / 2**30:.2f} GiB")
         return 0
 
+    def picco() -> int:
+        gguf_py = radice / "src" / "llama.cpp" / "gguf-py"
+        for sigla in ("g1", "g3"):
+            cfg = MODELLI[sigla]
+            modello = pesi_dir() / cfg["pesi"]
+            for nome, serie, ub, bt in (("moro1", "moro1", cfg["ub"], cfg["b"]),
+                                        (f"moro0-ub{cfg['ub_alt']}", "moro0", cfg["ub_alt"], cfg["b_alt"])):
+                dump = out / f"T-01-{sigla}-{nome}.kld"
+                res = out / f"picco-{sigla}-{nome}.txt"
+                fatto = res.is_file() and "Final estimate" in res.read_text(encoding="utf-8", errors="replace")
+                if not (fatto and dump.is_file()):
+                    cmd = [str(build(serie) / "llama-perplexity.exe"), "-m", str(modello),
+                           "-ngl", "999", "-fa", "on", "-c", str(CTX), "-ub", str(ub), "-b", str(bt),
+                           "-ctk", "f16", "-ctv", "f16", "-f", str(PROMPT), "--kl-divergence-base", str(dump)]
+                    attendi()
+                    scrivi(f"picco {sigla} {nome}: salvo i logit · RAM libera {e.ram_libera_gib():.1f} GiB")
+                    with open(res, "w", encoding="utf-8") as fh:
+                        codice = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT).returncode
+                    if codice != 0:
+                        scrivi(f"picco {sigla} {nome}: uscita {codice}")
+                        return codice
+                analisi = out / f"picco-{sigla}-{nome}-per-token.txt"
+                env = {**os.environ, "PYTHONPATH": str(gguf_py), "PYTHONIOENCODING": "utf-8"}
+                with open(analisi, "w", encoding="utf-8") as fh:
+                    codice = subprocess.run(
+                        [sys.executable, str(QUI / "kld_per_token.py"), str(out / f"T-01-{sigla}-base.kld"),
+                         str(dump), "--gguf", str(modello), "--top", "15"],
+                        stdout=fh, stderr=subprocess.STDOUT, env=env).returncode
+                scrivi(f"picco {sigla} {nome}: analisi per token, uscita {codice}")
+        return 0
+
     bench = os.environ.get("AETHERA_M08_BENCH") or str(
         QUI.parents[1] / "src-tauri" / "target" / "release" / "examples" / "m08_bench.exe")
 
@@ -126,7 +160,7 @@ def main() -> int:
             return subprocess.run([bench, str(radice), str(QUI / scenario), "--riprendi"],
                                   stdout=fh, stderr=subprocess.STDOUT).returncode
 
-    sequenza = [("kld-g1", lambda: kld("g1")), ("kld-g3", lambda: kld("g3")),
+    sequenza = [("kld-g1", lambda: kld("g1")), ("kld-g3", lambda: kld("g3")), ("picco", picco),
                 ("t02-g1", lambda: t02("T-02a.toml")), ("t02-g3", lambda: t02("T-02b.toml"))]
     esito = 0
     for nome, fn in sequenza:
