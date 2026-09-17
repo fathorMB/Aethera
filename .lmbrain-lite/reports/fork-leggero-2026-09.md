@@ -290,7 +290,7 @@ dalla sessione principale (dal worktree i file del kit non si committano).
 3. **T-07, parte della finestra (dopo il merge di M-12):**
    - Benchmark: la serie accanto alla build e l'avviso nella fascia di confronto;
    - Impostazioni → Build: la provenienza.
-4. **Revisione e merge** del branch `m14-fork-leggero` (5 commit). Niente push.
+4. **Revisione e merge** del branch `m14-fork-leggero`. Niente push.
 5. **Note del milestone:** riportarci la regola di adozione (T-08) dalla sessione principale.
 6. **Facoltativo:** `llama-bench` di b10809 sul denso 8B, per capire il decode sceso a 14,7–15,2
    (M-08: 16,01).
