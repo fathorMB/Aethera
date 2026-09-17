@@ -23,7 +23,7 @@ generated: true
 | 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | active | 10/11 (1 blocked) | 91% |
 | 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | active | 6/7 | 86% |
 | 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | active | 8/9 (1 blocked) | 89% |
-| 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | active | 3/7 | 43% |
+| 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | active | 5/7 (2 blocked) | 71% |
 
 ## M-01 — Mockup di design della v1
 

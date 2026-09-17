@@ -1,0 +1,10 @@
+{
+  "name": "giorni",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Business-day arithmetic in UTC. Tests: node --test (Node 24 runs .ts directly).",
+  "scripts": {
+    "test": "node --test"
+  }
+}

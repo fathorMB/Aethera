@@ -1,0 +1,325 @@
+{
+  "versione": 1,
+  "congelato_il": "2026-09-17",
+  "nota": "scritto da congela.py; ogni compito è stato provato: fixture che fallisce, soluzione che passa",
+  "compiti": {
+    "rs-durata-en": {
+      "livello": "facile",
+      "lingua": "en",
+      "tipo": "bug",
+      "toolchain": "rust",
+      "max_turni": 12,
+      "max_secondi": 420,
+      "impronte": {
+        "fixture": "496f59dd7cac9019146ab89b65d555a7124f637bb7ffcc9eb8cf28a5586ac910",
+        "nascosti": "189275f7db6f390e1068dadeae5ca39f24353308211d0ce1f745a2992c8fa039",
+        "soluzione": "9a9e006eb8dce929e2e798a9daefe190c89289f1d5cce181700d7c11240c34bf",
+        "enunciato": "97f8dbf7676936b41c21ef86627fe276c7382623e2a88eb96e13eb9f6812f2e7",
+        "verifica": "bf99687fe783bc0d18734011187110506e8aec06917370f69369fdc825fe1bf3"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 3.86
+    },
+    "rs-durata-it": {
+      "livello": "facile",
+      "lingua": "it",
+      "tipo": "bug",
+      "toolchain": "rust",
+      "max_turni": 12,
+      "max_secondi": 420,
+      "impronte": {
+        "fixture": "496f59dd7cac9019146ab89b65d555a7124f637bb7ffcc9eb8cf28a5586ac910",
+        "nascosti": "189275f7db6f390e1068dadeae5ca39f24353308211d0ce1f745a2992c8fa039",
+        "soluzione": "9a9e006eb8dce929e2e798a9daefe190c89289f1d5cce181700d7c11240c34bf",
+        "enunciato": "d8313716e3ff40deddc2271b68e618c0f7c05772ed9cf23e8dd56860561154ab",
+        "verifica": "bf99687fe783bc0d18734011187110506e8aec06917370f69369fdc825fe1bf3"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 4.01
+    },
+    "rs-lru": {
+      "livello": "media",
+      "lingua": "en",
+      "tipo": "funzionalita",
+      "toolchain": "rust",
+      "max_turni": 20,
+      "max_secondi": 900,
+      "impronte": {
+        "fixture": "a4e4bedfdeaf804b80513bb9dfde55ce6efa629c0c96f3a190de58f891dc3d0f",
+        "nascosti": "27df18c689195b1ac4b11f0e301d7a3972c6808b74110eccd57565be78992067",
+        "soluzione": "9791dd883382d8e6c5402ce84c78f5396c603e848cb94e9a27729acbea008a41",
+        "enunciato": "27a53f1733814af22cb796aeddc010fe819ee4462c181bd1ddb3bebc7f4dc44d",
+        "verifica": "bf99687fe783bc0d18734011187110506e8aec06917370f69369fdc825fe1bf3"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 5.68
+    },
+    "rs-calc": {
+      "livello": "difficile",
+      "lingua": "en",
+      "tipo": "bug-multifile",
+      "toolchain": "rust",
+      "max_turni": 30,
+      "max_secondi": 1200,
+      "impronte": {
+        "fixture": "d75ddb2b1ef37b5db8a1c253ab193358cbf79d42b8a6653c34220381c2a7d86c",
+        "nascosti": "d41cccf5bd8835c134f27772bcbed873d2e229e4406778782d724acfe70977c1",
+        "soluzione": "d69509d1d79d5f6cfb12f83c8bfd96d11d69e36fe46e934d7c10a088a4d88efc",
+        "enunciato": "bc3e40c9832ff656472d7079bc21f5d3a25c4165216d95a9cfb8fc973cb3edbd",
+        "verifica": "bf99687fe783bc0d18734011187110506e8aec06917370f69369fdc825fe1bf3"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 3.01
+    },
+    "rs-report": {
+      "livello": "media",
+      "lingua": "en",
+      "tipo": "refactoring",
+      "toolchain": "rust",
+      "max_turni": 20,
+      "max_secondi": 900,
+      "impronte": {
+        "fixture": "e603af3959134911f6d996b6c6b80c267ed1c033a61724d056d16231ef6f4442",
+        "nascosti": "32e37653cdc01d3811b731f6f22d06d54f50a6cc32b14eb73224c9f165a2b8d1",
+        "soluzione": "4faaad3fdceceadcd929e1bca50e4f6e45ebff16931bbc6910d2d299e3cfa9dd",
+        "enunciato": "3f6978d50a66b7063efdd87be5fae23a20693e1ba229a0f3f0ba8b4a1f5f7699",
+        "verifica": "07ebd3bf1dedfe8c52208672ea2029aafc61d69348e41ac5c804a5d7cf8d52ad"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 4.47
+    },
+    "py-slug": {
+      "livello": "facile",
+      "lingua": "en",
+      "tipo": "bug",
+      "toolchain": "python",
+      "max_turni": 12,
+      "max_secondi": 420,
+      "impronte": {
+        "fixture": "a64c9e83ce3e8e6fa687f4783ff06356558b2cb6f4b32c3abd23cb352147877d",
+        "nascosti": "fafb077ca438dc984562266ed988be392bd82eab9ecbe9923f9d87fef114a3cf",
+        "soluzione": "479451895417050f8e0738a8a01dea7441015f85a0632f94f9098e1f157e9012",
+        "enunciato": "97b33593bde6258f46c7a1698130a60ce4494039cb2fa2ea8e931ffcdbbfd3b2",
+        "verifica": "28097ea3f9f84ed7f51b7c2eed8d638159c61dff9ba83830c6795e5acda6f6bd"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 1.25
+    },
+    "py-intervals": {
+      "livello": "media",
+      "lingua": "en",
+      "tipo": "funzionalita",
+      "toolchain": "python",
+      "max_turni": 20,
+      "max_secondi": 900,
+      "impronte": {
+        "fixture": "bc0e92b6bdc732277d6cd0d1d0a846793df4787d89745811e48af6962e3c9564",
+        "nascosti": "0a9c2f7ff63676204dfdecf99e3dd0bdbf3661cdbb62babc32fcb8f5c1da5be3",
+        "soluzione": "b131d11bf25d0bffc65d5a6dda4a744f0c58b60094c6e90d0dd5c523f2468cd9",
+        "enunciato": "d969f5e838b28827219050a98363ee4e469f2a57e98c18eefb8db9542ac9643a",
+        "verifica": "28097ea3f9f84ed7f51b7c2eed8d638159c61dff9ba83830c6795e5acda6f6bd"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 1.25
+    },
+    "py-ledger": {
+      "livello": "difficile",
+      "lingua": "en",
+      "tipo": "bug-multifile",
+      "toolchain": "python",
+      "max_turni": 30,
+      "max_secondi": 1200,
+      "impronte": {
+        "fixture": "b8948cd29eda3bd65e7d0a22de26bfa298c0e433736e6cfafd43f9c20e41b004",
+        "nascosti": "ce77bd131d89ff190ff8dd47ad54d160702b7568309b3ac6bd9382fd8c311eb8",
+        "soluzione": "ca2ceb16247cd5fb9d3e12ae287015673f1ae0746294669178d4e2737d5d877c",
+        "enunciato": "c73073a59a09eb184c47ef2daddc35155f025b08fc1a4e726f8840acdc19294e",
+        "verifica": "d8b493186bf8151c04b171e802bffb4de66f4d8b9d18c9b6572c0353336d9535"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "toccare ledger/rates.py fallisce": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 1.26
+    },
+    "py-config-en": {
+      "livello": "media",
+      "lingua": "en",
+      "tipo": "vincolo",
+      "toolchain": "python",
+      "max_turni": 20,
+      "max_secondi": 900,
+      "impronte": {
+        "fixture": "36c5346b34b8ae3f81524271c473fd63c4865ca1c077bcf7c23725281b23c36e",
+        "nascosti": "63f344b8fcb17dc4a13b06db909d7184efb87bfc4093cef31bcfee49d5e33baa",
+        "soluzione": "ddf5c7b38a3985c99454e4e9c07c3c455af6640134a1fb4ffca4aa7593b6ae08",
+        "enunciato": "ecdf7e2db9a5728aea769d252e61f43c30357b2cdafd78ef61989e823d32e1d5",
+        "verifica": "616c229fb6633621f06e44b729b7ff7427bd55b2a84ff7a5889610d197e6e76c"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "toccare legacy/README.md fallisce": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 1.38
+    },
+    "py-config-it": {
+      "livello": "media",
+      "lingua": "it",
+      "tipo": "vincolo",
+      "toolchain": "python",
+      "max_turni": 20,
+      "max_secondi": 900,
+      "impronte": {
+        "fixture": "36c5346b34b8ae3f81524271c473fd63c4865ca1c077bcf7c23725281b23c36e",
+        "nascosti": "63f344b8fcb17dc4a13b06db909d7184efb87bfc4093cef31bcfee49d5e33baa",
+        "soluzione": "ddf5c7b38a3985c99454e4e9c07c3c455af6640134a1fb4ffca4aa7593b6ae08",
+        "enunciato": "0c714aa95dba4f3affd2dffab8ceec2596363611534d2c4e6723f8e63073b14a",
+        "verifica": "616c229fb6633621f06e44b729b7ff7427bd55b2a84ff7a5889610d197e6e76c"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "toccare legacy/README.md fallisce": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 1.81
+    },
+    "py-csvreport": {
+      "livello": "media",
+      "lingua": "en",
+      "tipo": "funzionalita-multifile",
+      "toolchain": "python",
+      "max_turni": 20,
+      "max_secondi": 900,
+      "impronte": {
+        "fixture": "84bf6ae20b3b4b95f754932746c1b6db18786a854c265f7358850b1581ba2c05",
+        "nascosti": "cc0d708415b53da20a0a69c5fd1f9056a70f368ea166483ce2ca172ac27c319b",
+        "soluzione": "2515cf099ce1e5fdfa6d16dcc1e964338d40535020846176e77d7e318fec84ed",
+        "enunciato": "9fe7d331e6611308912012e6b1a5d32b6b02f41b471afdda3c7a44242910d7aa",
+        "verifica": "28097ea3f9f84ed7f51b7c2eed8d638159c61dff9ba83830c6795e5acda6f6bd"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 1.35
+    },
+    "ts-giorni": {
+      "livello": "facile",
+      "lingua": "en",
+      "tipo": "bug",
+      "toolchain": "node",
+      "max_turni": 12,
+      "max_secondi": 420,
+      "impronte": {
+        "fixture": "69c8c1abf552ac1cbad01d617dc9ca074fc98590d77a1d1ae13611b8e236d31f",
+        "nascosti": "fe98097a442048e52410b66c1b1c00bc65db1473063ab08f90e18f328310e801",
+        "soluzione": "bcf01df9236921bcb9eae2aeb316da428276f386c81bb199efa09755afb0a7e0",
+        "enunciato": "7caa9cf7bcc7cf6f5dfe0597d77aae8e3705922799b1d1b2d373630a1ec853fd",
+        "verifica": "60e493faf9a84c07d4bbfc132014e18e7d7b67b380ae2e51018bc09b7084121b"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 0.3
+    },
+    "ts-eventi-en": {
+      "livello": "media",
+      "lingua": "en",
+      "tipo": "funzionalita",
+      "toolchain": "node",
+      "max_turni": 20,
+      "max_secondi": 900,
+      "impronte": {
+        "fixture": "bc6f5294acfc049500c760117f05d45c7939b3e3eb5588f737b5465e3deb99b6",
+        "nascosti": "e2c9c4fa4dbbd8cba73e649e65856dd187407206c0488f70b3b0f7d53dfac216",
+        "soluzione": "0b5bdd8d5dd82686da8615101bd482838da620832de287311d72e5071c0eafe1",
+        "enunciato": "59f7f4ddf1785bb1965dcc42b3be8695133206df6e1f5d131fdcdc1efb008c8a",
+        "verifica": "60e493faf9a84c07d4bbfc132014e18e7d7b67b380ae2e51018bc09b7084121b"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 0.3
+    },
+    "ts-eventi-it": {
+      "livello": "media",
+      "lingua": "it",
+      "tipo": "funzionalita",
+      "toolchain": "node",
+      "max_turni": 20,
+      "max_secondi": 900,
+      "impronte": {
+        "fixture": "bc6f5294acfc049500c760117f05d45c7939b3e3eb5588f737b5465e3deb99b6",
+        "nascosti": "e2c9c4fa4dbbd8cba73e649e65856dd187407206c0488f70b3b0f7d53dfac216",
+        "soluzione": "0b5bdd8d5dd82686da8615101bd482838da620832de287311d72e5071c0eafe1",
+        "enunciato": "f64c1af27a88da73fc423c871f386a81987137b5493dfe13e3f91225c92b6ad2",
+        "verifica": "60e493faf9a84c07d4bbfc132014e18e7d7b67b380ae2e51018bc09b7084121b"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 0.3
+    },
+    "ts-carrello": {
+      "livello": "difficile",
+      "lingua": "en",
+      "tipo": "bug-multifile",
+      "toolchain": "node",
+      "max_turni": 30,
+      "max_secondi": 1200,
+      "impronte": {
+        "fixture": "2a4cd292a0bc2f2951ee5d8eee7f54dbf3fdfce6759d78850a3adf7bb283af24",
+        "nascosti": "840a4008e0cb9188fd3b4f29e28a95e796a6145126b18b3cc92025d80d1add68",
+        "soluzione": "bf4bd2b1d47d000b1dc44e59729510a8d3ff2e5237112643a9ded02873f0b565",
+        "enunciato": "0b7da0ba8ca41583da70b7a2c3fa2077e1bbab8ce179f74a1deeb80650bb2df9",
+        "verifica": "60e493faf9a84c07d4bbfc132014e18e7d7b67b380ae2e51018bc09b7084121b"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 0.32
+    }
+  }
+}

@@ -1,0 +1,39 @@
+measure = "T-06"
+title = "Flash-Next IQ3_XXS a VGM 48 (load_mode none): riuso del prefisso in quattro turni con i checkpoint dello stato ricorrente (M-15 T-06, per M-10 T-09)"
+base = "qwen3.8-flash-next.iq3_xxs.vulkan"
+repetitions = 2
+warmup = 1
+
+# Lo scenario di M-10 T-09, a VGM 48 invece che 64 e con load_mode none (quello del profilo) invece
+# di mmap. La prompt cache in RAM è spenta in tutte e due le varianti: a VGM 48 restano 2-3 GiB di
+# RAM e un'entrata vale 0,5-0,6 GiB a 7k (log dell'avvio di M-10 T-09).
+#
+# Attesa dal sorgente di b10991 (server-context.cpp): a metà prompt si crea un checkpoint solo
+# all'inizio di un messaggio utente, e /completion non ne ha; alla fine del prompt se ne creano due,
+# a n-4-ubatch e a n-4. `--checkpoint-min-step` regola solo la distanza fra checkpoint sui messaggi
+# utente, quindi qui non dovrebbe cambiare niente: la prova lo verifica.
+
+[[variant]]
+name = "base-48"
+note = "riga del profilo; ctx-checkpoints 32 e checkpoint-min-step 8192 di default della build; cache-ram 0"
+[variant.cache]
+cache_ram = 0
+
+[[variant]]
+name = "checkpoint"
+note = "--ctx-checkpoints 16 --checkpoint-min-step 0 --cache-ram 0"
+[variant.cache]
+ctx_checkpoints = 16
+checkpoint_min_step = 0
+cache_ram = 0
+
+[[workload]]
+name = "turni-7k"
+kind = "turns"
+prompt = "../m10/prompt-7k.txt"
+turns = 4
+divergence_at = 0.5
+instruction = "Leggi il codice qui sopra. Elenca in italiano, in non piu' di dieci righe, le tre funzioni piu' a rischio di regressione e perche'."
+n_predict = 128
+temperature = 0.0
+seed = 1234
