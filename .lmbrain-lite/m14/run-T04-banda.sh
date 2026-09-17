@@ -24,7 +24,7 @@ DENSE="$MODELS/Qwen3-8B-Q4_K_M.gguf"
 MOE="$MODELS/Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf"
 
 free_gib() {
-  powershell.exe -NoProfile -Command "[math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1MB,1)" | tr -d '\r'
+  powershell.exe -NoProfile -Command "[math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1MB,1)" | tr -d '\r' | tr ',' '.'
 }
 
 bench() { # nome cartella modello
@@ -39,7 +39,13 @@ bench() { # nome cartella modello
   tail -3 "$OUT/$PREFIX-$name.jsonl" | sed -E 's/.*"n_prompt": ([0-9]+), "n_gen": ([0-9]+).*"avg_ts": ([0-9.]+), "stddev_ts": ([0-9.]+).*/  p\1 g\2: \3 ± \4 tok\/s/'
 }
 
-for m in "$DENSE" "$MOE"; do
+# MODELLI=moe (o denso) per ripetere un modello solo, per esempio a ordine invertito.
+case "${MODELLI:-tutti}" in
+  denso) LIST=("$DENSE") ;;
+  moe) LIST=("$MOE") ;;
+  *) LIST=("$DENSE" "$MOE") ;;
+esac
+for m in "${LIST[@]}"; do
   bench "$NAME_A" "$BUILD_A" "$m"
   bench "$NAME_B" "$BUILD_B" "$m"
 done

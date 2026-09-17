@@ -1,0 +1,48 @@
+# M-14 T-06a — la patch int8 coopmat (serie moro1) contro il tag liscio compilato qui (moro0),
+# sul 35B G1 (draft-mtp 3, ubatch 4096). Una variabile: la patch. Stesso compilatore, stesse
+# opzioni, stesso tag b10991.
+# Disegno A-B-A: moro0, moro1, di nuovo moro0. La seconda moro0 dà la divergenza base-contro-base
+# del testo e la deriva della macchina durante la misura.
+# Il profilo standard non si tocca: la build si sceglie variante per variante.
+# Temperatura 0 e seme fisso; il nonce è lo stesso per tutte le varianti allo stesso giro
+# (fixed_nonce), così il testo del giro n si confronta fra le build.
+measure = "T-06a"
+title = "int8 coopmat (PR #27952) su b10991: 35B G1"
+base = "qwen3.6-35b-a3b.q4_k_m.vulkan"
+repetitions = 5
+warmup = 1
+
+[[variant]]
+name = "moro0"
+note = "b10991 liscio compilato con build.ps1"
+build = "b10991+moro0"
+
+[[variant]]
+name = "moro1"
+note = "b10991 + patch/int8-coopmat (PR #27952 ribasata)"
+build = "b10991+moro1"
+
+[[variant]]
+name = "moro0-bis"
+note = "ripetizione della base: rumore e deriva"
+build = "b10991+moro0"
+
+[[workload]]
+name = "codice-7k"
+prompt = "../m08/prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.0
+seed = 1234
+fixed_nonce = true
+save_text = true
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "../m08/prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.0
+seed = 1234
+fixed_nonce = true
+save_text = true
