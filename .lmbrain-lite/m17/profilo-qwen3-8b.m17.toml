@@ -1,0 +1,40 @@
+# M-17 — profilo di prova: il denso 8B come metro non ibrido del costo fisso per richiesta.
+# Da copiare in <radice>\profiles\qwen3-8b.q4_k_m.vulkan.m17.toml.
+schema_version = 1
+name = "qwen3-8b.q4_k_m.vulkan.m17"
+notes = "M-17 T-02: metro non ibrido (solo attenzione, denso). Profilo di prova, non per l'uso."
+
+[model]
+file = "Qwen3-8B-Q4_K_M.gguf"
+size_gb = 5.03
+quant = "Q4_K_M"
+
+[runtime]
+kind = "llama.cpp"
+backend = "vulkan"
+build = "b10991+moro1"
+
+[server]
+host = "127.0.0.1"
+port = 8080
+ctx = 32768
+n_parallel = 1
+n_gpu_layers = 999
+flash_attn = "on"
+cache_type_k = "f16"
+cache_type_v = "f16"
+ubatch = 2048
+batch = 2048
+load_mode = "auto"
+metrics = true
+jinja = true
+slot_save = true
+
+[speculative]
+type = "none"
+
+[cache]
+
+[client]
+context_window = 28672
+reserved_output_tokens = 4096

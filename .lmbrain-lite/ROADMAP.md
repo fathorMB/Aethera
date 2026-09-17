@@ -14,17 +14,19 @@ generated: true
 | 3 | M-03 | Memoria misurata, telemetria, stato «in uso» ed endpoint Aethera | done | 11/11 | 100% |
 | 4 | M-04 | Catalogo: metadati GGUF, stima di memoria, verifica e download di pesi e build | done | 10/10 | 100% |
 | 5 | M-05 | Uso quotidiano senza toccare i file a mano | done | 8/8 | 100% |
-| 6 | M-06 | Comportamento quando qualcosa va storto | active | 8/9 (1 blocked) | 89% |
-| 7 | M-07 | Confezionamento, prima esecuzione e documentazione | active | 5/7 (2 blocked) | 71% |
+| 6 | M-06 | Comportamento quando qualcosa va storto | done | 9/9 | 100% |
+| 7 | M-07 | Confezionamento, prima esecuzione e documentazione | active | 6/7 (1 blocked) | 86% |
 | 8 | M-08 | Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU | done | 14/14 | 100% |
-| 9 | M-09 | Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove | active | 10/11 (1 blocked) | 91% |
+| 9 | M-09 | Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove | done | 11/11 | 100% |
 | 10 | M-10 | Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD | active | 7/13 | 54% |
 | 11 | M-11 | Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48 | active | 3/6 | 50% |
 | 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | active | 10/11 (1 blocked) | 91% |
 | 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | active | 6/7 | 86% |
 | 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | active | 8/9 (1 blocked) | 89% |
 | 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | active | 6/7 (1 blocked) | 86% |
-| 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | active | 6/6 | 100% |
+| 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | done | 6/6 | 100% |
+| 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | active | 0/8 | 0% |
+| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | approved | 0/13 | 0% |
 
 ## M-01 — Mockup di design della v1
 
@@ -63,7 +65,7 @@ generated: true
 
 ## M-06 — Comportamento quando qualcosa va storto
 
-- `status`: active
+- `status`: done
 - `priority`: 6
 - `file`: milestones/M-06.md
 - `outcome`: Ogni guasto prevedibile dà un messaggio leggibile che dice cosa è successo e cosa fare, senza perdere dati né lasciare Aethera in uno stato ambiguo: file di configurazione illeggibili, pesi o build spariti, disco pieno, rete caduta, motore che esce con errore, app chiusa con un lavoro in corso.
@@ -84,7 +86,7 @@ generated: true
 
 ## M-09 — Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove
 
-- `status`: active
+- `status`: done
 - `priority`: 9
 - `file`: milestones/M-09.md
 - `outcome`: L'operatore vede nella finestra quello che M-08 ha dovuto ricavare a mano. Ogni avvio registra le condizioni che cambiano i numeri: versione dei driver GPU e NPU, profilo energetico, VGM, disco dei pesi. La pagina Motore mostra, richiesta per richiesta, quanta parte del prompt il motore ha riusato e quando un client ha compattato la conversazione. I profili standard e lo schema contengono le leve misurate, senza nasconderle in extra_args. Claude Code funziona contro il motore locale con Qwen3.6 senza passaggi manuali.
@@ -133,8 +135,22 @@ generated: true
 
 ## M-16 — Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti
 
-- `status`: active
+- `status`: done
 - `priority`: 16
 - `file`: milestones/M-16.md
 - `outcome`: Si decide con misure se la patch int8 coopmat (PR ggml-org#27952, build b10991+moro1) entra nel fork e in un profilo: la fedeltà numerica è misurata con divergenza KL e token identici contro la base, e confrontata con quanto cambia la base stessa cambiando solo l'ubatch; si conosce la combinazione migliore di patch e ubatch per G1 e G3; la batteria di M-15 dice se i compiti riusciti restano gli stessi; la regola di coerenza del fork è riscritta su queste basi.
+
+## M-17 — Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera
+
+- `status`: active
+- `priority`: 17
+- `file`: milestones/M-17.md
+- `outcome`: Si sa da quale fase del motore vengono gli ~1,5 s che ogni richiesta di un agente paga prima del primo token nuovo su G1 e G3 (metà del tempo di prefill della batteria, circa 6 minuti per giro), con una misura riproducibile fuori dalla batteria; per ogni leva provata c'è un numero e un verdetto, e se una leva regge c'è un profilo di prova pronto. I profili standard e il codice di Aethera non si toccano: li decide l'operatore sul rapporto.
+
+## M-18 — Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina
+
+- `status`: approved
+- `priority`: 18
+- `file`: milestones/M-18.md
+- `outcome`: Per la Minisforum usata come server dedicato all'agente di coding (consumi e altri usi non contano) si sa quale configurazione rende di più: una frontiera misurata con la batteria di M-15 — compiti riusciti e compiti riusciti per ora di macchina — su modello, quant, thinking, VGM e leve del motore, con il rumore fra giri dichiarato. Alla fine ci sono due profili consigliati, «veloce» e «intelligente», e l'elenco delle impostazioni della macchina che li reggono. I profili standard li cambia l'operatore sul rapporto.
 
