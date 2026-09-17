@@ -1,8 +1,24 @@
 # Batteria di coding agentico: quale modello lavora meglio su questa macchina
 
-> **M-15, notte del 17-09-2026.** Stato: RISULTATI_STATO
+> **M-15, 17-09-2026.** Misure fra le 09:45 e le 13:13, dopo il riavvio di Windows Update delle 02:33
+> (Windows 26200.9457, KB5129195), VGM 48, driver GPU invariati. Batteria eseguita con tre modelli su
+> quattro: Flash-Next non è partito, perché la RAM non basta più (sezione 5). Sigle in fondo.
 
-RIASSUNTO
+**In breve.**
+- **G1 e G3 risolvono 12 compiti su 15 ciascuno**, ma G1 lo fa in metà del tempo: 22,4 compiti
+  riusciti per ora di macchina contro 12,1. Per il coding quotidiano con Nonio il profilo da usare
+  resta G1 (sezione 4).
+- **FC non ne risolve nessuno** in 106 minuti. Scrive patch che non sono diff validi (fino a 19
+  tentativi uguali di fila), lancia comandi che restano appesi, risponde senza chiamare strumenti.
+  Come modello di coding con un agente, qui non vale.
+- **Più della metà dei compiti arriva al tetto dei turni anche quando è già risolta.** Le cause
+  stanno nell'harness, non nei modelli, e valgono per tutti allo stesso modo (sezione 3):
+  - Nonio respinge sempre il primo `finish` («una revisione prima»);
+  - il suo `run_shell` su Windows rompe ogni comando con le virgolette doppie.
+
+  Il tempo per compito è quindi gonfiato, per tutti i modelli nella stessa misura.
+- **Il riuso del prefisso di M-10 T-09 è spiegato dal codice**, ma la prova non si è potuta fare:
+  Flash-Next a VGM 48 non ci sta più in RAM (sezione 6).
 
 ## 1. Perché una batteria scritta qui (T-01)
 
@@ -118,7 +134,213 @@ verifiche di Nonio, motivo della fine) accompagna ogni riga.
 - Flash-Next con prompt cache spenta e 8 checkpoint (vedi sezione 6);
 - il template tollerante di Claude Code non serve a Nonio e non è stato usato.
 
-RISULTATI
+**Validazione del runner (T-04).** Su G1, motore acceso (avvii `r-20260917-094453` e
+`r-20260917-131307`), tre compiti (rs-durata-en, py-slug, ts-giorni):
+- il fixture non toccato fallisce tutti e tre, con causa «nessuna_modifica»;
+- la soluzione di riferimento li passa tutti e tre;
+- gli stessi tre compiti con Nonio danno righe complete: ogni campo è misurato, oppure è `null`
+  dove non ha senso (per esempio i campi di Nonio con l'agente spento).
+
+In tutte le 45 righe con Nonio `solo_motore_locale` è vero:
+- il modello che ha risposto è quello acceso da Aethera;
+- le richieste contate da Nonio sono arrivate tutte al motore, con il lock `nonio`.
+
+Nessuna ricaduta sul cloud. Senza motore, poi, Nonio si ferma con un errore d'infrastruttura
+(`nonio doctor`: «cannot reach the engine»).
+
+## 3. Risultati (T-05)
+
+Sessione `notte-1`, un giro per modello. Righe in `<radice>/m15/risultati/notte-1/risultati.jsonl`;
+le tabelle si rifanno con `python analizza.py <jsonl>`.
+
+| modello | avvio | riusciti | ore di macchina | **riusciti per ora** | secondi per compito riuscito | turni (mediana) | decode (mediana) | riuso del prefisso |
+|---|---|---|---|---|---|---|---|---|
+| **G1** | r-20260917-094858 (b10809, MTP) | **12/15** | 0,53 | **22,4** | 160 | 20 | 33,5 tok/s | 96,2% |
+| **G3** | r-20260917-121215 (b10809) | **12/15** | 0,99 | **12,1** | 296 | 20 | 19,9 tok/s | 94,2% |
+| **FC** | r-20260917-102533 (b10991) | **0/15** | 1,76 | **0** | — | 20 | 11,9 tok/s | 94,8% |
+| FN | non avviato | — | — | — | — | — | — | — |
+
+Come leggere la tabella:
+- **Ore di macchina**: la somma dei tempi dei compiti. Il caricamento del modello sta a parte:
+  7 s per G1 (pesi già in cache), 19 s per FC, 34 s per G3.
+- **Secondi per compito riuscito**: le ore di macchina divise per i compiti riusciti.
+- **Riuso del prefisso**: token riusati diviso token di prompt, letti dalla telemetria di Aethera.
+  Con Nonio la cronologia cresce solo in coda, quindi anche G3, che è ibrido, riusa il 94%.
+
+**Per livello.** G1 e G3 hanno lo stesso profilo:
+- facili 3/4;
+- medi 7/8;
+- difficili 2/3.
+
+FC è a 0 in tutti e tre.
+
+| compito | livello | G1 | G3 | FC |
+|---|---|---|---|---|
+| rs-durata-en | facile | ✓ 41 s | ✓ 113 s | ✗ 337 s |
+| rs-durata-it | facile | ✓ 80 s | ✓ 113 s | ✗ 663 s |
+| py-slug | facile | ✗ 44 s | ✓ 115 s | ✗ 322 s |
+| ts-giorni | facile | ✓ 76 s | ✗ 104 s | ✗ 8 s |
+| rs-lru | media | ✓ 186 s | ✓ 231 s | ✗ 236 s |
+| rs-report | media | ✓ 89 s | ✓ 125 s | ✗ 462 s |
+| py-intervals | media | ✓ 148 s | ✓ 131 s | ✗ 383 s |
+| py-config-en | media | ✓ 139 s | ✓ 126 s | ✗ 302 s |
+| py-config-it | media | ✓ 83 s | ✓ 161 s | ✗ 314 s |
+| py-csvreport | media | ✓ 123 s | ✓ 218 s | ✗ 21 s |
+| ts-eventi-en | media | ✓ 202 s | ✓ 89 s | ✗ 340 s |
+| ts-eventi-it | media | ✗ 176 s | ✗ 184 s | ✗ 274 s |
+| rs-calc | difficile | ✗ 242 s | ✗ 1293 s | ✗ 1443 s |
+| py-ledger | difficile | ✓ 201 s | ✓ 296 s | ✗ 1217 s |
+| ts-carrello | difficile | ✓ 96 s | ✓ 257 s | ✗ 22 s |
+
+Nessun modello ha toccato un file protetto: né i test, né `ledger/rates.py`, né `legacy/`.
+Il compito «vincolo» (py-config) è quindi passato da G1 e G3 in entrambe le lingue.
+
+### Dove falliscono, con esempi dalle tracce
+
+**G1 (3 fallimenti, tutti di logica o di dettaglio):**
+- *py-slug*: i test visibili passano, uno nascosto no. `slugify("Straße")` dà `stra-e` invece di
+  `strae`: la docstring dice che i caratteri non ASCII che non sono lettere accentate vanno
+  eliminati, e il modello li trasforma in separatori. Ha chiuso in 4 turni senza rileggere la
+  specifica.
+- *rs-calc*: tre correzioni su quattro sono giuste, e lo dice lui stesso nel `finish`. Ma `1.2.3`
+  dà `UnexpectedToken("Num(0.3)")` invece di `BadNumber("1.2.3")`: il lexer si ferma al secondo
+  punto invece di consumare tutto il letterale.
+- *ts-eventi-it*: `once` non toglie la registrazione **prima** di chiamarla, quindi un `emit`
+  rientrante va in ricorsione infinita («Maximum call stack size exceeded»). Nella gemella
+  inglese lo stesso modello l'ha fatto giusto.
+
+**G3 (3 fallimenti):**
+- *rs-calc*: 23 turni e 17.700 token di output ragionando sulle binding power. È l'unica
+  compattazione della notte: la conversazione arriva a 21.134 token contro un tetto di 19.972
+  e Nonio la biforca. Poi scade il tempo, con il lexer ancora sbagliato
+  (`BadNumber("1.2")` invece di `"1.2.3"`).
+- *ts-giorni*: 11 `run_shell` e nessuna modifica. Il modello cerca di far girare TypeScript a mano
+  e finisce i 12 turni.
+- *ts-eventi-it*: lo stesso errore di G1 su `once`. Ha chiuso rispondendo in italiano che «i 4 test
+  passano», senza provare il caso rientrante.
+
+**FC (15 fallimenti, quasi tutti di formato degli strumenti):**
+- **Patch non valide.** In 10 compiti su 15 usa `apply_patch` con diff che non si leggono
+  (`@@` senza numeri, intestazioni come `--- Fixed file appconf/loader.py`, file inventati come
+  `test/sug.py` o `a/python.py`). Ripete lo **stesso** patch rifiutato fino a 19 volte di fila:
+  su py-config-it sono 19 chiamate respinte su 20.
+- **Chiamate scritte nel testo.** In 3 compiti (ts-giorni, py-csvreport, ts-carrello) risponde
+  al primo turno con una chiamata scritta nel testo invece che come chiamata vera
+  (`<function=run_shell> {"command": "cd /workspace && …"}`), con percorsi da Linux, e Nonio
+  chiude.
+- **Comandi appesi.** `python -import subprocess …` resta appeso finché `run_shell` non lo uccide
+  dopo 300 s. Su rs-calc un argomento JSON di 17.955 caratteri tronca il turno. Tre compiti
+  finiscono per tempo.
+- **Ragionamento.** Lo streaming non lo separa: Nonio vede `reasoning_tokens` 0 e un `</think>`
+  nel contenuto. Il modello ragiona pochissimo, come aveva già visto la sonda di M-11 T-02.
+
+**Per tutti: il costo dell'harness.** Su 45 compiti, 26 arrivano al tetto dei turni o del tempo,
+e 15 di questi sono comunque riusciti. Le due cause:
+1. **Nonio respinge il primo `finish`** («Not finished yet: one review first»): 13 volte su G1,
+   9 su G3. Dopo il rifiuto il modello ricomincia a verificare, e di solito lo fa con la shell.
+2. **`run_shell` su Windows rompe le virgolette.** Nonio avvia `cmd /C` passando il comando come
+   argomento quotato alla maniera MSVC (`\"`), che `cmd` non capisce:
+   - `python -c "print('hello')"` esce con 0 e senza output;
+   - un `python -c` su più righe dà «unterminated string literal».
+
+   Riprodotto fuori da Nonio (con la quotatura: nessun output; con la riga grezza: l'output
+   giusto). In più i modelli scrivono comandi da bash (heredoc, `/tmp`, `;`), che `cmd` rifiuta.
+
+   Comandi di shell usciti con codice ≠ 0 (compresi i test che falliscono di proposito):
+   G1 81 su 137, G3 109 su 151. Comandi usciti con 0 e muti: 11 e 4.
+
+   Un caso tipico, G1 su py-config-en:
+   - il compito è risolto al turno 3;
+   - il `finish` del turno 5 viene respinto;
+   - i turni 6–20 se ne vanno a cercare di far stampare qualcosa a `python -c`, mentre il modello
+     scrive «The shell seems to swallow stdout».
+
+   Senza queste due cause il tempo per compito di G1 e G3 sarebbe molto più basso. La
+   classifica non cambia, perché le cause valgono per tutti.
+
+**Costo del ragionamento.**
+- G1 e G3 sono andati a `thinking = false`: 0 token di ragionamento misurati da Nonio. G3 non
+  ha comunque un canale di ragionamento.
+- Il motore ha generato 43.394 token per G1 e 51.518 per G3. Circa 6.600 e 5.500 non si vedono
+  né nel testo né nelle chiamate: è formattazione delle chiamate, non ragionamento, perché
+  G1 non ragionava.
+- Per FC il costo del ragionamento non si può misurare: il canale non arriva separato. Il motore
+  ha generato 46.967 token in 192 turni, 40.329 dei quali sono argomenti di chiamate (le patch
+  rifiutate).
+- Con il decode di FC a 11,9 tok/s, questi token valgono 66 minuti di decode su 106 totali.
+- La prova con `reasoning_effort` low contro medium, chiesta da M-10 T-10, non è stata fatta:
+  medium su FC basta già a dire che il modello non funziona con Nonio, e su FN non si è arrivati.
+
+**Lingua (gemelli en/it).** Su 6 coppie eseguite da G1 e G3:
+- 5 danno lo stesso esito nelle due lingue;
+- 1 no: ts-eventi fallisce in italiano con **entrambi** i modelli e riesce in inglese con
+  entrambi. L'errore è identico (`once` rientrante).
+
+Con un giro solo non si può separare l'effetto della lingua dal caso. L'enunciato italiano rimanda
+ai commenti TODO, che sono in inglese e dicono «removed right before its first call», proprio come
+quello inglese. Da ripetere con più giri prima di concludere. Sui tempi:
+- rs-durata in italiano costa di più (G1 80 s contro 41 s; G3 113 s contro 113 s);
+- py-config in italiano costa meno per G1 (83 s contro 139 s) e di più per G3 (161 s contro 126 s).
+
+Nessuna tendenza chiara.
+
+**Telemetria di Aethera.** La pagina Motore conterebbe 11, 10 e 15 «compattazioni» nei tre avvii,
+ma Nonio ne ha fatta una sola. La classificazione per richiesta (`telemetry::classify`) scambia
+l'inizio di un compito nuovo, che ha un prompt più corto del precedente con lo stesso prefisso
+fisso, per una conversazione ricostruita. Con un client che apre una sessione nuova per ogni
+compito serve distinguere le due cose, per esempio dal cambio di lock.
+
+## 4. Raccomandazione
+
+- **Coding quotidiano con Nonio: G1 (`qwen3.6-35b-a3b.q4_k_m.vulkan`)**, così com'è nel profilo:
+  b10809, MTP a 3 token, `-ub 4096`, contesto 32k, `thinking = false`, campionamento instruct.
+  Risolve quanto G3, in metà tempo (22 contro 12 compiti per ora), con decode a 33 tok/s grazie
+  a MTP e caricamento in pochi secondi. In più i pesi sono meno della metà della VGM.
+- **G3 (Coder-Next)** vale come secondo parere sui compiti lunghi: ha risolto py-slug, dove G1
+  ha sbagliato. Costa però il doppio del tempo e riempie la VGM (46 GiB). Non è da tenere acceso
+  come modello di tutti i giorni.
+- **FC (Flash-Coder Q4_K_M)** da scartare come modello per agenti con Nonio. M-11 T-05 lo chiude
+  con verdetto negativo; il Q8_0 non è stato provato, e con un formato delle chiamate così
+  sbagliato non c'è motivo di aspettarsi di meglio da una quantizzazione più fine.
+- **Prima di rifare la batteria, conviene sistemare Nonio** (fuori da questo milestone): raw arg
+  per `cmd /C` su Windows e un `finish` che non costi un giro di verifica alla cieca. Poi due o
+  tre giri per modello, per avere pass^k e separare l'effetto della lingua.
+
+**Dati per gli altri milestone:**
+- **M-10 T-10** (G1 con Nonio): G1 fa 12/15 in 0,53 h, cioè 22,4 compiti per ora, con 0 token di
+  ragionamento per turno (`thinking` spento). **Manca FN** e la prova low/medium, quindi il task
+  resta aperto.
+- **M-11 T-05**: FC Q4_K_M fa 0/15 in 1,76 h. Errori di chiamata: 121 respinte su 186 (65%),
+  quasi tutte `apply_patch` non leggibili. In italiano fallisce come in inglese. Il confronto è
+  contro G1 12/15 e G3 12/15. **Mancano FC Q8_0 e FN**; il verdetto su FC Q4_K_M però è netto.
+
+## 5. Flash-Next non eseguito, e perché
+
+**Che cosa è successo:**
+- Il runner ha rifiutato l'avvio di FN alle 13:12: RAM libera 33,9 GiB, sotto i 39 fissati.
+- La soglia è stata alzata dopo che la prova di T-06, alle 10:19, aveva mostrato il problema:
+  - avvio `r-20260917-101913`: IQ3_XXS, `load_mode none`, `--cache-ram 0`, riga del profilo;
+  - pronto in 76 s;
+  - al primo prefill la RAM disponibile scende a **0,05 GiB** e il sorvegliante ferma llama-server.
+
+**Perché la stessa riga del 16-09 non ci sta più:**
+- In M-10 T-04 (16-09, VGM 48, `none`) si partiva da **41,3 GiB** disponibili e si scendeva al
+  minimo a 2,9. Il modello occupa quindi circa 38,4 GiB di RAM: la tabella n-gram in memoria
+  privata, la parte condivisa della GPU e i buffer.
+- Il 17-09, dopo il riavvio di Windows Update, a macchina ferma i GiB disponibili sono **34,9**
+  su 47,6 visibili, e 18,4 GiB sono già impegnati senza nessun motore.
+- Mancano circa 6 GiB, e da qui non si vede dove siano finiti. Nessun processo ne usa più di 1:
+  i candidati sono componenti di sistema dopo KB5129195 o Smart App Control, acceso e poi
+  spento stamattina.
+
+**Che cosa servirebbe per eseguire FN e T-06** (decide l'operatore):
+1. **Ritrovare i ~6 GiB** (RAMMap, commit a vuoto, servizi nuovi dopo l'aggiornamento) e tornare
+   sopra i 39 GiB disponibili: la stessa riga di M-10 T-04 allora ci sta con 2–3 GiB di margine.
+2. **Oppure VGM a 64 con `mmap`** e `--lazy-mode auto`, come in M-10 T-07/T-08/T-09: lì FN girava
+   a 9 tok/s con la tabella n-gram lasciata sul file. Serve il cambio di VGM da Adrenalin e un
+   riavvio: è una scelta dell'operatore, e la VGM ora deve restare a 48.
+3. In entrambi i casi basta rilanciare `python .lmbrain-lite/m15/notte.py --sessione notte-1`:
+   le fasi fatte si saltano, restano t06 e fn.
 
 ## 6. Riuso del prefisso sui modelli ibridi (T-06, per M-10 T-09)
 
@@ -149,9 +371,40 @@ del fork di M-14):
 - **La RAM.** Un'entrata della prompt cache di Flash-Next a 7k pesa 530–640 MiB (log dell'avvio di
   M-10 T-09), e il default di `--cache-ram` è 8 GiB. A VGM 48, con 2–3 GiB liberi, va spenta.
 
-T06_PROVA
+**La prova (non conclusa).**
+- Scenario `.lmbrain-lite/m15/T-06-riuso.toml`: lo scenario di M-10 T-09 con `load_mode none`,
+  `--cache-ram 0` e due varianti, la riga di default (32 checkpoint, passo minimo 8192) e
+  `--ctx-checkpoints 16 --checkpoint-min-step 0`.
+- Fermata dal sorvegliante al primo turno della prima variante, per la RAM (sezione 5). Le righe
+  parziali sono in `<radice>/m15/T-06-fermato-dal-sorvegliante.jsonl` (vuoto) e `T-06.out`.
+- **M-10 T-09 non si chiude.** Dal codice, però, la risposta attesa è già chiara:
+  - sul banco `/completion` nessuna combinazione di flag recupera il riuso dopo una modifica a
+    metà prompt;
+  - con un client a chat che estende la cronologia il riuso c'è già: G3, ibrido anche lui, ha
+    riusato il 94% dei token di prompt con Nonio in questa batteria.
+
+  Per un modello ibrido la domanda utile è «quanto costa una modifica a metà cronologia»,
+  e va misurata con messaggi veri (`/v1/chat/completions` e un messaggio utente dopo la modifica),
+  non con `/completion`.
 
 Fonti: github.com/ggml-org/llama.cpp PR #16391, #20087, #20288, #22929, #26004, #28302; issue #18497,
 #19794, #24055; `tools/server/README.md`. Letti il 17-09-2026.
 
-ALTRO
+## 7. Che cosa resta
+
+| cosa | di chi | come |
+|---|---|---|
+| FN nella batteria e prova T-06 | operatore, poi agente | ritrovare ~6 GiB di RAM (sezione 5) o VGM 64 con mmap; poi `notte.py` riprende da solo |
+| `run_shell` su Windows (quotatura di `cmd /C`) e `finish` respinto alla cieca | Nonio (fuori da M-15) | raw arg su Windows; revisione del `finish` che non costi turni |
+| classificazione delle compattazioni con un client a compiti brevi | Aethera (telemetria) | distinguere un compito nuovo da una conversazione ricostruita |
+| più giri per modello (pass^k, effetto della lingua) | agente | `esegui.py --ripetizioni 3` dopo le correzioni di Nonio |
+| FC Q8_0, `reasoning_effort` low contro medium | facoltativo | solo se FN o un Nonio corretto cambiano il quadro |
+
+## Sigle
+
+| sigla | modello | profilo di Aethera |
+|---|---|---|
+| **G1** | Qwen3.6-35B-A3B, Q4_K_M (bartowski) | `qwen3.6-35b-a3b.q4_k_m.vulkan` |
+| **G3** | Qwen3-Coder-Next, Q4_K_M (unsloth) | `qwen3-coder-next.q4_k_m.vulkan` |
+| **FC** | Qwen3.8-Flash-Coder, Q4_K_M: il taglio «coding» di Jab1718 (160 esperti su 512) | `qwen3.8-flash-coder.q4_k_m.vulkan` |
+| **FN** | Qwen3.8-Flash-Next intero, UD-IQ3_XXS (unsloth) | `qwen3.8-flash-next.iq3_xxs.vulkan` |
