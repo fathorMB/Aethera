@@ -1,0 +1,10 @@
+{
+  "name": "eventi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A typed event emitter. Tests: node --test (Node 24 runs .ts directly).",
+  "scripts": {
+    "test": "node --test"
+  }
+}

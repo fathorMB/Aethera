@@ -1,0 +1,16 @@
+"""Turn a Table into text."""
+
+from decimal import Decimal
+
+
+def money(value):
+    """Two decimals, rounded half-up: Decimal("2.345") -> "2.35"."""
+    return str(value.quantize(Decimal("0.01"), rounding="ROUND_HALF_UP"))
+
+
+def render_text(table):
+    lines = []
+    for g in table.groups:
+        lines.append(f"{g.key:<12} {g.count:>4} {money(g.total):>12}")
+    lines.append(f"{'TOTAL':<12} {sum(g.count for g in table.groups):>4} {money(table.grand_total):>12}")
+    return "\n".join(lines) + "\n"

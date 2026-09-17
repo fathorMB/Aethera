@@ -1,0 +1,247 @@
+# M-15 — Batteria di coding agentico, versione 1 (17-09-2026).
+#
+# Ogni compito è un repository fixture in `fixture/<fixture>` (quello che l'agente vede), più:
+# - `nascosti/<fixture>`: test in più, copiati sopra la copia di lavoro solo al momento della verifica;
+# - `soluzioni/<soluzione>`: file della soluzione di riferimento, usati solo da `congela.py`.
+# L'agente lavora in una copia fuori dal repository e non vede né i test nascosti né le soluzioni.
+#
+# Verifica (verifica.py): i test visibili del fixture vengono rimessi com'erano, i nascosti copiati
+# sopra, poi si eseguono i comandi di `verifica`; i file `protetti` devono avere lo stesso hash del
+# fixture; i `controlli` sono espressioni regolari da contare nei sorgenti. Esito riuscito solo se
+# tutto passa. Gli hash congelati stanno in `congelato.json`, scritto da `congela.py`.
+#
+# Tetti per livello: facile 12 turni / 7 min, media 20 / 15 min, difficile 30 / 20 min.
+# Enunciati in inglese; tre compiti hanno la gemella in italiano (sufisso -it) sullo stesso fixture.
+
+versione = 1
+
+[toolchain.rust]
+verifica = ["cargo test --quiet --offline"]
+protetti = ["Cargo.toml", "tests/**"]
+
+[toolchain.python]
+verifica = ["python -m unittest discover -s tests -t ."]
+protetti = ["tests/**"]
+
+[toolchain.node]
+verifica = ["node --test"]
+protetti = ["package.json", "tests/**"]
+
+[livello.facile]
+max_turni = 12
+max_secondi = 420
+
+[livello.media]
+max_turni = 20
+max_secondi = 900
+
+[livello.difficile]
+max_turni = 30
+max_secondi = 1200
+
+# --------------------------------------------------------------------------------------------
+[[compito]]
+id = "rs-durata-en"
+fixture = "rs-durata"
+soluzione = "rs-durata"
+toolchain = "rust"
+lingua = "en"
+livello = "facile"
+tipo = "bug"
+enunciato = """
+The `durata` crate parses durations such as `1h30m`. Two things are wrong: `parse_duration("1h30m")` returns the wrong number of seconds, and input that ends with digits and no unit (for example `"90"` or `"1h30"`) is accepted instead of returning `DurationError::MissingUnit`. Fix both in the library. The rules are in README.md and in the doc comments.
+Do not modify the existing tests. The task is done when `cargo test` passes.
+"""
+
+[[compito]]
+id = "rs-durata-it"
+fixture = "rs-durata"
+soluzione = "rs-durata"
+toolchain = "rust"
+lingua = "it"
+livello = "facile"
+tipo = "bug"
+enunciato = """
+Il crate `durata` legge durate come `1h30m`. Ci sono due errori: `parse_duration("1h30m")` restituisce un numero di secondi sbagliato, e un testo che finisce con delle cifre senza unità (per esempio `"90"` o `"1h30"`) viene accettato invece di restituire `DurationError::MissingUnit`. Correggi entrambi nella libreria. Le regole sono nel README.md e nei commenti di documentazione.
+Non modificare i test esistenti. Il compito è finito quando `cargo test` passa.
+"""
+
+[[compito]]
+id = "rs-lru"
+fixture = "rs-lru"
+soluzione = "rs-lru"
+toolchain = "rust"
+lingua = "en"
+livello = "media"
+tipo = "funzionalita"
+enunciato = """
+In `src/lib.rs`, `LruCache::get` and `LruCache::put` are still `todo!()`. Implement them following their doc comments and the invariant described at the top of the file (`order` goes from least to most recently used and always holds exactly the keys of `map`). `get` on a missing key returns `None` and changes nothing; capacity zero stores nothing. Keep the public API as it is.
+Do not modify the existing tests. The task is done when `cargo test` passes.
+"""
+
+[[compito]]
+id = "rs-calc"
+fixture = "rs-calc"
+soluzione = "rs-calc"
+toolchain = "rust"
+lingua = "en"
+livello = "difficile"
+tipo = "bug-multifile"
+enunciato = """
+The `calc` evaluator does not follow the grammar in README.md: `2 ^ 3 ^ 2` should be 512, `-2 ^ 2` should be -4, `2 ^ -1` should be 0.5, and decimal literals such as `1.5` and `.5` are rejected. A literal with two dots such as `1.2.3` must give `CalcError::BadNumber("1.2.3")`. The causes are spread over the lexer and the parser. Fix them without changing the public API.
+Do not modify the existing tests. The task is done when `cargo test` passes.
+"""
+
+[[compito]]
+id = "rs-report"
+fixture = "rs-report"
+soluzione = "rs-report"
+toolchain = "rust"
+lingua = "en"
+livello = "media"
+tipo = "refactoring"
+enunciato = """
+`render_sales` and `render_expenses` in `src/lib.rs` duplicate the code that formats one line. Refactor: add `pub fn format_row(label: &str, cents: i64) -> String`, which returns one line exactly as the reports print it today (label padded to 20 columns, amount right-aligned in 10 with two decimals and a leading `-` when negative, then a newline), and make both reports use it for every line, TOTAL included. The output of both reports must not change. When you are done, the label padding `{:<20}` and the cents formatting `% 100` must each appear exactly once in `src/`.
+Do not modify the existing tests. The task is done when `cargo test` passes.
+"""
+[[compito.controlli]]
+glob = "src/**/*.rs"
+regex = ':<20'
+conteggio = 1
+[[compito.controlli]]
+glob = "src/**/*.rs"
+regex = '%\s*100'
+conteggio = 1
+
+[[compito]]
+id = "py-slug"
+fixture = "py-slug"
+soluzione = "py-slug"
+toolchain = "python"
+lingua = "en"
+livello = "facile"
+tipo = "bug"
+enunciato = """
+`textkit.slugify` does not do what its docstring says: accented letters are dropped instead of losing their accent ("Café au lait" must become "cafe-au-lait"), runs of symbols produce several separators, and `max_len` can leave a separator at the end. Fix `slugify` so that it follows its docstring exactly, for any `sep`. Use only the standard library.
+Do not modify the existing tests. The task is done when `python -m unittest discover -s tests -t .` passes.
+"""
+
+[[compito]]
+id = "py-intervals"
+fixture = "py-intervals"
+soluzione = "py-intervals"
+toolchain = "python"
+lingua = "en"
+livello = "media"
+tipo = "funzionalita"
+enunciato = """
+Implement `merge`, `total_length` and `gaps` in `intervals.py`, following the module and function docstrings (half-open intervals, touching intervals are joined, empty ones dropped, invalid ones raise ValueError). Intervals may be given as tuples or as two-element lists; the functions always return lists of tuples. `total_length` also raises ValueError on an invalid interval.
+Do not modify the existing tests. The task is done when `python -m unittest discover -s tests -t .` passes.
+"""
+
+[[compito]]
+id = "py-ledger"
+fixture = "py-ledger"
+soluzione = "py-ledger"
+toolchain = "python"
+lingua = "en"
+livello = "difficile"
+tipo = "bug-multifile"
+enunciato = """
+The `ledger` package has several bugs around currency conversion. `convert` must round the exact result to the nearest cent with halves away from zero (it currently uses floats and `round`), must return an int, and must raise `UnknownCurrency` for a currency code that is not in the rate table, on either side. Transfers between accounts in different currencies credit the wrong amount, and a refused transfer must leave both accounts and their histories unchanged. Read the docstrings in `ledger/` for the exact rules.
+`ledger/rates.py` is vendored data: do not modify it. Do not modify the existing tests. The task is done when `python -m unittest discover -s tests -t .` passes.
+"""
+protetti = ["ledger/rates.py"]
+
+[[compito]]
+id = "py-config-en"
+fixture = "py-config"
+soluzione = "py-config"
+toolchain = "python"
+lingua = "en"
+livello = "media"
+tipo = "vincolo"
+enunciato = """
+`appconf.load` reads boolean settings wrongly: `APP_DEBUG=false` turns debugging on. Make `appconf` follow the rules in the docstring of `appconf/loader.py` (accepted spellings for true and false; anything else raises `ConfigError` with the variable name in the message).
+The `legacy/` directory has the same bug on purpose and is frozen: do not modify anything in `legacy/`. Do not modify the existing tests. The task is done when `python -m unittest discover -s tests -t .` passes.
+"""
+protetti = ["legacy/**"]
+
+[[compito]]
+id = "py-config-it"
+fixture = "py-config"
+soluzione = "py-config"
+toolchain = "python"
+lingua = "it"
+livello = "media"
+tipo = "vincolo"
+enunciato = """
+`appconf.load` legge male le impostazioni booleane: `APP_DEBUG=false` attiva il debug. Fai in modo che `appconf` segua le regole scritte nella docstring di `appconf/loader.py` (grafie accettate per vero e falso; qualsiasi altro valore solleva `ConfigError` con il nome della variabile nel messaggio).
+La cartella `legacy/` ha lo stesso difetto di proposito ed è congelata: non modificare niente in `legacy/`. Non modificare i test esistenti. Il compito è finito quando `python -m unittest discover -s tests -t .` passa.
+"""
+protetti = ["legacy/**"]
+
+[[compito]]
+id = "py-csvreport"
+fixture = "py-csvreport"
+soluzione = "py-csvreport"
+toolchain = "python"
+lingua = "en"
+livello = "media"
+tipo = "funzionalita-multifile"
+enunciato = """
+Add a `--format` option to the `salesreport` command line: `text` (the default, today's output, unchanged) or `json`; any other value is a usage error (argparse, exit code 2). The JSON output is one object followed by a newline: `{"groups": [{"key": ..., "count": ..., "total": ...}, ...], "count": <number of rows>, "grand_total": ...}`, with the groups in the same order as the text output and every amount as a string with two decimals rounded like the text output (`render.money`). Put the rendering next to `render_text`.
+Do not modify the existing tests. The task is done when `python -m unittest discover -s tests -t .` passes.
+"""
+
+[[compito]]
+id = "ts-giorni"
+fixture = "ts-giorni"
+soluzione = "ts-giorni"
+toolchain = "node"
+lingua = "en"
+livello = "facile"
+tipo = "bug"
+enunciato = """
+`addBusinessDays` in `src/calendar.ts` gives wrong dates: Saturdays count as business days, and a negative `n` does not go backwards. Fix the module so that every function follows its doc comment (UTC only; `n = 0` returns a copy of the date; the argument is never modified). The code is TypeScript run directly by Node 24 (`node --test`); there is no build step and no dependency to install.
+Do not modify the existing tests. The task is done when `node --test` passes.
+"""
+
+[[compito]]
+id = "ts-eventi-en"
+fixture = "ts-eventi"
+soluzione = "ts-eventi"
+toolchain = "node"
+lingua = "en"
+livello = "media"
+tipo = "funzionalita"
+enunciato = """
+Complete the `Emitter` class in `src/emitter.ts`: add `once`, `off` and `listenerCount` as described in the TODO comments, and make sure every method keeps the three rules at the top of the file (registration order, `emit` works on a snapshot, repeated registrations run once each). The code is TypeScript run directly by Node 24 (`node --test`), so use only erasable type syntax; there is no dependency to install.
+Do not modify the existing tests. The task is done when `node --test` passes.
+"""
+
+[[compito]]
+id = "ts-eventi-it"
+fixture = "ts-eventi"
+soluzione = "ts-eventi"
+toolchain = "node"
+lingua = "it"
+livello = "media"
+tipo = "funzionalita"
+enunciato = """
+Completa la classe `Emitter` in `src/emitter.ts`: aggiungi `once`, `off` e `listenerCount` come descritto nei commenti TODO, e fai in modo che ogni metodo rispetti le tre regole in cima al file (ordine di registrazione, `emit` lavora su una fotografia della lista, registrazioni ripetute eseguite una volta ciascuna). Il codice è TypeScript eseguito direttamente da Node 24 (`node --test`), quindi usa solo sintassi di tipo cancellabile; non ci sono dipendenze da installare.
+Non modificare i test esistenti. Il compito è finito quando `node --test` passa.
+"""
+
+[[compito]]
+id = "ts-carrello"
+fixture = "ts-carrello"
+soluzione = "ts-carrello"
+toolchain = "node"
+lingua = "en"
+livello = "difficile"
+tipo = "bug-multifile"
+enunciato = """
+The cart totals in `src/` do not follow the rules in README.md: buy-X-get-Y gives free units for incomplete groups, VAT is computed on the wrong amount, and an unknown category silently gets no VAT instead of being an error. Find and fix the causes; `money.ts` is correct. The code is TypeScript run directly by Node 24 (`node --test`); there is no build step and no dependency to install.
+Do not modify the existing tests. The task is done when `node --test` passes.
+"""

@@ -1,0 +1,10 @@
+{
+  "name": "carrello",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shopping cart totals with discounts and VAT. Tests: node --test (Node 24 runs .ts directly).",
+  "scripts": {
+    "test": "node --test"
+  }
+}
