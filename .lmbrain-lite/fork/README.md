@@ -29,9 +29,46 @@ come `LEGGIMI-MORO.md` (escluso da git con `.git/info/exclude`).
    liscia senza dirlo. Un profilo usa una build patchata solo se la chiede per nome
    (`build = "b10991+moro1"`); un profilo su `b10991` non ci ricade mai.
 3. **Una patch entra solo con una misura.** Procedura di M-08: stessa base, una variabile per volta,
-   5 giri, prompt congelati (7k e 21k), prefill e decode, memoria dopo il caricamento, e coerenza
-   dell'output. Senza guadagno misurato si butta. Una patch che cambia le risposte più di quanto il
-   backend cambi da solo fra due giri identici non entra anche se è più veloce.
+   giri ripetuti (3–5), prompt congelati (7k e 21k), prefill e decode, memoria dopo il caricamento,
+   e fedeltà numerica misurata come sotto. Senza guadagno misurato si butta. La fedeltà si giudica
+   **modello per modello**: una patch può entrare in `moro-ai` e servire solo ai profili dei modelli
+   per cui passa.
+
+## Regola di fedeltà (M-16)
+
+Il testo identico a temperatura 0 **non è più un requisito**. M-16 ha misurato che cambiare solo
+l'ubatch, a parità di build, cambia già le distribuzioni dei token (e sul Coder-Next anche il
+testo): un criterio che scarta ogni cambiamento numerico scarterebbe anche un cambio di profilo
+innocuo. Il testo si registra comunque (banco con `fixed_nonce` e `save_text`), come informazione.
+
+**Come si misura.** `llama-perplexity` della base con `--kl-divergence-base`, poi con
+`--kl-divergence` (script `.lmbrain-lite/m16/sequenza.py`, fase `kld-*`): prompt congelato da 21k,
+contesto 8192 (2 blocchi, 8.190 token valutati), `-ngl 999 -fa on`, cache f16, ubatch e batch del
+profilo. Per ogni modello si misurano:
+
+- **pavimento**: la base contro se stessa (deve dare KLD 0 e 100 % di stesso primo token; se no la
+  base non è deterministica e la misura non vale);
+- **metro**: la base con un altro ubatch (G1 512 invece di 4096, G3 2048 invece di 512);
+- **patch**: la build patchata all'ubatch del profilo (e, per controllo, all'altro ubatch);
+- **picco**: per la patch, `kld_per_token.py` sui token peggiori (dove cadono, se sono isolati o a
+  gruppi, se sono quasi-pareggi).
+
+**Soglie** (per modello, patch contro base allo stesso ubatch):
+
+| misura | soglia | perché |
+|---|---|---|
+| Δ perplessità | dentro 2 σ, o negativa | una patch che peggiora la perplessità non entra |
+| KLD media | ≤ 2 × metro, e comunque ≤ 0,02 | il metro è quanto la base cambia da sola con un ubatch diverso |
+| KLD al 99 % | ≤ 2 × metro al 99 % | le code contano più della media: sono i token dove la risposta si biforca |
+| KLD massima | ≤ 1,0, oppure spiegata dall'analisi per token come quasi-pareggio | un token con KLD ≥ 1 è una distribuzione diversa, non un arrotondamento |
+| stesso primo token | ≥ metro − 1 punto | |
+| batteria di M-15 | riusciti ≥ riferimento − 2 su 15, nessun file protetto toccato, nessuna causa di fallimento nuova | un giro solo ha rumore di ±1–2 compiti |
+
+Con i numeri di M-16 (rapporto `reports/int8-coopmat-2026-09.md`) il metro vale:
+- G1: KLD media 0,00066, al 99 % 0,0064, massimo 0,020, stesso primo token 98,9 %;
+- G3: KLD media 0,0065, al 99 % 0,082, massimo 0,88, stesso primo token 97,2 %.
+
+Le soglie si ricalcolano quando cambia il tag di base: il metro va rimisurato sul tag nuovo.
 
 ## Regola di adozione
 

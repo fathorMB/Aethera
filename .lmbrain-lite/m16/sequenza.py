@@ -7,6 +7,7 @@ Fasi (ognuna lascia un segno in <radice>/m16/fasi/ e non si ripete):
   picco            T-01, indagine: i logit di moro1 e della base con l'altro ubatch salvati anche
                    loro come file «base», poi kld_per_token.py token per token contro la base
                    (dove cade il massimo di KLD, se è un token solo o un gruppo, che token è)
+  cpu-g1           T-01, riferimento: i logit del G1 dal backend CPU, confrontati con base e patch
   t02-g1, t02-g3   T-02: m08_bench con gli scenari T-02a.toml e T-02b.toml (--riprendi)
 
 Opzioni di llama-perplexity come run-T06-perplexity.sh di M-14: prompt congelato da 21k, contesto
@@ -129,12 +130,12 @@ def main() -> int:
                                         (f"moro0-ub{cfg['ub_alt']}", "moro0", cfg["ub_alt"], cfg["b_alt"])):
                 dump = out / f"T-01-{sigla}-{nome}.kld"
                 res = out / f"picco-{sigla}-{nome}.txt"
+                attendi()  # prima del controllo: un passo lasciato acceso da una sequenza fermata finisce da solo
                 fatto = res.is_file() and "Final estimate" in res.read_text(encoding="utf-8", errors="replace")
                 if not (fatto and dump.is_file()):
                     cmd = [str(build(serie) / "llama-perplexity.exe"), "-m", str(modello),
                            "-ngl", "999", "-fa", "on", "-c", str(CTX), "-ub", str(ub), "-b", str(bt),
                            "-ctk", "f16", "-ctv", "f16", "-f", str(PROMPT), "--kl-divergence-base", str(dump)]
-                    attendi()
                     scrivi(f"picco {sigla} {nome}: salvo i logit · RAM libera {e.ram_libera_gib():.1f} GiB")
                     with open(res, "w", encoding="utf-8") as fh:
                         codice = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT).returncode
@@ -151,6 +152,37 @@ def main() -> int:
                 scrivi(f"picco {sigla} {nome}: analisi per token, uscita {codice}")
         return 0
 
+    def cpu_g1() -> int:
+        """Riferimento indipendente da Vulkan per il G1: gli stessi logit calcolati dal backend CPU
+        (`-dev none`: nessun dispositivo GPU, nemmeno per scaricare i lotti grandi), poi il confronto
+        token per token con la base e con la patch. I pesi (22 GB) stanno nella RAM libera."""
+        cfg = MODELLI["g1"]
+        modello = pesi_dir() / cfg["pesi"]
+        dump = out / "T-01-g1-cpu.kld"
+        res = out / "picco-g1-cpu.txt"
+        attendi()
+        fatto = res.is_file() and "Final estimate" in res.read_text(encoding="utf-8", errors="replace")
+        if not (fatto and dump.is_file()):
+            cmd = [str(build("moro0") / "llama-perplexity.exe"), "-m", str(modello), "-dev", "none", "-ngl", "0",
+                   "-fa", "on", "-c", str(CTX), "-ub", str(cfg["ub"]), "-b", str(cfg["b"]),
+                   "-ctk", "f16", "-ctv", "f16", "-f", str(PROMPT), "--kl-divergence-base", str(dump)]
+            scrivi(f"cpu g1: salvo i logit del backend CPU · RAM libera {e.ram_libera_gib():.1f} GiB")
+            t0 = time.monotonic()
+            with open(res, "w", encoding="utf-8") as fh:
+                codice = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT).returncode
+            scrivi(f"cpu g1: uscita {codice} in {time.monotonic() - t0:.0f} s")
+            if codice != 0:
+                return codice
+        env = {**os.environ, "PYTHONPATH": str(radice / "src" / "llama.cpp" / "gguf-py"), "PYTHONIOENCODING": "utf-8"}
+        for nome in ("base", "moro1", "moro0-ub512"):
+            with open(out / f"picco-g1-cpu-contro-{nome}-per-token.txt", "w", encoding="utf-8") as fh:
+                codice = subprocess.run(
+                    [sys.executable, str(QUI / "kld_per_token.py"), str(dump), str(out / f"T-01-g1-{nome}.kld"),
+                     "--gguf", str(modello), "--top", "15"],
+                    stdout=fh, stderr=subprocess.STDOUT, env=env).returncode
+            scrivi(f"cpu g1 contro {nome}: analisi per token, uscita {codice}")
+        return 0
+
     bench = os.environ.get("AETHERA_M08_BENCH") or str(
         QUI.parents[1] / "src-tauri" / "target" / "release" / "examples" / "m08_bench.exe")
 
@@ -160,7 +192,7 @@ def main() -> int:
             return subprocess.run([bench, str(radice), str(QUI / scenario), "--riprendi"],
                                   stdout=fh, stderr=subprocess.STDOUT).returncode
 
-    sequenza = [("kld-g1", lambda: kld("g1")), ("kld-g3", lambda: kld("g3")), ("picco", picco),
+    sequenza = [("kld-g1", lambda: kld("g1")), ("kld-g3", lambda: kld("g3")), ("picco", picco), ("cpu-g1", cpu_g1),
                 ("t02-g1", lambda: t02("T-02a.toml")), ("t02-g3", lambda: t02("T-02b.toml"))]
     esito = 0
     for nome, fn in sequenza:
