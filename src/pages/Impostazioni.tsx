@@ -1,12 +1,12 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import * as api from "../api";
-import type { ClientSnippets, EngineStatus, ExitBehavior, MachineConfig, MachineText, Overview } from "../api";
+import type { BuildProvenance, ClientSnippets, EngineStatus, ExitBehavior, MachineConfig, MachineText, Overview } from "../api";
 import type { SettingsTab } from "../App";
 import { Confirm, copy, Empty, Val } from "../components";
-import { clock, fixed, num, pct } from "../format";
-import { Field, Head, Q, Seg } from "../ui";
-import { seconds } from "../ui-logic";
+import { clock, duration, fixed, num, pct } from "../format";
+import { Field, Head, Help, Q, Seg } from "../ui";
+import { provenanceView, samePath, seconds } from "../ui-logic";
 
 type ClientTab = "nonio" | "opencode" | "claude" | "env";
 const CLIENT_TABS: { id: ClientTab; label: string }[] = [
@@ -21,6 +21,71 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: "client", label: "Client" },
   { id: "app", label: "App" },
 ];
+
+/**
+ * Da dove viene una build (M-14): il file di provenienza quando c'è, «build scaricata da ggml-org»
+ * o «provenienza assente» quando non c'è. `entry` assente = cartella non letta: sconosciuta.
+ */
+function ProvenanceLine(props: { id: string; entry: BuildProvenance | undefined }) {
+  const view = () => provenanceView(props.id, props.entry);
+  const p = () => props.entry?.provenance ?? null;
+  const short = (commit: string) => commit.slice(0, 12);
+  return (
+    <div style={{ "margin-top": "4px", "font-family": "var(--sans)" }}>
+      <span class={`badge tight ${view().tone}`} title={view().help}>
+        <i />
+        {view().label}
+      </span>
+      <Show when={p()}>
+        {(prov) => (
+          <>
+            {" "}
+            <span class="cond">
+              compilata il <Val v={prov().data ? clock(prov().data!) : null} /> in{" "}
+              <Val v={prov().durata_build_s == null ? null : duration(prov().durata_build_s!)} />
+            </span>
+            <Help summary="tag, rami e commit" style={{ "margin-top": "4px" }}>
+              <dl class="kv">
+                <dt>Id</dt>
+                <dd class="mono">{prov().id}</dd>
+                <dt>Tag base</dt>
+                <dd class="mono">
+                  {prov().base} @ {short(prov().commit_base)}
+                </dd>
+                <dt>Serie</dt>
+                <dd class="mono">
+                  moro{prov().serie} @ {short(prov().commit)}{" "}
+                  <Show when={!prov().patch?.length}>
+                    <span class="cond" style={{ "font-family": "var(--sans)" }}>
+                      tag liscio compilato qui, senza patch
+                    </span>
+                  </Show>
+                </dd>
+                <For each={prov().patch ?? []}>
+                  {(b) => (
+                    <>
+                      <dt>Ramo</dt>
+                      <dd>
+                        <span class="mono">
+                          {b.ramo} @ {short(b.commit)}
+                        </span>
+                        <For each={b.commit_della_patch ?? []}>{(c) => <div class="mono mini">{c}</div>}</For>
+                      </dd>
+                    </>
+                  )}
+                </For>
+                <dt>Compilatore</dt>
+                <dd>
+                  <Val v={prov().compilatore} mono={false} />
+                </dd>
+              </dl>
+            </Help>
+          </>
+        )}
+      </Show>
+    </div>
+  );
+}
 
 /** Quanto spazio resta a ogni client prima di compattare, sull'avvio acceso. */
 function BudgetCard(props: { sn: ClientSnippets; ctx: number | null; status: EngineStatus | null }) {
@@ -156,6 +221,8 @@ export default function Impostazioni(props: {
 
   const patch = (p: Partial<MachineConfig>) => setMachine({ ...machine()!, ...p });
   const builds = () => machine()?.build ?? [];
+  /** La provenienza letta dal backend per una cartella; undefined se la cartella non è fra le build trovate. */
+  const provenanceOf = (dir: string) => (props.overview.builds_provenance ?? []).find((x) => samePath(x.dir, dir));
   /** machine.toml ha modifiche non salvate: il pulsante nella testa lo dice. */
   const dirty = () => JSON.stringify(machine()) !== JSON.stringify(props.overview.machine);
 
@@ -320,7 +387,9 @@ export default function Impostazioni(props: {
 
             <div class="card">
               <h2>
-                Build llama.cpp <span class="r">dichiarate in machine.toml o trovate in builds/</span>
+                Build llama.cpp{" "}
+                <Q title="Sotto ogni cartella, da dove viene la build. «build scaricata da ggml-org»: accanto a llama-server non c'è provenienza.toml. Una build compilata su questa macchina porta il tag di partenza, la serie (moro0 = tag liscio, moro1 e oltre = con patch), i rami con il loro commit, data e durata della build. «provenienza assente»: l'id dichiara una serie del fork ma il file manca. Un profilo usa una build patchata solo se la chiede per nome." />
+                <span class="r">dichiarate in machine.toml o trovate in builds/</span>
               </h2>
               <div style={{ "overflow-x": "auto" }}>
                 <table>
@@ -362,6 +431,7 @@ export default function Impostazioni(props: {
                                 llama-server assente
                               </span>
                             </Show>
+                            <ProvenanceLine id={b.id} entry={provenanceOf(b.path)} />
                           </td>
                           <td class="r">
                             <button class="btn sm" onClick={() => patch({ build: builds().filter((_, j) => j !== i()) })}>
@@ -394,6 +464,7 @@ export default function Impostazioni(props: {
                           <td class="mono">{b.id}</td>
                           <td class="mono mini" style={{ "overflow-wrap": "anywhere" }}>
                             {b.binary}
+                            <ProvenanceLine id={b.id} entry={provenanceOf(b.dir)} />
                           </td>
                           <td class="cond">{b.source}</td>
                         </tr>

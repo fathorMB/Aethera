@@ -2,7 +2,7 @@
  * Logica dei componenti della v2 (Alerts, Kpi, Stack, Chips), separata dal disegno perché si
  * possa provare senza DOM. Nessuna regola nuova: soglie e testi sono quelli di M-09 e del backend.
  */
-import type { EngineStatus, MemoryAfter, Reference } from "./api";
+import type { BuildProvenance, EngineStatus, MemoryAfter, Provenance, Reference } from "./api";
 import { clock, fixed, num } from "./format";
 
 export type Tone = "" | "ok" | "warn" | "err" | "busy" | "acc";
@@ -224,10 +224,218 @@ export function flip(dir: "" | "up" | "dn"): "" | "up" | "dn" {
 /** Backend di llama.cpp riconosciuti dentro l'id di una build (machine::BACKENDS). */
 export const BACKENDS = ["vulkan", "cuda", "hip", "sycl", "musa", "cann", "opencl", "metal", "blas", "cpu"];
 
-/** Da `b10809-win-vulkan-x64` a («b10809», «vulkan»), come machine::split_build_id. */
+/**
+ * Da `b10809-win-vulkan-x64` a («b10809», «vulkan»), come machine::split_build_id: la build porta
+ * la serie del fork se c'è (`b10991+moro1`), perché una build patchata si chiede per nome.
+ */
 export function splitBuildId(id: string): { build: string | null; backend: string | null } {
   const parts = id.split("-");
-  const build = parts.find((p) => p.length > 1 && p.startsWith("b") && /^\d+$/.test(p.slice(1))) ?? null;
+  const build = parts.find((p) => /^b\d+(\+moro\d+)?$/.test(p)) ?? null;
   const backend = parts.map((p) => p.toLowerCase()).find((p) => BACKENDS.includes(p)) ?? null;
   return { build, backend };
+}
+
+// --- Serie di patch (M-14) -----------------------------------------------------------------
+
+/** La serie di una build scaricata da ggml-org, senza file di provenienza (provenance::UPSTREAM_SERIES). */
+export const UPSTREAM_SERIES = "ggml-org";
+
+/**
+ * unknown = non registrata (mai trattata come upstream); upstream = scaricata da ggml-org;
+ * plain = tag liscio compilato qui (`moro0`); patched = serie con patch; unreadable = il file di
+ * provenienza c'è ma non si legge.
+ */
+export type SeriesKind = "unknown" | "upstream" | "plain" | "patched" | "unreadable";
+
+export interface SeriesBranch {
+  ramo: string;
+  /** I primi caratteri del commit, come li registra il backend; null se la serie non lo porta. */
+  commit: string | null;
+}
+
+export interface SeriesInfo {
+  kind: SeriesKind;
+  /** `moro1`, `ggml-org`, `moro?`; null se sconosciuta. */
+  name: string | null;
+  branches: SeriesBranch[];
+}
+
+/** Da `moro1 patch/int8-coopmat@abcdef012` (Provenance::series nel backend) ai suoi pezzi. */
+export function parseSeries(series: string | null | undefined): SeriesInfo {
+  const text = series?.trim();
+  if (!text) return { kind: "unknown", name: null, branches: [] };
+  if (text === UPSTREAM_SERIES) return { kind: "upstream", name: UPSTREAM_SERIES, branches: [] };
+  const [name, ...rest] = text.split(/\s+/);
+  if (name.startsWith("moro?")) return { kind: "unreadable", name: "moro?", branches: [] };
+  const branches = rest.map((piece) => {
+    const at = piece.lastIndexOf("@");
+    return at > 0 ? { ramo: piece.slice(0, at), commit: piece.slice(at + 1) || null } : { ramo: piece, commit: null };
+  });
+  return { kind: branches.length ? "patched" : "plain", name, branches };
+}
+
+/**
+ * La serie in poche lettere, da mettere accanto alla build: `moro1 int8-coopmat`. Una build di
+ * ggml-org non porta niente accanto (null); una serie sconosciuta si dice, perché non è upstream.
+ */
+export function seriesShort(series: string | null | undefined): string | null {
+  const s = parseSeries(series);
+  switch (s.kind) {
+    case "upstream":
+      return null;
+    case "unknown":
+      return "serie sconosciuta";
+    case "unreadable":
+      return "moro? illeggibile";
+    default:
+      return [s.name, ...s.branches.map((b) => b.ramo.replace(/^patch\//, ""))].join(" ");
+  }
+}
+
+/** La spiegazione lunga della serie corta, per il title. */
+export function seriesTitle(series: string | null | undefined): string {
+  const s = parseSeries(series);
+  switch (s.kind) {
+    case "upstream":
+      return "build scaricata da ggml-org, senza patch";
+    case "unknown":
+      return "serie di patch sconosciuta: l'avvio è precedente a quando Aethera registra le condizioni";
+    case "unreadable":
+      return "accanto a llama-server c'è un file di provenienza che non si legge: non si sa che serie sia";
+    case "plain":
+      return `${s.name}: il tag liscio compilato su questa macchina, senza patch`;
+    default:
+      return `${s.name}: ${s.branches.map((b) => `${b.ramo}${b.commit ? ` @ ${b.commit}` : ""}`).join(" · ")}`;
+  }
+}
+
+/**
+ * La build senza la serie in coda, quando la serie la ripete: `b10991+moro1` con serie `moro1 …`
+ * diventa `b10991`, così accanto si legge `b10991 · moro1 int8-coopmat` e non due volte `moro1`.
+ */
+export function buildBase(build: string, series: string | null | undefined): string {
+  const s = parseSeries(series);
+  if (s.kind !== "plain" && s.kind !== "patched") return build;
+  return build.endsWith(`+${s.name}`) ? build.slice(0, -(s.name!.length + 1)) : build;
+}
+
+/**
+ * Due avvii con serie diverse? «same» solo se tutte e due sono note e uguali, commit dei rami
+ * compresi: una serie ricompilata con una patch cambiata non è la stessa. Se una manca o non si
+ * legge, non si sa.
+ */
+export function seriesDiffer(a: string | null | undefined, b: string | null | undefined): "same" | "different" | "unknown" {
+  const known = (k: SeriesKind) => k !== "unknown" && k !== "unreadable";
+  if (!known(parseSeries(a).kind) || !known(parseSeries(b).kind)) return "unknown";
+  const norm = (s: string) => s.trim().split(/\s+/).join(" ");
+  return norm(a!) === norm(b!) ? "same" : "different";
+}
+
+/** L'avviso del confronto quando le due build non portano la stessa serie; null se è la stessa. */
+export function seriesAlert(a: string | null | undefined, b: string | null | undefined): AlertSpec | null {
+  const verdict = seriesDiffer(a, b);
+  if (verdict === "same") return null;
+  const names = `A ${seriesShort(a) ?? UPSTREAM_SERIES} · B ${seriesShort(b) ?? UPSTREAM_SERIES}`;
+  if (verdict === "unknown") {
+    return {
+      key: "serie",
+      tone: "warn",
+      title: "Serie di patch sconosciuta",
+      detail: `${names}. Non si sa se le due build portano le stesse patch: il confronto potrebbe misurare anche una patch.`,
+    };
+  }
+  if (parseSeries(a).kind !== "patched" && parseSeries(b).kind !== "patched") {
+    return {
+      key: "serie",
+      tone: "warn",
+      title: "Build compilate diversamente",
+      detail: `${names}. Nessuna delle due porta patch, ma una è compilata qui e l'altra scaricata: il confronto misura anche la compilazione.`,
+    };
+  }
+  return {
+    key: "serie",
+    tone: "warn",
+    title: "Build con patch diverse",
+    detail: `${names}. Il confronto misura anche la patch, non solo il profilo.`,
+  };
+}
+
+/** Lo stesso avviso in una riga, per la fascia delle due spunte; la spiegazione sta nel title. */
+export function seriesBadge(a: string | null | undefined, b: string | null | undefined): string | null {
+  const alert = seriesAlert(a, b);
+  if (!alert) return null;
+  const title = alert.title.charAt(0).toLowerCase() + alert.title.slice(1);
+  return alert.title === "Build con patch diverse" ? `${title}: il confronto misura anche la patch` : title;
+}
+
+// --- Provenienza delle build (Impostazioni) ------------------------------------------------
+
+export type ProvenanceKind = "fork" | "upstream" | "missing" | "unreadable" | "unknown";
+
+export interface ProvenanceView {
+  kind: ProvenanceKind;
+  tone: Tone;
+  /** Etichetta corta della riga. */
+  label: string;
+  /** Spiegazione lunga, per il title. */
+  help: string;
+}
+
+/** La serie come la registra il backend fra le condizioni (Provenance::series). */
+export function provenanceSeries(p: Provenance): string {
+  return [`moro${p.serie}`, ...(p.patch ?? []).map((b) => `${b.ramo}@${b.commit.slice(0, 9)}`)].join(" ");
+}
+
+/**
+ * Che cosa dire della provenienza di una build. `entry` assente = Aethera non ha letto la cartella
+ * (llama-server manca): sconosciuta, non upstream. Senza file la build è quella scaricata da
+ * ggml-org, a meno che l'id dichiari una serie del fork (`b10991+moro1-vulkan`): allora la
+ * provenienza dovrebbe esserci e manca.
+ */
+export function provenanceView(id: string, entry: BuildProvenance | null | undefined): ProvenanceView {
+  if (!entry) {
+    return {
+      kind: "unknown",
+      tone: "",
+      label: "provenienza sconosciuta",
+      help: "Aethera non ha trovato llama-server in questa cartella, quindi non ha cercato il file di provenienza.",
+    };
+  }
+  if (entry.error) {
+    return {
+      kind: "unreadable",
+      tone: "err",
+      label: "provenienza illeggibile",
+      help: `${entry.error} — finché non si legge non si sa che serie sia, e un profilo non può usare questa build.`,
+    };
+  }
+  if (entry.provenance) {
+    const p = entry.provenance;
+    return {
+      kind: "fork",
+      tone: "acc",
+      label: `${p.base} · ${seriesShort(provenanceSeries(p))}`,
+      help: "Build compilata su questa macchina: provenienza.toml accanto a llama-server dice da che tag viene e che patch porta. Un profilo la usa solo se la chiede per nome.",
+    };
+  }
+  if (/\+moro/.test(id)) {
+    return {
+      kind: "missing",
+      tone: "warn",
+      label: "provenienza assente",
+      help: "L'id dichiara una serie del fork ma accanto a llama-server non c'è provenienza.toml: Aethera non la tratta come build del fork, e un profilo che la chiede per nome non parte.",
+    };
+  }
+  return {
+    kind: "upstream",
+    tone: "",
+    label: "build scaricata da ggml-org",
+    help: "Accanto a llama-server non c'è provenienza.toml: Aethera la tratta come una build di ggml-org, senza patch.",
+  };
+}
+
+/** Lo stesso percorso scritto da Windows in due modi: barre e maiuscole non fanno un'altra cartella. */
+export function samePath(a: string, b: string): boolean {
+  const norm = (p: string) => p.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  return norm(a) === norm(b);
 }

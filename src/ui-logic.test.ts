@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
-import type { EngineStatus, ReadyStatus, Summary } from "./api";
+import type { EngineStatus, Provenance, ReadyStatus, Summary } from "./api";
 import {
+  buildBase,
+  parseSeries,
+  provenanceSeries,
+  provenanceView,
+  samePath,
+  seriesAlert,
+  seriesBadge,
+  seriesDiffer,
+  seriesShort,
+  seriesTitle,
   countBy,
   decodeJudgement,
   delta,
@@ -172,5 +182,108 @@ describe("Chips, Benchmark, build", () => {
     expect(splitBuildId("b10809-win-vulkan-x64")).toEqual({ build: "b10809", backend: "vulkan" });
     expect(splitBuildId("b10985-vulkan")).toEqual({ build: "b10985", backend: "vulkan" });
     expect(splitBuildId("llama-cpu")).toEqual({ build: null, backend: "cpu" });
+    // Una build del fork si propone con la sua serie: un profilo la chiede per nome.
+    expect(splitBuildId("b10991+moro1-win-vulkan-x64")).toEqual({ build: "b10991+moro1", backend: "vulkan" });
+    expect(splitBuildId("b10991+altro-vulkan")).toEqual({ build: null, backend: "vulkan" });
+  });
+});
+
+describe("serie di patch (M-14)", () => {
+  const MORO1 = "moro1 patch/int8-coopmat@abcdef012";
+
+  it("si legge nei suoi pezzi, e quella che manca resta sconosciuta", () => {
+    expect(parseSeries(MORO1)).toEqual({ kind: "patched", name: "moro1", branches: [{ ramo: "patch/int8-coopmat", commit: "abcdef012" }] });
+    expect(parseSeries("moro0")).toEqual({ kind: "plain", name: "moro0", branches: [] });
+    expect(parseSeries("ggml-org").kind).toBe("upstream");
+    expect(parseSeries("moro? (provenienza illeggibile)")).toEqual({ kind: "unreadable", name: "moro?", branches: [] });
+    for (const v of [null, undefined, "", "  "]) expect(parseSeries(v).kind).toBe("unknown");
+    expect(parseSeries("moro2 patch/a@111 patch/b").branches).toEqual([
+      { ramo: "patch/a", commit: "111" },
+      { ramo: "patch/b", commit: null },
+    ]);
+  });
+
+  it("forma corta accanto alla build: niente per ggml-org, mai niente per una sconosciuta", () => {
+    expect(seriesShort(MORO1)).toBe("moro1 int8-coopmat");
+    expect(seriesShort("moro2 patch/int8-coopmat@aaa patch/mtp@bbb")).toBe("moro2 int8-coopmat mtp");
+    expect(seriesShort("moro0")).toBe("moro0");
+    expect(seriesShort("ggml-org")).toBeNull();
+    expect(seriesShort(null)).toBe("serie sconosciuta");
+    expect(seriesShort("moro? (provenienza illeggibile)")).toBe("moro? illeggibile");
+    expect(seriesTitle(MORO1)).toBe("moro1: patch/int8-coopmat @ abcdef012");
+    expect(seriesTitle(null)).toContain("sconosciuta");
+  });
+
+  it("la build non ripete la serie che le sta accanto", () => {
+    expect(buildBase("b10991+moro1", MORO1)).toBe("b10991");
+    expect(buildBase("b10991+moro0", "moro0")).toBe("b10991");
+    expect(buildBase("b10991", "ggml-org")).toBe("b10991");
+    // Se la serie non si conosce, o non è quella scritta nella build, la build resta com'è.
+    expect(buildBase("b10991+moro1", null)).toBe("b10991+moro1");
+    expect(buildBase("b10991+moro2", MORO1)).toBe("b10991+moro2");
+  });
+
+  it("due serie sono la stessa solo se note e uguali, commit compresi", () => {
+    expect(seriesDiffer(MORO1, MORO1)).toBe("same");
+    expect(seriesDiffer("ggml-org", "ggml-org")).toBe("same");
+    expect(seriesDiffer(MORO1, "ggml-org")).toBe("different");
+    expect(seriesDiffer("moro0", "ggml-org")).toBe("different");
+    expect(seriesDiffer(MORO1, "moro1 patch/int8-coopmat@999999999")).toBe("different");
+    expect(seriesDiffer(MORO1, null)).toBe("unknown");
+    expect(seriesDiffer(null, null)).toBe("unknown");
+    expect(seriesDiffer("moro? (provenienza illeggibile)", "moro? (provenienza illeggibile)")).toBe("unknown");
+  });
+
+  it("l'avviso del confronto dice che cosa si sta misurando", () => {
+    expect(seriesAlert(MORO1, MORO1)).toBeNull();
+    const patched = seriesAlert(MORO1, "ggml-org");
+    expect(patched).toMatchObject({ tone: "warn", title: "Build con patch diverse" });
+    expect(patched?.detail).toContain("A moro1 int8-coopmat · B ggml-org");
+    expect(patched?.detail).toContain("misura anche la patch");
+    expect(seriesAlert("moro0", "ggml-org")?.title).toBe("Build compilate diversamente");
+    // Una serie sconosciuta non passa per ggml-org: l'avviso c'è, e dice che non si sa.
+    const unknown = seriesAlert(null, "ggml-org");
+    expect(unknown?.title).toBe("Serie di patch sconosciuta");
+    expect(unknown?.detail).toContain("A serie sconosciuta · B ggml-org");
+    // Nella fascia delle due spunte, in una riga.
+    expect(seriesBadge(MORO1, "ggml-org")).toBe("build con patch diverse: il confronto misura anche la patch");
+    expect(seriesBadge(null, "ggml-org")).toBe("serie di patch sconosciuta");
+    expect(seriesBadge("moro0", "moro0")).toBeNull();
+  });
+});
+
+describe("provenienza delle build (Impostazioni)", () => {
+  const prov: Provenance = {
+    schema_version: 1, id: "b10991+moro1-vulkan", base: "b10991", commit_base: "930e2fa5995789ef", serie: 1, backend: "vulkan",
+    commit: "0123456789abcdef", data: "2026-09-17T02:00:00+02:00", durata_build_s: 640,
+    patch: [{ ramo: "patch/int8-coopmat", commit: "abcdef0123456789abcdef", commit_della_patch: ["aaaa vulkan: int8"] }],
+  };
+
+  it("la serie è la stessa stringa che il backend mette fra le condizioni", () => {
+    expect(provenanceSeries(prov)).toBe("moro1 patch/int8-coopmat@abcdef012");
+    expect(provenanceSeries({ ...prov, serie: 0, patch: undefined })).toBe("moro0");
+  });
+
+  it("i cinque casi restano distinti", () => {
+    const dir = "D:\\llm\\builds\\x";
+    expect(provenanceView("b10991+moro1-vulkan", { dir, provenance: prov, error: null })).toMatchObject({
+      kind: "fork", label: "b10991 · moro1 int8-coopmat",
+    });
+    expect(provenanceView("b10991-vulkan", { dir, provenance: null, error: null })).toMatchObject({
+      kind: "upstream", label: "build scaricata da ggml-org",
+    });
+    // L'id promette una serie ma il file non c'è: non è «scaricata da ggml-org».
+    expect(provenanceView("b10991+moro1-vulkan", { dir, provenance: null, error: null })).toMatchObject({
+      kind: "missing", label: "provenienza assente", tone: "warn",
+    });
+    const broken = provenanceView("b10991-vulkan", { dir, provenance: null, error: "provenienza.toml: riga 3" });
+    expect(broken).toMatchObject({ kind: "unreadable", tone: "err" });
+    expect(broken.help).toContain("riga 3");
+    expect(provenanceView("b10991-vulkan", undefined).kind).toBe("unknown");
+  });
+
+  it("lo stesso percorso scritto in due modi è la stessa cartella", () => {
+    expect(samePath("D:\\LLM\\builds\\x\\", "d:/llm/builds/x")).toBe(true);
+    expect(samePath("D:\\llm\\builds\\x", "D:\\llm\\builds\\y")).toBe(false);
   });
 });
