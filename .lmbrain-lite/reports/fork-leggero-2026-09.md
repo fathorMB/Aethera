@@ -11,12 +11,14 @@ del driver. Percorsi scritti con i segnaposto del README (`<radice>`, `<pesi>`).
   `machine.toml` in **2 minuti e mezzo** (compilazione 110–113 s, molto sotto i 10–15 minuti attesi).
 - **Zero patch = ggml-org**, dentro il rumore, una volta tolto un effetto d'ordine (T-04).
 - **La PR #27952 è ancora aperta**; ribasata su b10991 senza conflitti.
-- **Verdetto della patch: non entra.** Sul profilo G1 vero il guadagno è piccolo, e la patch cambia
-  le risposte a temperatura 0 contro una base che invece si ripete identica (sezione T-06).
-- **Misura incompleta:** alle 02:33 Windows Update ha riavviato la macchina (KB5129195, Windows
-  26200.9457). Dopo il riavvio Smart App Control blocca **tutti** i `llama-server`, anche quello di
-  ggml-org. Mancano il Coder-Next e la perplessità (vedi «Cosa resta all'operatore»).
-- Aethera riconosce le build del fork (T-07, parte Rust); la parte della finestra aspetta M-12.
+- **Verdetto della patch: non entra in `moro-ai`, per la regola scritta; la decisione vera spetta
+  all'operatore.** La patch cambia le risposte a temperatura 0 contro una base che si ripete identica.
+  La perplessità però resta la stessa, e sul Coder-Next G3 il prefill sale del 33 % a 7k e del 27 %
+  a 21k (sul 35B G1 solo del 2,6 % e del 3,4 %). Se l'operatore accetta la perplessità come criterio
+  di coerenza, per il G3 la patch va adottata (sezione T-06).
+- **Windows Update ha riavviato alle 02:33** (KB5129195, Windows 26200.9457) e poi Smart App Control
+  ha bloccato i motori, finché l'operatore non l'ha spento (07:52). T-06 è stato rifatto per intero
+  dopo il riavvio. I numeri di prima e di dopo coincidono, tranne la base sul 21k del 35B (−2 %).
 
 ## T-01 — Toolchain
 
@@ -122,10 +124,13 @@ Q4_0…Q8_0, IQ4_NL/XS, MXFP4, Q3_K…Q6_K, NVFP4.
 
 ## T-06 — Misura della patch
 
-Due strumenti, una variabile: la patch. Base e patch sono compilate con la stessa toolchain e le
-stesse opzioni (moro0 contro moro1), quindi il confronto non è con la release di ggml-org.
+La variabile misurata è solo la patch. Base e patch hanno la stessa toolchain e le stesse opzioni
+(moro0 contro moro1), quindi il confronto non è con la release di ggml-org. Le misure finali sono
+tutte **dopo il riavvio** (Windows 26200.9457, driver 32.0.31041.1004, VGM 48, «Massime
+prestazioni», dalle 07:53 alle 09:36). Quelle della notte sono in
+`<radice>\m14\T-06a-prima-del-riavvio.jsonl`.
 
-### llama-bench (come T-04, patch per prima: la posizione sfavorita)
+### llama-bench (come T-04, patch per prima, cioè nella posizione sfavorita; notte)
 
 Righe in `<radice>\m14\T-06-bench-*.jsonl`. tok/s, media ± sd di 5 giri.
 
@@ -140,76 +145,103 @@ Righe in `<radice>\m14\T-06-bench-*.jsonl`. tok/s, media ± sd di 5 giri.
 
 Il backend conferma `int dot: 1 · matrix cores: KHR_coopmat`: il percorso int8 è acceso.
 
-### Banco di Aethera sul 35B G1 (T-06a)
+### Banco di Aethera
 
-`m08_bench` con `.lmbrain-lite/m14/T-06a.toml`: profilo standard `qwen3.6-35b-a3b.q4_k_m.vulkan`
-(draft-mtp 3, ubatch e batch 4096, ctx 32768) con la sola build cambiata variante per variante;
-prompt congelati 7k (7.097 token) e 21k (17.679 token, di cui 3.001 riusati dal prefisso comune);
-1 riscaldamento e 5 giri; temperatura 0, seme 1234, stesso nonce per tutte le varianti allo stesso
-giro. Disegno A-B-A. Avvii `r-20260917-020612` (moro0), `r-20260917-021708` (moro1),
-`r-20260917-022758` (moro0-bis); righe in `<radice>\m14\T-06a.jsonl`. Mediana (sd).
+`m08_bench` con `.lmbrain-lite/m14/T-06a.toml` e `T-06b.toml`:
+- profili standard con la sola build cambiata variante per variante;
+- prompt congelati 7k e 21k, 1 riscaldamento e 5 giri;
+- temperatura 0, seme 1234, stesso nonce per tutte le varianti allo stesso giro;
+- disegno A-B-A: moro0, moro1, moro0-bis.
 
-| variante | 7k prefill | 7k decode | 21k prefill | 21k decode | VRAM dopo il caricamento | RAM libera |
+Righe in `<radice>\m14\T-06a.jsonl` e `T-06b.jsonl`. Mediana (sd), tok/s.
+
+**35B G1** (`qwen3.6-35b-a3b.q4_k_m.vulkan`: draft-mtp 3, ubatch 4096; prompt da 7.097 e 17.679
+token). Avvii `r-20260917-075326`, `-080418`, `-081501`.
+
+| variante | 7k prefill | 7k decode | 21k prefill | 21k decode | VRAM | RAM libera |
 |---|---:|---:|---:|---:|---:|---:|
-| moro0 | 443,1 (3,1) | 32,54 (2,79) | 360,3 (4,6) | 20,80 (0,33) | 23,19 GiB | 31,6 GiB |
-| moro1 | **458,9 (3,7)** +3,6 % | 31,00 (2,12) | 363,5 (0,6) +0,9 % | 21,14 (0,95) | 23,18 GiB | 32,7 GiB |
-| moro0-bis | 448,0 (1,1) | 33,33 (2,53) | interrotto dal riavvio | | | |
+| moro0 | 447,3 (2,2) | 33,51 (2,55) | 352,6 (1,0) | 20,78 (0,36) | 23,19 GiB | 30,0 GiB |
+| moro1 | **458,7 (1,0)** | 30,80 (2,38) | **364,6 (0,8)** | 20,96 (0,97) | 23,18 GiB | 30,5 GiB |
+| moro0-bis | 446,4 (0,9) | 33,20 (2,53) | 352,7 (0,5) | 20,81 (0,42) | 23,19 GiB | 30,7 GiB |
+| Δ patch sulla base media | **+2,6 %** | invariato (sd 2,5) | **+3,4 %** | invariato | = | |
 
-Sul server il guadagno è molto più piccolo che in llama-bench: +3,6 % a 7k, con moro0-bis a metà
-strada (448), e +0,9 % a 21k, dentro l'oscillazione di moro0. Il decode non si muove, come atteso da
-una patch del prefill, e nemmeno la memoria. Perché così poco: il profilo usa ubatch 4096 e sul
-prompt lungo il tempo va soprattutto nell'attenzione, non nei prodotti di matrici che la patch
-cambia. Questo resta un'ipotesi: non l'ho misurato.
+**Coder-Next G3** (`qwen3-coder-next.q4_k_m.vulkan`: ubatch 512, senza speculazione; prompt da 6.754
+e 13.604 token). Avvii `r-20260917-082545`, `-084330`, `-085829`.
+
+| variante | 7k prefill | 7k decode | 21k prefill | 21k decode | VRAM | RAM libera | pronto in |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| moro0 | 182,9 (0,5) | 19,95 (0,02) | 163,0 (0,2) | 18,40 (0,03) | 46,37 GiB | 31,5 GiB | 33,2 s |
+| moro1 | **242,8 (0,2)** | 19,94 (0,02) | **207,7 (0,6)** | 18,39 (0,03) | 46,37 GiB | 31,5 GiB | 32,7 s |
+| moro0-bis | 182,8 (0,5) | 19,96 (0,02) | 163,3 (0,5) | 18,36 (0,04) | 46,37 GiB | 31,6 GiB | 31,2 s |
+| Δ patch sulla base media | **+32,8 %** | invariato | **+27,3 %** | invariato | = | | |
+
+Sul G3 il guadagno è grande e pulito: scarti tipo sotto l'1 per mille, e la base si ripete identica
+prima e dopo. Sul 35B è piccolo. Una possibile spiegazione, non misurata: con ubatch 4096 e MTP il
+tempo del prefill va soprattutto altrove che nei prodotti di matrici quantizzati. Decode, memoria e
+tempo di caricamento non cambiano in nessuno dei due.
+
+**Prima e dopo il riavvio (35B).** Il 7k è uguale (moro0 443,1 → 447,3; moro1 458,9 → 458,7). La
+base sul 21k è scesa di circa il 2 % (360,3 → 352,6, con moro0-bis a 352,7), la patch no
+(363,5 → 364,6). Coerenza identica, giro per giro. I numeri di prima e di dopo si confrontano, ma il
+verdetto usa solo quelli di dopo, dove A-B-A è intero.
 
 ### Coerenza dell'output
 
-| confronto | 7k: giri identici | 21k: giri identici |
-|---|---:|---:|
-| moro0-bis contro moro0 (base contro base) | **5 su 5**, testo uguale byte per byte | riscaldamento identico (l'unico giro fatto) |
-| moro1 contro moro0 (patch contro base) | **0 su 5**: diverge dal carattere 8 (3 giri) o 335 (2 giri) | **0 su 5**: diverge dal carattere 78 (4 giri) o 290 (1 giro) |
+| confronto | 35B 7k | 35B 21k | G3 7k | G3 21k |
+|---|---|---|---|---|
+| moro0-bis contro moro0 | **5/5 identici** | **5/5 identici** | **5/5 identici** | **5/5 identici** |
+| moro1 contro moro0 | 0/5 (diverge dal carattere 8 o 335) | 0/5 (78 o 290) | 0/5 (150–167) | 0/5 (19–531) |
 
-A differenza di M-08 T-06, qui la base è **deterministica**: stessa build, stesso prompt, stesso
-testo. La divergenza quindi la introduce la patch, ed è quello che ci si aspetta da un prodotto in
-int8 (attivazioni quantizzate in q8_1 invece che in virgola mobile). I testi della patch restano
-plausibili (stesso codice di partenza, stessa prima riga del riassunto), ma sono **altri** testi. La
-perplessità direbbe se la qualità cambia (`run-T06-perplexity.sh`, pronto), ma il blocco di Smart
-App Control l'ha impedita.
+La base è **deterministica**, anche attraverso il riavvio: la notte e la mattina danno gli stessi
+testi e gli stessi punti di divergenza. Il testo quindi lo cambia la patch, come ci si aspetta da un
+prodotto in int8 (attivazioni in q8_1). I testi della patch restano plausibili (stesso codice di
+partenza, stessa prima riga del riassunto), ma sono altri testi.
 
-### Verdetto: non entra
+**Perplessità** (`run-T06-perplexity.sh`: prompt congelato da 21k, contesto 8192, 2 blocchi, cache
+f16; righe in `<radice>\m14\T-06-perplexity.txt` e `T-06b-perplexity.txt`):
 
-- La regola 3 e il milestone lo dicono chiaramente: una patch che cambia le risposte a temperatura 0 non entra
-  anche se è più veloce, e qui cambia tutte le risposte contro una base stabile.
-- Il guadagno sul carico vero (G1) è del 3,6 % a 7k e quasi nullo a 21k: non varrebbe comunque il
-  costo di tenere un ramo da ribasare.
-- Il ramo `patch/int8-coopmat` resta nel repo del fork, non in `moro-ai`. Da rimisurare quando la
-  PR sarà fusa o aggiornata: se ggml-org la accetta, arriva comunque con un tag, e la misura giusta
-  diventa «tag nuovo contro tag vecchio», come M-08 T-07.
-- La build `b10991+moro1-vulkan` resta installata come build di prova; nessun profilo standard la usa.
+| modello (ubatch) | moro0 | moro1 | moro0-bis |
+|---|---:|---:|---:|
+| 35B-A3B (4096) | 2,2601 ± 0,0456 | 2,2557 ± 0,0454 | 2,2601 ± 0,0456 |
+| Coder-Next (512) | 2,7182 ± 0,0667 | 2,7133 ± 0,0664 | — |
 
-**Non misurato:** il Coder-Next G3 (T-06b, scenario pronto in `.lmbrain-lite/m14/T-06b.toml`) e la
-perplessità. Non cambierebbero il verdetto (la divergenza basta), ma il task li chiede.
+La patch non peggiora la qualità misurabile: la perplessità è un filo più bassa in entrambi, dentro
+l'errore. Il campione è piccolo (2 blocchi da 8.192 token di codice di Aethera).
 
-### Il riavvio a metà misura
+### Verdetto
 
-Windows Update ha riavviato alle 02:33 (KB5129195, Windows 10.0.26200.9457). **Tutte le righe di
-T-06a e di llama-bench sono di prima del riavvio**: l'ultima è delle 02:32:10, e la build di Windows
-non è cambiata durante la misura. moro0-bis si è fermato dopo il riscaldamento del 21k; l'avvio
-`r-20260917-022758` non ha la sezione di uscita, quindi Benchmark lo mostra come non chiuso. Driver
-GPU e NPU, VGM e alimentazione sono invariati (verifica dell'agente principale alle 07:45). Dopo il
-riavvio non c'è nessun numero, quindi il problema del confronto prima/dopo non si pone. Una misura
-futura però andrà fatta tutta sulla build nuova, rifacendo anche la base.
+**Per la regola scritta: non entra in `moro-ai`.** Il milestone dice che una patch che cambia le
+risposte a temperatura 0 non entra anche se è più veloce, e questa le cambia tutte, contro una base
+che si ripete identica.
 
-**Dopo il riavvio Smart App Control blocca i motori.** Dalle 07:45:27 il registro CodeIntegrity
-(eventi 3033/3077, criterio `{0283ac0f-…}`, «Smart App Control Block») rifiuta:
+**I numeri però mettono in discussione la regola, e la decisione spetta all'operatore:**
+- sul Coder-Next G3 il prefill guadagna il 33 % a 7k e il 27 % a 21k, con rumore sotto l'1 per mille;
+- la perplessità non peggiora, né sul G3 né sul G1;
+- decode, memoria e caricamento non cambiano;
+- sul G1 il guadagno è piccolo (+2,6 %, +3,4 %) e da solo non giustificherebbe un ramo da ribasare.
 
-- `llama-server.exe` di b10991+moro0;
-- `llama-server-impl.dll` di b10991+moro1 **e della release ggml-org b10991**, che ieri girava
-  (uscita 0xC0E90002);
-- `cargo.exe` della toolchain rustup.
+Se la coerenza si giudica con la perplessità (criterio che il brief stesso indica come più solido)
+invece che con l'uguaglianza del testo, la patch entra per il G3: prima in un profilo di prova su
+`b10991+moro1`, poi, dopo una prova d'uso, nel profilo standard. Fino a quella decisione:
+- il ramo `patch/int8-coopmat` resta nel repo del fork;
+- `moro-ai` resta b10991 liscio;
+- la build `b10991+moro1-vulkan` resta installata per le prove;
+- nessun profilo standard la usa.
 
-`VerifiedAndReputablePolicyState = 1`: la modalità è «attivo». Nessun evento prima delle 07:45.
-Non so dire se l'abbia attivato l'aggiornamento o se sia cambiata la reputazione cloud di questi file.
-Smart App Control non l'ho toccato: è un'impostazione di sicurezza.
+Se ggml-org fonde la PR, la patch arriva con un tag e la misura giusta diventa «tag nuovo contro
+tag vecchio», come M-08 T-07.
+
+### Il riavvio e Smart App Control
+
+- **02:33, riavvio.** Windows Update ha riavviato (KB5129195, Windows 10.0.26200.9457) mentre
+  moro0-bis del 35B faceva il riscaldamento del 21k. L'avvio `r-20260917-022758` è rimasto senza
+  sezione di uscita.
+- **Dopo il riavvio, i blocchi.** Smart App Control, in modalità attiva, ha bloccato dalle 07:45 i
+  `llama-server` senza firma, compresa la release ggml-org b10991 (`llama-server-impl.dll`, uscita
+  0xC0E90002), e `cargo.exe`. Registro CodeIntegrity, eventi 3033/3077/3118.
+- **07:52, sblocco.** L'operatore ha spento Smart App Control, e da lì tutto è ripartito.
+- **Condizioni invariate.** Driver GPU e NPU, VGM e alimentazione sono gli stessi di prima.
+
 
 ## T-07 — Aethera riconosce le build del fork (parte Rust)
 
@@ -258,44 +290,41 @@ dalla sessione principale (dal worktree i file del kit non si committano).
   tutti i layer sulla GPU.
 - **Rumore di llama-bench:** chi gira per primo parte più lento, e un confronto a due va ripetuto a
   ordine invertito (T-04).
-- **llama-bench non basta per giudicare una patch del prefill:** +22 % in pp512 sul 35B diventa +3,6 %
-  sul profilo G1 a 7k e +0,9 % a 21k. Si decide sul banco di Aethera.
-- **Determinismo:** con b10991 compilata qui e il profilo G1, due avvii della stessa build danno lo
-  stesso testo a temperatura 0 (in M-08 T-06, con b10809 e cache q8_0, no). La coerenza si può
-  quindi confrontare sul testo, oltre che con la perplessità.
-- **PR #27952:** sulla 890M si accende (RDNA3 per ggml), ma cambia le risposte; non è la leva per
-  il margine del MoE. Quel margine resta nel decode (`mul_mat_id`), e questa patch non lo tocca.
+- **llama-bench non basta per giudicare una patch del prefill:** +22 % in pp512 sul 35B diventa
+  +2,6 % sul profilo G1 a 7k (ubatch 4096), mentre sul Coder-Next con ubatch 512 si arriva a +33 %.
+  Il guadagno dipende dal profilo, e si decide sul banco di Aethera.
+- **Determinismo:** con b10991 compilata qui, due avvii della stessa build danno lo stesso testo a
+  temperatura 0, sul G1 e sul G3, anche dopo un riavvio (in M-08 T-06, con b10809 e cache q8_0, no).
+  Anche la perplessità si ripete fino all'ultima cifra.
+- **PR #27952:** sulla 890M si accende (RDNA3 per ggml). Cambia le risposte ma non la perplessità,
+  e accelera molto il prefill del Coder-Next. Non tocca il decode (`mul_mat_id`), dove resta il
+  margine del MoE.
 - **Smart App Control:** sulle build aggiornate di Windows 11 può bloccare `llama-server` senza
   firma, **anche quelle di ggml-org**. Va detto nella pagina Motore, perché Aethera allora non
   avvia nulla.
-- **Da verificare:** il denso 8B fa oggi 14,7–15,2 tok/s di decode con b10991, contro i 16,01 di
-  M-08 con b10809 e lo stesso driver.
+- **Decode del denso 8B, b10809 contro b10991** (llama-bench, nei due ordini, dopo il riavvio):
+  15,48 / 15,49 contro 15,52 / 15,52 tok/s, quindi uguale. Il prefill 512 va da 302 a 387 (+28 %) e
+  pp4096+tg128 da 171 a 196 (+15 %). I 16,01 di M-08 non li raggiunge nessuna delle due build: lo
+  scarto (circa 3 %) viene dalla macchina, non da b10991. Stanotte, prima del riavvio, erano
+  14,7–15,2. Righe in `<radice>\m14\T-10-denso-*.jsonl`.
 
 ## Cosa resta all'operatore
 
-1. **Smart App Control** (Sicurezza di Windows → Controllo app e browser). Oggi blocca tutti i
-   `llama-server`, compreso quello di ggml-org, e `cargo`: finché resta così, Aethera non avvia
-   il motore. Spegnerlo si fa da lì, ma **non si può riaccendere senza reinstallare Windows**:
-   la decisione è tua. Prima puoi guardare il registro «CodeIntegrity/Operational» (eventi 3077,
-   3118) per vedere cosa blocca.
-2. **Quando i motori ripartono:**
-   - completare T-06, con la macchina ferma e nessun client:
-     - `m08_bench <radice> .lmbrain-lite/m14/T-06a.toml` (tutto da capo, sulla build nuova di Windows);
-     - `m08_bench <radice> .lmbrain-lite/m14/T-06b.toml` (Coder-Next);
-     - `bash .lmbrain-lite/m14/run-T06-perplexity.sh moro0 <radice>/builds/llama-b10991+moro0-win-vulkan-x64 moro1 <radice>/builds/llama-b10991+moro1-win-vulkan-x64`;
-     - poi `python .lmbrain-lite/m14/analisi.py banco <radice>/m14/T-06a.jsonl <radice>/m14/T-06b.jsonl`.
-     Circa un'ora e mezza in tutto.
-   - `cargo test` e `cargo clippy` in `src-tauri`, verdi alle 02:05 dopo l'ultimo cambio al codice
-     Rust; dopo non ho più toccato il Rust.
-3. **T-07, parte della finestra (dopo il merge di M-12):**
+1. **Decidere sulla patch int8 coopmat:**
+   - la regola scritta («stessa risposta a temperatura 0») la esclude;
+   - la perplessità invariata e il +27–33 % di prefill sul Coder-Next G3 dicono che conviene.
+
+   Se la regola diventa «perplessità invariata», il passo dopo è un profilo di prova del G3 su
+   `b10991+moro1` (la build è già installata), non il profilo standard.
+2. **T-07, parte della finestra (dopo il merge di M-12):**
    - Benchmark: la serie accanto alla build e l'avviso nella fascia di confronto;
    - Impostazioni → Build: la provenienza.
-4. **Revisione e merge** del branch `m14-fork-leggero`. Niente push.
-5. **Note del milestone:** riportarci la regola di adozione (T-08) dalla sessione principale.
-6. **Facoltativo:** `llama-bench` di b10809 sul denso 8B, per capire il decode sceso a 14,7–15,2
-   (M-08: 16,01).
-7. **File sulla macchina:**
+3. **Revisione e merge** del branch `m14-fork-leggero`. Niente push.
+4. **Note del milestone:** riportarci la regola di adozione (T-08) dalla sessione principale.
+5. **Smart App Control resta spento:** ricordarlo, perché Windows non lo riaccende più.
+6. **File sulla macchina:**
    - build di prova `b10991+moro0-vulkan` e `b10991+moro1-vulkan` in `<radice>\builds`, con le loro
      voci in `machine.toml` (le copie di sicurezza sono accanto);
-   - il repo del fork in `<radice>\src\llama.cpp`, con 1,3 GB di cartelle di build in
-     `build-moro\`, cancellabili.
+   - il repo del fork in `<radice>\src\llama.cpp`, con 1,3 GB di cartelle di build in `build-moro\`,
+     cancellabili;
+   - l'avvio `r-20260917-022758`, interrotto dal riavvio, non ha la sezione di uscita.
