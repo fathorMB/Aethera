@@ -20,7 +20,10 @@ export default defineConfig({
     emptyOutDir: true,
   },
   // I test del frontend sono logica pura: nessun DOM simulato.
+  // Solo i test del frontend: quelli dei compiti della batteria (.lmbrain-lite/batteria) falliscono
+  // di proposito finché un agente non li risolve.
   test: {
     environment: "node",
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
 });
