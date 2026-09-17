@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aethera — int8 coopmat: adottarla o no (M-16, 17-09-2026)</title>
+<style>
+:root{
+  --bg:#f4f5f7;--bg2:#ffffff;--bg3:#e9ebef;--line:#d5d8de;--fg:#1a1c20;--fg2:#5b6270;--fg3:#7b828d;
+  --acc:#2f6fed;--acc-bg:#e6eefd;--ok:#1f7a45;--ok-bg:#e3f2e8;--warn:#8f5605;--warn-bg:#fbf0dd;
+  --err:#c62f2f;--err-bg:#fbe6e6;
+  --mono:"Cascadia Mono","JetBrains Mono",Consolas,ui-monospace,monospace;
+  --sans:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#141619;--bg2:#1c1f24;--bg3:#24282f;--line:#30353d;--fg:#e6e8eb;--fg2:#a3a9b3;--fg3:#8a919b;
+  --acc:#5b8dff;--acc-bg:#1d2a44;--ok:#3ec46f;--ok-bg:#16301f;--warn:#e5a23a;--warn-bg:#35270f;
+  --err:#f26b6b;--err-bg:#3a1c1c;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.55 var(--sans);padding:24px 16px 72px}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:34px}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance}
+h1{font-size:26px;font-weight:700}
+h2{font-size:18px;font-weight:600;padding-bottom:6px;border-bottom:1px solid var(--line)}
+h3{font-size:14px;font-weight:600;color:var(--fg2)}
+p{margin:0;max-width:74ch}
+ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:74ch}
+section{display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
+code,.mono{font-family:var(--mono);font-size:12.5px}
+code{background:var(--bg3);padding:1px 5px;border-radius:3px}
+pre{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:10px 12px;overflow-x:auto;font:12.5px/1.5 var(--mono);margin:0}
+header{display:flex;flex-direction:column;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.lede{font-size:16px;color:var(--fg2)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:7px}
+.card .big{font-family:var(--mono);font-size:23px;font-weight:600;font-variant-numeric:tabular-nums}
+.card p{font-size:13px;color:var(--fg2)}
+.tag{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:999px;width:max-content}
+.t-ok{background:var(--ok-bg);color:var(--ok)}.t-warn{background:var(--warn-bg);color:var(--warn)}
+.t-err{background:var(--err-bg);color:var(--err)}.t-acc{background:var(--acc-bg);color:var(--acc)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg2)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--bg3);font-size:11.5px;font-weight:600;color:var(--fg2);letter-spacing:.02em;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.best td{background:var(--acc-bg)}
+.up{color:var(--ok);font-weight:600}
+.sig{font-family:var(--mono);font-weight:600;color:var(--acc)}
+.chart{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:14px}
+.chart svg{display:block;width:100%;height:auto}
+.chart text{fill:var(--fg2);font-family:var(--mono);font-size:11px}
+.chart .lab{fill:var(--fg);font-family:var(--sans);font-size:12px;font-weight:600}
+.chart .grid{stroke:var(--line)}
+.b0{fill:var(--fg3)}.b1{fill:var(--acc)}
+.legenda{display:flex;gap:16px;font-size:12px;color:var(--fg2);align-items:center;flex-wrap:wrap}
+.sw{display:inline-block;width:11px;height:11px;border-radius:2px;vertical-align:-1px;margin-right:5px}
+.asks{list-style:none;padding:0;display:flex;flex-direction:column;gap:10px;max-width:none}
+.asks li{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:5px}
+.asks li.si{border-left-color:var(--ok)}
+.asks li.no{border-left-color:var(--warn)}
+.asks p{font-size:13px;color:var(--fg2)}
+footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-size:12.5px;display:flex;flex-direction:column;gap:6px}
+@media (max-width:620px){h1{font-size:22px}body{font-size:13.5px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Aethera · M-16 · 17 settembre 2026 · Minisforum AI X1 Pro, VGM 48, Windows 26200.9457</span>
+  <h1>int8 coopmat: cosa cambia davvero, e cosa conviene fare</h1>
+  <p class="lede">La patch <a href="https://github.com/ggml-org/llama.cpp/pull/27952">PR ggml-org/llama.cpp#27952</a> moltiplica le matrici quantizzate in interi a 8 bit invece che in float a 16. Qui c'è cosa guadagna, quanto si discosta dalla base, e perché la vecchia regola «stesso testo a temperatura 0» non serviva a niente.</p>
+  <div class="legenda">
+    <span><span class="sig">G1</span> Qwen3.6-35B-A3B Q4_K_M</span>
+    <span><span class="sig">G3</span> Qwen3-Coder-Next Q4_K_M</span>
+    <span><b>moro0</b> = b10991 compilata qui</span>
+    <span><b>moro1</b> = moro0 + patch</span>
+  </div>
+</header>
+
+<section>
+  <h2>In breve</h2>
+  <div class="cards">
+    <div class="card">
+      <span class="tag t-ok">consigliato</span>
+      <span class="big">G3 · −34 %</span>
+      <p>Con patch e ubatch 2048, un prompt a freddo da 16.822 token passa da 104 a 69 secondi. Metà del merito è dell'ubatch, metà della patch.</p>
+    </div>
+    <div class="card">
+      <span class="tag t-warn">non ancora</span>
+      <span class="big">G1 · −3,5 %</span>
+      <p>Sul 35B la patch vale 1,7 secondi sullo stesso prompt. Da sola non giustifica un ramo da mantenere: si adotterà quando arriva upstream.</p>
+    </div>
+    <div class="card">
+      <span class="tag t-acc">fedeltà</span>
+      <span class="big">97,9 % · 97,1 %</span>
+      <p>Token identici rispetto alla base. Per confronto, cambiare solo l'ubatch ne cambia altrettanti. La perplessità migliora di un soffio.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>1 · Quanto si discosta dalla base</h2>
+  <p>La divergenza KL misura quanto le probabilità dei token si allontanano da quelle della base: zero vuol dire identiche. Serve un metro per sapere quando un numero è «tanto». Ne abbiamo due: cambiare solo l'ubatch, cosa che facciamo già senza pensarci, e far girare lo stesso modello sulla CPU.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>confronto</th><th class="n">KL media</th><th class="n">KL al 99 %</th><th class="n">KL massima</th><th class="n">stesso primo token</th><th class="n">Δ perplessità</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sig">G1</span> base contro se stessa <i>(pavimento)</i></td><td class="n">0</td><td class="n">0</td><td class="n">0,00006</td><td class="n">100 %</td><td class="n">0</td></tr>
+        <tr><td><span class="sig">G1</span> metro: solo ubatch (4096 → 512)</td><td class="n">0,00066</td><td class="n">0,0064</td><td class="n">0,020</td><td class="n">98,9 %</td><td class="n">0</td></tr>
+        <tr><td><span class="sig">G1</span> metro: stessa build su CPU</td><td class="n">0,018</td><td class="n">–</td><td class="n">–</td><td class="n">–</td><td class="n">–</td></tr>
+        <tr class="best"><td><span class="sig">G1</span> <b>patch</b></td><td class="n">0,0102</td><td class="n">0,066</td><td class="n">12,2</td><td class="n">97,9 %</td><td class="n">−0,004 ± 0,005</td></tr>
+        <tr><td><span class="sig">G3</span> base contro se stessa <i>(pavimento)</i></td><td class="n">0</td><td class="n">0</td><td class="n">0,000004</td><td class="n">100 %</td><td class="n">0</td></tr>
+        <tr><td><span class="sig">G3</span> metro: solo ubatch (512 → 2048)</td><td class="n">0,0065</td><td class="n">0,082</td><td class="n">0,88</td><td class="n">97,2 %</td><td class="n">0</td></tr>
+        <tr class="best"><td><span class="sig">G3</span> <b>patch</b></td><td class="n">0,0092</td><td class="n">0,113</td><td class="n">3,7</td><td class="n">97,1 %</td><td class="n">−0,003 ± 0,006</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><b>Il picco a 12,2 sul G1 sembrava un problema e non lo è.</b> Sono 8 token in 7 gruppi, tutti in una zona dove il modello è incertissimo: lì il token vero ha probabilità 0,000 con la base e 0,994 con la patch. Anche il calcolo sulla CPU si discosta, e più della base. La verosimiglianza del token vero in quella zona: patch 1,011, base 1,262, CPU 1,610 — più basso è meglio. In quei punti, insomma, la patch segue il testo meglio della base.</p>
+</section>
+
+<section>
+  <h2>2 · Velocità: la patch e l'ubatch insieme</h2>
+  <p>Prefill sul prompt di codice da 7k token, in token al secondo, mediana di 3 giri. Il decode, la memoria e il tempo di caricamento non cambiano mai.</p>
+  <div class="chart">
+    <svg viewBox="0 0 700 250" role="img" aria-label="Prefill a 7k per ubatch, base contro patch, su G1 e G3">
+      <g transform="translate(78,12)">
+        <text class="lab" x="0" y="0">G1 · 35B</text>
+        <g transform="translate(0,8)">
+          <line class="grid" x1="0" y1="0" x2="0" y2="92"/>
+          <rect class="b0" x="0" y="4" width="115.6" height="9"/><rect class="b1" x="0" y="14" width="137.6" height="9"/><text x="146" y="22">512 · 318 → 378</text>
+          <rect class="b0" x="0" y="28" width="136" height="9"/><rect class="b1" x="0" y="38" width="156" height="9"/><text x="164" y="46">1024 · 374 → 429</text>
+          <rect class="b0" x="0" y="52" width="152" height="9"/><rect class="b1" x="0" y="62" width="164.8" height="9"/><text x="173" y="70">2048 · 418 → 453</text>
+          <rect class="b0" x="0" y="76" width="161.2" height="9"/><rect class="b1" x="0" y="86" width="167.6" height="9"/><text x="176" y="94">4096 · 443 → 461</text>
+        </g>
+        <text class="lab" x="0" y="140">G3 · Coder-Next</text>
+        <g transform="translate(0,148)">
+          <line class="grid" x1="0" y1="0" x2="0" y2="92"/>
+          <rect class="b0" x="0" y="4" width="66.4" height="9"/><rect class="b1" x="0" y="14" width="88.4" height="9"/><text x="97" y="22">512 · 183 → 243</text>
+          <rect class="b0" x="0" y="28" width="75.6" height="9"/><rect class="b1" x="0" y="38" width="100.8" height="9"/><text x="109" y="46">1024 · 208 → 277</text>
+          <rect class="b0" x="0" y="52" width="79.6" height="9"/><rect class="b1" x="0" y="62" width="104" height="9"/><text x="112" y="70">2048 · 219 → 286</text>
+          <rect class="b0" x="0" y="76" width="72.4" height="9"/><rect class="b1" x="0" y="86" width="98" height="9"/><text x="106" y="94">4096 · 199 → 270</text>
+        </g>
+      </g>
+    </svg>
+  </div>
+  <div class="legenda"><span><span class="sw b0" style="background:var(--fg3)"></span>base</span><span><span class="sw" style="background:var(--acc)"></span>con la patch</span><span>scala: 1 px ≈ 2,7 tok/s</span></div>
+  <ul>
+    <li><b>La patch rende di più sui lotti piccoli</b>: sul G1 vale +19 % a ubatch 512 e solo +4 % a 4096.</li>
+    <li><b>Per il G1 conviene comunque restare a 4096</b>: è la configurazione più veloce con e senza patch (461 contro 453 a 2048).</li>
+    <li><b>Per il G3 il migliore è ubatch 2048</b>, che da solo vale +20 % rispetto al 512 del profilo di oggi; con la patch si arriva a <b class="up">+57 %</b> sul prompt da 7k e +50 % su quello da 21k.</li>
+    <li>A ubatch 4096 il G3 peggiora: la VRAM tocca 47,2 GiB su 48 e il buffer di calcolo esce dalla memoria dedicata.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>3 · Il tempo che si risparmia davvero</h2>
+  <p>Un prompt a freddo da 16.822 token, la dimensione del prompt fisso di Claude Code. Capita alla prima richiesta, dopo ogni compattazione e quando un client perde la risposta precedente.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>configurazione</th><th class="n">prefill</th><th class="n">tempo</th><th class="n">risparmio</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sig">G3</span> base, ubatch 512 <i>(come il profilo di oggi)</i></td><td class="n">162</td><td class="n">103,8 s</td><td class="n">–</td></tr>
+        <tr><td><span class="sig">G3</span> base, ubatch 2048</td><td class="n">194</td><td class="n">86,9 s</td><td class="n">−17 s</td></tr>
+        <tr><td><span class="sig">G3</span> patch, ubatch 512</td><td class="n">207</td><td class="n">81,2 s</td><td class="n">−23 s</td></tr>
+        <tr class="best"><td><span class="sig">G3</span> <b>patch, ubatch 2048</b></td><td class="n">244</td><td class="n">69,0 s</td><td class="n"><b class="up">−35 s</b></td></tr>
+        <tr><td><span class="sig">G1</span> base, ubatch 4096</td><td class="n">352</td><td class="n">47,8 s</td><td class="n">–</td></tr>
+        <tr><td><span class="sig">G1</span> patch, ubatch 4096</td><td class="n">365</td><td class="n">46,1 s</td><td class="n">−1,7 s</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Nel lavoro con un agente il guadagno si assottiglia</h3>
+  <p>Nella batteria il motore vede tante richieste piccole: la mediana è sotto i 60 token nuovi. Il prefill effettivo passa da 113 a 122 token al secondo, cioè +8 %, non +31 %. Il motivo è un <b>costo fisso di circa 1,5 secondi per richiesta</b>, che la patch non tocca: su 240 richieste sono circa 6 minuti, metà di tutto il tempo di prefill. Vale anche per il G1 (1,45 s). Il sospettato è il salvataggio e il ripristino dello stato dei modelli ibridi; è il numero più grosso trovato finora dopo il prefill a freddo, e meriterebbe un milestone suo.</p>
+</section>
+
+<section>
+  <h2>4 · La batteria dice che non si perde qualità</h2>
+  <p>Gli stessi 15 compiti di M-15, due giri per configurazione, con un controllo sulla stessa build e sullo stesso ubatch ma senza patch. Il campionamento del G3 è a temperatura 1, quindi il rumore è alto.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>configurazione</th><th class="n">giro 1</th><th class="n">giro 2</th><th>cause dei fallimenti</th></tr></thead>
+      <tbody>
+        <tr><td>controllo: moro0, ubatch 2048</td><td class="n">11/15</td><td class="n">10/15</td><td>test nascosti falliti, tetto dei turni</td></tr>
+        <tr class="best"><td><b>patch: moro1, ubatch 2048</b></td><td class="n">10/15</td><td class="n">10/15</td><td>le stesse, più un <code>python</code> appeso e diff illeggibili</td></tr>
+        <tr><td><i>notte-1</i>: b10809, ubatch 512 <i>(altro tag e altro ubatch)</i></td><td class="n">12/15</td><td class="n">–</td><td>non confrontabile direttamente</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul>
+    <li>Fra due giri della <i>stessa</i> configurazione cambiano da 1 a 4 compiti: il rumore è più grande della differenza fra patch e controllo.</li>
+    <li>Nove compiti su quindici danno lo stesso esito in tutti e quattro i giri; nessun file protetto è stato toccato in nessun giro.</li>
+    <li>Le cause di fallimento sono quelle già note di M-15: i due difetti di Nonio e i test nascosti, non la numerica.</li>
+    <li>Per dire qualcosa di più fine servirebbero più giri per configurazione.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>5 · La regola è cambiata</h2>
+  <p>La vecchia regola del fork diceva: una patch che cambia le risposte a temperatura 0 non entra. <b>Non funzionava</b>, e lo dimostra il metro dell'ubatch: passare da 512 a 2048 cambia il testo in tutte le coppie provate, spesso agli stessi caratteri della patch. Con quella regola avremmo dovuto rifiutare anche un cambio di ubatch, che invece abbiamo adottato in M-08 senza problemi.</p>
+  <p>La regola nuova, scritta in <code>.lmbrain-lite/fork/README.md</code>, misura la fedeltà con la KL contro due metri, l'ubatch e la CPU, e chiede che la batteria non perda compiti:</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>misura</th><th>soglia</th><th><span class="sig">G1</span></th><th><span class="sig">G3</span></th></tr></thead>
+      <tbody>
+        <tr><td>Δ perplessità</td><td>dentro 2 σ, o negativa</td><td><span class="tag t-ok">passa</span> −0,004</td><td><span class="tag t-ok">passa</span> −0,003</td></tr>
+        <tr><td>KL media</td><td>≤ 2 × metro e ≤ 0,02</td><td><span class="tag t-ok">passa</span> 0,0102 ≤ 0,020</td><td><span class="tag t-ok">passa</span> 0,0092 ≤ 0,013</td></tr>
+        <tr><td>KL al 99 %</td><td>≤ 2 × metro</td><td><span class="tag t-ok">passa</span> 0,066 ≤ 0,20</td><td><span class="tag t-ok">passa</span> 0,113 ≤ 0,165</td></tr>
+        <tr><td>KL massima</td><td>≤ 1, oppure zona dove anche il metro si discosta e la patch non peggiora</td><td><span class="tag t-ok">passa</span> spiegato</td><td><span class="tag t-warn">con riserva</span> 3,7, token incerto</td></tr>
+        <tr><td>stesso primo token</td><td>≥ metro − 1 punto</td><td><span class="tag t-ok">passa</span> 97,9 ≥ 96,5</td><td><span class="tag t-ok">passa</span> 97,1 ≥ 96,2</td></tr>
+        <tr><td>batteria</td><td>riusciti ≥ riferimento − 2, nessun file protetto</td><td>non serve: l'ubatch non cambia</td><td><span class="tag t-ok">passa</span> 10 e 10 contro 11 e 10</td></tr>
+        <tr><td>testo identico a temperatura 0</td><td><b>non è più un requisito</b>: si registra e basta</td><td colspan="2">cambia anche cambiando solo l'ubatch</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>6 · Verdetto e decisioni per te</h2>
+  <p><b>La patch entra nel fork.</b> Il ramo <code>moro-ai</code> è già b10991 più <code>patch/int8-coopmat</code>, cioè lo stesso commit della build <code>b10991+moro1</code> su cui sono state fatte tutte le misure. I profili standard invece non sono stati toccati: quelli li cambi tu.</p>
+  <ul class="asks">
+    <li class="si">
+      <h3>G3: adottare build e ubatch — consigliato</h3>
+      <p>Il profilo <code>qwen3-coder-next.q4_k_m.vulkan</code> passa a <code>build = "b10991+moro1"</code> e <code>ubatch = 2048</code>. Vale 35 secondi su ogni prompt a freddo. C'è già un profilo di prova pronto, <code>…vulkan.int8</code>, se preferisci usarlo qualche giorno prima di cambiare quello standard.</p>
+    </li>
+    <li class="no">
+      <h3>G1: aspettare</h3>
+      <p>La patch vale 1,7 secondi. Quando la PR viene fusa upstream arriva con il tag e la si prende senza mantenere niente. Anche per il G1 esiste un profilo di prova, se vuoi provarla.</p>
+    </li>
+    <li>
+      <h3>La PR upstream va sorvegliata</h3>
+      <p>Oggi la sua testa è stata ribasata dopo la divisione di <code>ggml-vulkan.cpp</code>: prima del prossimo tag il ramo va ripreso da <code>pull/27952/head</code>. I sette passi per togliere il ramo quando viene fusa sono nel rapporto.</p>
+    </li>
+    <li>
+      <h3>Il costo fisso di 1,5 secondi per richiesta</h3>
+      <p>Pesa più della patch nel lavoro quotidiano con un agente: circa 6 minuti su un giro di batteria. Propongo un milestone per capirlo e ridurlo.</p>
+    </li>
+    <li>
+      <h3>Da unire</h3>
+      <p>Il branch <code>m16-int8-coopmat</code>, dieci commit, e la nota in M-14 che la vecchia regola è superata.</p>
+    </li>
+  </ul>
+</section>
+
+<footer>
+  <span>Rapporto completo con tutti i dettagli: <code>.lmbrain-lite/reports/int8-coopmat-2026-09.md</code>. Misure grezze in <code>&lt;radice&gt;\m16</code>. Scenari e script in <code>.lmbrain-lite/m16</code>.</span>
+  <span>Misure fatte il 17-09-2026 fra le 13:45 e le 20:30, VGM 48, driver GPU 32.0.31041.1004, alimentazione su massime prestazioni, un avvio alla volta con la procedura di M-08.</span>
+</footer>
+
+</div>
+</body>
+</html>

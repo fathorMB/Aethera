@@ -1,0 +1,94 @@
+# M-16 T-02b — ubatch 512, 1024, 2048, 4096 su b10991+moro0 (base) e +moro1 (int8 coopmat),
+# Coder-Next G3 (profilo: ubatch 512, batch 2048, senza speculazione). Batch = max(2048, ubatch):
+# il profilo usa 2048 e il batch deve essere >= ubatch. L'ubatch 4096 viene per ultimo: i pesi
+# occupano già 46 GiB di VGM e il buffer di calcolo cresce con l'ubatch.
+# Stesse regole di T-02a.
+measure = "T-02b"
+title = "ubatch con e senza int8 coopmat: Coder-Next G3"
+base = "qwen3-coder-next.q4_k_m.vulkan"
+repetitions = 3
+warmup = 1
+
+[[variant]]
+name = "moro0-ub512"
+note = "b10991+moro0, ubatch 512, batch 2048"
+build = "b10991+moro0"
+[variant.server]
+ubatch = 512
+batch = 2048
+
+[[variant]]
+name = "moro1-ub512"
+note = "b10991+moro1, ubatch 512, batch 2048"
+build = "b10991+moro1"
+[variant.server]
+ubatch = 512
+batch = 2048
+
+[[variant]]
+name = "moro0-ub1024"
+note = "b10991+moro0, ubatch 1024, batch 2048"
+build = "b10991+moro0"
+[variant.server]
+ubatch = 1024
+batch = 2048
+
+[[variant]]
+name = "moro1-ub1024"
+note = "b10991+moro1, ubatch 1024, batch 2048"
+build = "b10991+moro1"
+[variant.server]
+ubatch = 1024
+batch = 2048
+
+[[variant]]
+name = "moro0-ub2048"
+note = "b10991+moro0, ubatch 2048, batch 2048"
+build = "b10991+moro0"
+[variant.server]
+ubatch = 2048
+batch = 2048
+
+[[variant]]
+name = "moro1-ub2048"
+note = "b10991+moro1, ubatch 2048, batch 2048"
+build = "b10991+moro1"
+[variant.server]
+ubatch = 2048
+batch = 2048
+
+[[variant]]
+name = "moro0-ub4096"
+note = "b10991+moro0, ubatch 4096, batch 4096"
+build = "b10991+moro0"
+[variant.server]
+ubatch = 4096
+batch = 4096
+
+[[variant]]
+name = "moro1-ub4096"
+note = "b10991+moro1, ubatch 4096, batch 4096"
+build = "b10991+moro1"
+[variant.server]
+ubatch = 4096
+batch = 4096
+
+[[workload]]
+name = "codice-7k"
+prompt = "../m08/prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.0
+seed = 1234
+fixed_nonce = true
+save_text = true
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "../m08/prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.0
+seed = 1234
+fixed_nonce = true
+save_text = true

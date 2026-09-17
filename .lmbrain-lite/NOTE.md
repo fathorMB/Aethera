@@ -2,16 +2,25 @@
 updated: 2026-09-17
 by: lead
 ---
-**Riavvio del 17-09 notte: VGM di nuovo a 48** (operatore). Al rientro: **lanciare M-14 con un sub-agent Opus**, priorità della notte.
+**Notte 16→17-09 chiusa (13:30).** Report per l'operatore: https://claude.ai/artifact/67FX2ZCpZfx6Vqkvxh6uwu
 
-## M-14, cosa sapere
-- Toolchain pronta: Build Tools 2022 (MSVC 14.44, CMake e Ninja inclusi), Vulkan SDK 1.4.357.0.
-- T-07 solo Rust; la finestra dopo il merge di M-12.
-- Misure a VGM 48, confrontabili con M-08.
+**GitHub** `main` = `6050cc4`: PR #1–#5 unite; bozza e tag v0.1.0-rc.1 restano fino alla v0.1.0.
 
-## Stato
-- **GitHub** `main` = `adf182a` (PR #1, #2, #3). Repo pubblico, percorsi fuori. Bozza e tag v0.1.0-rc.1 restano fino alla v0.1.0.
-- **M-10**: T-01, T-02, T-04, T-06, T-07, T-08 fatti; T-09 blocked (prova dei checkpoint); T-10 (batteria Nonio) e T-13 (rapporto) aperti. T-11/T-12 non scattano (decode < 12).
-- **M-11**: T-01…T-03 fatti; restano contesto lungo, batteria e rapporto.
-- **M-12**: 10/11 sul branch locale `m12-finestra-v2` (worktree in `.claude/worktrees`), non unito. T-10 all'operatore: gruppo 6b di `reports/da-provare-operatore.md`.
-- **M-13**: resta T-07 (v0.1.0).
+## Risultati
+- **Batteria (M-15)**, compiti riusciti:
+  - G1 (35B): 12/15, 22,4 riusciti per ora;
+  - G3 (Coder-Next): 12/15, 12,1 per ora;
+  - FC (Flash-Coder): 0/15;
+  - FN (Flash-Next): non eseguito, RAM 34,9 GiB invece di 41,3 dopo il riavvio.
+- **Patch int8 coopmat (M-14)**: prefill +3% su G1 e +27/33% su G3; testo a temperatura 0 diverso, perplessità invariata.
+
+## Decisioni dell'operatore
+1. RAM sparita (~6 GiB) oppure VGM 64 per FN e M-15 T-06.
+2. Firma del codice prima della v0.1.0 (Smart App Control).
+3. Patch int8 su G3: regola del testo identico o della perplessità.
+4. Prova della finestra v2 (M-12, gruppo 6b) e merge di `m12-finestra-v2`.
+5. Correggere Nonio (`finish` respinto, virgolette di `cmd /C`), poi batteria con 3 giri.
+6. Sospendere Windows Update nelle notti di banco.
+
+## Da correggere in Aethera
+- Telemetria: compattazioni false all'inizio di ogni compito nuovo.

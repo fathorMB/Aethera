@@ -1,0 +1,96 @@
+# M-16 T-02a — ubatch 512, 1024, 2048, 4096 su b10991+moro0 (base) e +moro1 (int8 coopmat), 35B G1.
+# Il profilo standard non si tocca: build e ubatch si cambiano variante per variante. MTP a 3 token
+# come il profilo. Batch fisso a 4096 (quello del profilo, >= ogni ubatch): la variabile è l'ubatch.
+# Per ogni ubatch base e patch sono avviate una dopo l'altra, così la deriva della macchina pesa
+# uguale sulle due. Temperatura 0, seme 1234, nonce fisso per giro e testo intero: dice anche se
+# cambiare solo l'ubatch cambia il testo (argomento di T-04). Procedura di M-08 con 3 giri e
+# 1 riscaldamento. Si lancia con --riprendi (sequenza.py).
+measure = "T-02a"
+title = "ubatch con e senza int8 coopmat: 35B G1 (MTP come il profilo)"
+base = "qwen3.6-35b-a3b.q4_k_m.vulkan"
+repetitions = 3
+warmup = 1
+
+[[variant]]
+name = "moro0-ub512"
+note = "b10991+moro0, ubatch 512, batch 4096"
+build = "b10991+moro0"
+[variant.server]
+ubatch = 512
+batch = 4096
+
+[[variant]]
+name = "moro1-ub512"
+note = "b10991+moro1, ubatch 512, batch 4096"
+build = "b10991+moro1"
+[variant.server]
+ubatch = 512
+batch = 4096
+
+[[variant]]
+name = "moro0-ub1024"
+note = "b10991+moro0, ubatch 1024, batch 4096"
+build = "b10991+moro0"
+[variant.server]
+ubatch = 1024
+batch = 4096
+
+[[variant]]
+name = "moro1-ub1024"
+note = "b10991+moro1, ubatch 1024, batch 4096"
+build = "b10991+moro1"
+[variant.server]
+ubatch = 1024
+batch = 4096
+
+[[variant]]
+name = "moro0-ub2048"
+note = "b10991+moro0, ubatch 2048, batch 4096"
+build = "b10991+moro0"
+[variant.server]
+ubatch = 2048
+batch = 4096
+
+[[variant]]
+name = "moro1-ub2048"
+note = "b10991+moro1, ubatch 2048, batch 4096"
+build = "b10991+moro1"
+[variant.server]
+ubatch = 2048
+batch = 4096
+
+[[variant]]
+name = "moro0-ub4096"
+note = "b10991+moro0, ubatch 4096, batch 4096"
+build = "b10991+moro0"
+[variant.server]
+ubatch = 4096
+batch = 4096
+
+[[variant]]
+name = "moro1-ub4096"
+note = "b10991+moro1, ubatch 4096, batch 4096"
+build = "b10991+moro1"
+[variant.server]
+ubatch = 4096
+batch = 4096
+
+[[workload]]
+name = "codice-7k"
+prompt = "../m08/prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.0
+seed = 1234
+fixed_nonce = true
+save_text = true
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "../m08/prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.0
+seed = 1234
+fixed_nonce = true
+save_text = true
