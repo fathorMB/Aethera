@@ -17,7 +17,7 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-ORDINE = ["G1", "FC", "G3", "FN"]
+ORDINE = ["G1", "G1-int8", "FC", "G3", "G3-moro0", "G3-int8", "FN"]
 
 
 def med(v):

@@ -2,7 +2,7 @@
 //! (`launch::prepare` + `Engine::start`), quindi lascia il suo `runs/<id>` con manifest, log e
 //! telemetria: il run id è la prova della misura.
 //!
-//! Uso: `cargo run --release --example m08_bench -- <radice> <scenario.toml> [--dry]`
+//! Uso: `cargo run --release --example m08_bench -- <radice> <scenario.toml> [--dry] [--riprendi]`
 //!
 //! Lo scenario dichiara il profilo di partenza, le varianti (una variabile per volta) e i carichi.
 //! Il banco non giudica: scrive `m08/<misura>.jsonl` con una riga per giro, **numeri grezzi del
@@ -548,6 +548,27 @@ fn stop_when_free(engine: &Engine) -> Result<(), String> {
     }
 }
 
+/// Le varianti che nel JSONL hanno, in un solo avvio, tutti i giri buoni di tutti i carichi.
+fn complete_variants(out_path: &Path, sc: &Scenario) -> std::collections::HashSet<String> {
+    use std::collections::{HashMap, HashSet};
+    let expected: usize = sc.workload.iter().map(|w| if w.kind == "turns" { w.turns } else { 1 }).sum::<usize>() * sc.repetitions;
+    let mut counts: HashMap<(String, String), usize> = HashMap::new();
+    for line in std::fs::read_to_string(out_path).unwrap_or_default().lines() {
+        let Ok(v) = serde_json::from_str::<Value>(line) else { continue };
+        if v["warmup"].as_bool() == Some(false) {
+            if let (Some(var), Some(run)) = (v["variant"].as_str(), v["run_id"].as_str()) {
+                *counts.entry((var.to_string(), run.to_string())).or_default() += 1;
+            }
+        }
+    }
+    let names: HashSet<&str> = sc.variant.iter().map(|v| v.name.as_str()).collect();
+    counts
+        .into_iter()
+        .filter(|((var, _), n)| *n >= expected && names.contains(var.as_str()))
+        .map(|((var, _), _)| var)
+        .collect()
+}
+
 // ---------------------------------------------------------------- main
 
 fn main() -> Result<(), String> {
@@ -555,6 +576,7 @@ fn main() -> Result<(), String> {
     let root = DataRoot::new(args.first().ok_or("uso: m08_bench <radice> <scenario.toml> [--dry]")?);
     let scenario_path = PathBuf::from(args.get(1).ok_or("scenario?")?);
     let dry = args.iter().any(|a| a == "--dry");
+    let resume = args.iter().any(|a| a == "--riprendi");
     let sc: Scenario = toml::from_str(&std::fs::read_to_string(&scenario_path).map_err(|e| format!("{}: {e}", scenario_path.display()))?)
         .map_err(|e| format!("{}: {e}", scenario_path.display()))?;
 
@@ -581,11 +603,31 @@ fn main() -> Result<(), String> {
         return Ok(());
     }
 
+    // M-16: con `--riprendi` le varianti che hanno già tutti i giri buoni nel JSONL si saltano
+    // (un riavvio di Windows a metà notte non fa ripetere quelle finite). Una variante interrotta
+    // si rifà da capo: l'analisi tiene l'ultimo avvio di ogni variante.
+    let done = if resume { complete_variants(&out_path, &sc) } else { Default::default() };
+    let mut meta: Vec<Value> = if resume {
+        std::fs::read_to_string(&meta_path)
+            .ok()
+            .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+            .and_then(|v| v["variants"].as_array().cloned())
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|m| m["variant"].as_str().is_some_and(|n| done.contains(n)))
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     let engine = Engine::default();
     let mut out = std::fs::OpenOptions::new().create(true).append(true).open(&out_path).map_err(|e| e.to_string())?;
-    let mut meta = Vec::new();
 
     for v in &sc.variant {
+        if done.contains(v.name.as_str()) {
+            println!("\n--- variante «{}»: già completa nel JSONL, la salto (--riprendi) ---", v.name);
+            continue;
+        }
         println!("\n--- variante «{}» {} ---", v.name, v.note.clone().unwrap_or_default());
         let started = match start_variant(&root, &engine, &sc, v) {
             Ok(s) => s,

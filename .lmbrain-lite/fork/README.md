@@ -29,9 +29,58 @@ come `LEGGIMI-MORO.md` (escluso da git con `.git/info/exclude`).
    liscia senza dirlo. Un profilo usa una build patchata solo se la chiede per nome
    (`build = "b10991+moro1"`); un profilo su `b10991` non ci ricade mai.
 3. **Una patch entra solo con una misura.** Procedura di M-08: stessa base, una variabile per volta,
-   5 giri, prompt congelati (7k e 21k), prefill e decode, memoria dopo il caricamento, e coerenza
-   dell'output. Senza guadagno misurato si butta. Una patch che cambia le risposte più di quanto il
-   backend cambi da solo fra due giri identici non entra anche se è più veloce.
+   giri ripetuti (3–5), prompt congelati (7k e 21k), prefill e decode, memoria dopo il caricamento,
+   e fedeltà numerica misurata come sotto. Senza guadagno misurato si butta. La fedeltà si giudica
+   **modello per modello**: una patch può entrare in `moro-ai` e servire solo ai profili dei modelli
+   per cui passa.
+
+## Regola di fedeltà (M-16)
+
+Il testo identico a temperatura 0 **non è più un requisito**. M-16 ha misurato che cambiare solo
+l'ubatch, a parità di build, cambia già le distribuzioni dei token e il testo generato (G1 e G3:
+quasi sempre 0 giri identici su 3, spesso allo stesso carattere in cui diverge la patch): un
+criterio che scarta ogni cambiamento numerico scarterebbe anche un cambio di profilo innocuo. Il testo si registra comunque (banco con `fixed_nonce` e `save_text`), come informazione.
+
+**Come si misura.** `llama-perplexity` della base con `--kl-divergence-base`, poi con
+`--kl-divergence` (script `.lmbrain-lite/m16/sequenza.py`, fase `kld-*`): prompt congelato da 21k,
+contesto 8192 (2 blocchi, 8.190 token valutati), `-ngl 999 -fa on`, cache f16, ubatch e batch del
+profilo. Per ogni modello si misurano:
+
+- **pavimento**: la base contro se stessa (deve dare KLD 0 e 100 % di stesso primo token; se no la
+  base non è deterministica e la misura non vale);
+- **metro dell'ubatch**: la base con un altro ubatch (G1 512 invece di 4096, G3 2048 invece di 512).
+  Misura quanto cambiano i conti con gli stessi kernel tagliati diversamente;
+- **metro del backend**, quando il modello sta in RAM: la stessa base calcolata dal backend CPU
+  (`-dev none -ngl 0`, fase `cpu-g1`). Misura quanto differiscono due implementazioni corrette.
+  Una patch che cambia il percorso numerico (int8 invece di f16) va confrontata con questo, non solo
+  con l'ubatch: sul G1 il metro dell'ubatch è minuscolo perché i kernel restano gli stessi;
+- **patch**: la build patchata all'ubatch del profilo (e, per controllo, all'altro ubatch);
+- **picco**: per la patch, `kld_per_token.py` sui token peggiori (dove cadono, se sono isolati o a
+  gruppi, se sono quasi-pareggi) e `nll_zona.py` sulla zona (quale calcolo segue meglio il testo
+  vero dove i calcoli non sono d'accordo).
+
+**Soglie** (per modello, patch contro base allo stesso ubatch; «metro» è il più grande dei due metri
+disponibili):
+
+| misura | soglia | perché |
+|---|---|---|
+| Δ perplessità | dentro 2 σ, o negativa | una patch che peggiora la perplessità non entra |
+| KLD media | ≤ 2 × metro, e comunque ≤ 0,02 | il metro è quanto la base cambia da sola senza che nessuno la consideri sbagliata |
+| KLD al 99 % | ≤ 2 × metro al 99 % | le code contano più della media: sono i token dove la risposta si biforca |
+| KLD massima | ≤ 1,0, oppure in una zona dove anche il metro del backend si discosta dalla base e dove la NLL del token vero con la patch non è peggiore di quella della base | un token con KLD ≥ 1 è una distribuzione diversa, non un arrotondamento: va spiegato |
+| stesso primo token | ≥ metro − 1 punto | |
+| batteria di M-15 | riusciti ≥ riferimento − 2 su 15, nessun file protetto toccato, nessuna causa di fallimento nuova; riferimento sulla stessa base e con lo stesso ubatch | un giro solo ha rumore di ±1–2 compiti |
+
+Con i numeri di M-16 (rapporto `reports/int8-coopmat-2026-09.md`, prompt da 21k, 8.190 token):
+
+| modello | metro | KLD media | KLD 99 % | KLD max | stesso primo token |
+|---|---|---:|---:|---:|---:|
+| G1 | ubatch 512 contro 4096 | 0,00066 | 0,0064 | 0,020 | 98,9 % |
+| G1 | CPU contro Vulkan (moro0) | 0,018 | 0,101 | 12,8 | 97,5 % |
+| G3 | ubatch 2048 contro 512 | 0,0065 | 0,082 | 0,88 | 97,2 % |
+| G3 | CPU | non misurabile: 48,5 GB di pesi, 34 GiB di RAM libera | | | |
+
+Le soglie si ricalcolano quando cambia il tag di base: i metri vanno rimisurati sul tag nuovo.
 
 ## Regola di adozione
 
@@ -58,7 +107,7 @@ come `LEGGIMI-MORO.md` (escluso da git con `.git/info/exclude`).
 
 | # | ramo | origine | stato al 17-09-2026 | note |
 |---|---|---|---|---|
-| 1 | `patch/int8-coopmat` | PR ggml-org/llama.cpp#27952 (int8 coopmat1 per il prefill, RDNA3/RDNA4) | PR aperta; misurata in M-14, verdetto nel rapporto `fork-leggero-2026-09.md` | la 890M è riconosciuta come RDNA3 (dot product int8 accelerato), quindi il percorso si accende |
+| 1 | `patch/int8-coopmat` | PR ggml-org/llama.cpp#27952 (int8 coopmat1 per il prefill, RDNA3/RDNA4) | **adottata** in `moro-ai` (serie `moro1`, commit 8253abef6) con M-16, rapporto `int8-coopmat-2026-09.md`; PR ancora aperta upstream al 17-09 | la 890M è riconosciuta come RDNA3 (dot product int8 accelerato), quindi il percorso si accende. La testa della PR è stata ribasata il 17-09 su un master che divide `ggml-vulkan.cpp` (#28732): prima del prossimo tag il ramo va ripreso da `pull/27952/head`, perché quello di oggi non ribasa più in modo meccanico |
 | 2 | `patch/lazy-readahead` | follow-up della PR #27794 (lettura a lotti per `--lazy-mode`) | da scrivere | serve a M-10 |
 | 3 | `patch/mtp-flash-next` | PR #28243 (MTP per Qwen3.8-Flash-Next) | bozza, in conflitto con master | serve a M-10 T-11; entra solo se ribasa in modo meccanico |
 | 4 | `patch/mmid-gfx1150` | nostra: forme dei tile e subgroup di `mul_mat_id` sulla 890M | dopo una profilazione con il logger di prestazioni Vulkan di ggml | l'unica che scriveremmo noi |
