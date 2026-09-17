@@ -11,3 +11,7 @@ src-tauri/gen/schemas/
 .lmbrain-lite/percorsi.local.sh
 # configurazione MCP locale (contiene il percorso dell'utente)
 .mcp.json
+
+# cache di Python
+__pycache__/
+*.pyc
