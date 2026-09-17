@@ -44,7 +44,11 @@ import batteria as b
 
 ENDPOINT = "127.0.0.1:8090"
 RAM_MINIMA_GIB = 16.0
-RAM_MINIMA_FN_GIB = 39.0
+# 17-09 22:57 (M-16): la RAM tenuta dalle funzioni AI di Windows (WorkloadsSessionHost, ~6 GiB) è
+# morbida — all'avvio di FN il sistema ne ha restituiti 4,8 e il modello si è caricato con 32,5 GiB
+# disponibili, lavorando a 126 tok/s di prefill e 9,09 di decode. La soglia serve solo a evitare
+# l'avvio con la macchina già occupata da altro; durante il lavoro protegge il sorvegliante (0,8 GiB).
+RAM_MINIMA_FN_GIB = 28.0
 CTX = 32768
 SONNO_ATTESA_S = 300
 
