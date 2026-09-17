@@ -47,6 +47,11 @@ pub struct Conditions {
     pub weights_bus: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weights_free_gb: Option<f64>,
+    /// Serie di patch della build (M-14): `ggml-org` per una build scaricata, `moro0` per il tag
+    /// liscio compilato qui, `moro1 patch/…@<commit>` per una serie con patch. Una build patchata
+    /// sposta i numeri quanto un driver: due avvii con serie diverse non si confrontano in silenzio.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_series: Option<String>,
 }
 
 /// Nome in italiano degli overlay di alimentazione noti; gli altri si mostrano per GUID.
@@ -81,6 +86,9 @@ impl Conditions {
         }
         if let Some(o) = self.overlay_label() {
             out.insert("alimentazione", o);
+        }
+        if let Some(s) = &self.build_series {
+            out.insert("serie di patch", s.clone());
         }
         out
     }
@@ -125,6 +133,10 @@ impl Conditions {
         if let Some(v) = self.gpus.first().and_then(|g| g.dedicated_gib) {
             parts.push(format!("VGM {}", v.round()));
         }
+        // Solo la serie, senza rami: la riga è corta e la build accanto dice già il resto.
+        if let Some(s) = self.build_series.as_deref().filter(|s| *s != crate::provenance::UPSTREAM_SERIES) {
+            parts.push(s.split_whitespace().next().unwrap_or(s).to_string());
+        }
         parts.join(" · ")
     }
 }
@@ -161,6 +173,18 @@ mod tests {
     fn unknown_is_not_a_change() {
         let now = with("32.0.31041.1004", "32.0.203.314", "ded574b5-45a0-4f42-8737-46345c09c238");
         assert!(now.changes_since(&Conditions::default()).is_empty());
+    }
+
+    #[test]
+    fn a_patch_series_is_a_condition() {
+        let mut plain = with("32.0.31041.1004", "32.0.203.314", "ded574b5-45a0-4f42-8737-46345c09c238");
+        plain.build_series = Some("ggml-org".into());
+        let mut patched = plain.clone();
+        patched.build_series = Some("moro1 patch/int8-coopmat@abcdef012".into());
+        assert_eq!(patched.changes_since(&plain), vec!["serie di patch ggml-org → moro1 patch/int8-coopmat@abcdef012".to_string()]);
+        assert_ne!(plain.comparable(), patched.comparable());
+        assert_eq!(patched.short(), "GPU …1004 · NPU …314 · max · VGM 48 · moro1");
+        assert_eq!(plain.short(), "GPU …1004 · NPU …314 · max · VGM 48", "ggml-org non allunga la riga");
     }
 
     #[test]

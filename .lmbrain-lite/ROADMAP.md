@@ -22,7 +22,8 @@ generated: true
 | 11 | M-11 | Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48 | active | 3/6 | 50% |
 | 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | active | 10/11 (1 blocked) | 91% |
 | 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | active | 6/7 | 86% |
-| 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | approved | 0/9 | 0% |
+| 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | active | 8/9 (1 blocked) | 89% |
+| 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | active | 3/7 | 43% |
 
 ## M-01 — Mockup di design della v1
 
@@ -117,8 +118,15 @@ generated: true
 
 ## M-14 — Fork leggero di llama.cpp: build locali con patch misurate sopra master
 
-- `status`: approved
+- `status`: active
 - `priority`: 14
 - `file`: milestones/M-14.md
 - `outcome`: Aethera può usare build di llama.cpp compilate su questa macchina da master più una serie corta di patch, ognuna in un ramo suo, ribasata a ogni build adottata e tenuta solo se una misura la giustifica. Uno script fa checkout, rebase, build Vulkan e copia in builds/ con un id che dichiara base, serie di patch e backend (per esempio b10991+moro1-vulkan); il manifest di ogni avvio lo registra e Benchmark non confronta una build patchata con una liscia senza dirlo. La prima patch (int8 coopmat, PR #27952) è misurata contro la base con la procedura di M-08, e il rapporto dice se entra o si butta.
+
+## M-15 — Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina
+
+- `status`: active
+- `priority`: 15
+- `file`: milestones/M-15.md
+- `outcome`: Esiste una batteria congelata di compiti di coding agentico, con verificatori oggettivi (test che falliscono prima e passano dopo), e un runner che la fa girare con Nonio contro un motore avviato da Aethera, un modello alla volta, raccogliendo esito, tempo, token e errori di chiamata degli strumenti. Con la batteria si confrontano, sulla stessa macchina a VGM 48, Qwen3.6-35B-A3B (G1), Qwen3-Coder-Next (G3), Flash-Coder Q4_K_M e, se il tempo basta, Flash-Next IQ3_XXS; il risultato è «compiti riusciti per ora di macchina» e chiude i dati mancanti di M-10 T-10 e M-11 T-05. In più si capisce, con ricerca e una prova, se il riuso del prefisso dei modelli ibridi (M-10 T-09) si può recuperare.
 

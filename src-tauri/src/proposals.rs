@@ -40,12 +40,7 @@ fn push(out: &mut Vec<Proposal>, field: &str, value: Value, current: Value, reas
 /// non c'è non si propone.
 pub fn for_profile(p: &Profile, builds: &[ResolvedBuild]) -> Vec<Proposal> {
     let mut out = Vec::new();
-    let has_build = |b: &str| {
-        builds.iter().any(|x| {
-            let parts: Vec<&str> = x.id.split('-').collect();
-            parts.contains(&b) && parts.contains(&p.runtime.backend.as_str())
-        })
-    };
+    let has_build = |b: &str| builds.iter().any(|x| crate::machine::build_id_matches(&x.id, b, &p.runtime.backend));
     if is_qwen36_35b(p) && p.runtime.build == "b10809" && has_build(MEASURED_BUILD) {
         push(
             &mut out,

@@ -21,6 +21,7 @@ pub mod memory;
 pub mod modelcard;
 pub mod profile;
 pub mod proposals;
+pub mod provenance;
 pub mod runs;
 pub mod settings;
 pub mod system;

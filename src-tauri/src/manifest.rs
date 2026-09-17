@@ -5,6 +5,7 @@
 use crate::conditions::Conditions;
 use crate::memory::MemorySection;
 use crate::profile::{Override, Profile};
+use crate::provenance::Provenance;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -57,6 +58,13 @@ pub struct EngineSection {
     pub binary: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version_text: Option<String>,
+    /// Da `provenienza.toml` accanto al binario (M-14): base, serie di patch e commit di una build
+    /// compilata qui. Assente per le build di ggml-org.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<Provenance>,
+    /// Il file di provenienza c'era ma non si è letto: il motivo, perché la serie resta ignota.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
