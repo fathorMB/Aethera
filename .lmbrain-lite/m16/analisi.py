@@ -26,13 +26,12 @@ def kld(cartella):
         "ppl_q": r"Mean PPL\(Q\)\s*:\s*([\d.]+)\s*±\s*([\d.]+)",
         "ppl_base": r"Mean PPL\(base\)\s*:\s*([\d.]+)\s*±\s*([\d.]+)",
         "dppl": r"Mean PPL\(Q\)-PPL\(base\)\s*:\s*(-?[\d.]+)\s*±\s*([\d.]+)",
-        "kld": r"Mean\s+KLD:\s*([\d.]+)\s*±\s*([\d.]+)",
-        "kld99": r"99\.0%\s+KLD:\s*([\d.]+)",
+        "kld": r"Mean\s+KLD:\s*(-?[\d.]+)\s*±\s*([\d.]+)",
+        "kld99": r"99\.0%\s+KLD:\s*(-?[\d.]+)",
         "kldmax": r"Maximum KLD:\s*([\d.]+)",
         "top": r"Same top p:\s*([\d.]+)\s*±\s*([\d.]+)",
         "rms_dp": r"RMS Δp\s*:\s*([\d.]+)\s*±\s*([\d.]+)",
         "final": r"Final estimate: PPL = ([\d.]+) \+/- ([\d.]+)",
-        "vocab": r"n_vocab\s*=\s*(\d+)",
     }
     print(f"{'file':34} {'PPL(Q)':>16} {'ΔPPL':>18} {'KLD media':>22} {'KLD 99%':>10} {'KLD max':>9} {'same top p':>16} {'RMS Δp':>14}")
     for f in sorted(cartella.glob("T-01-*.txt")):
@@ -40,7 +39,7 @@ def kld(cartella):
         v = {k: re.search(r, t) for k, r in campi.items()}
         g = lambda k, i=1: v[k].group(i) if v[k] else "—"
         if v["final"] and not v["kld"]:
-            print(f"{f.stem:34} {g('final')} ± {g('final', 2)} (base; n_vocab {g('vocab')})")
+            print(f"{f.stem:34} {g('final')} ± {g('final', 2)} (base)")
             continue
         print(f"{f.stem:34} {g('ppl_q'):>8} ± {g('ppl_q', 2):>5} {g('dppl'):>9} ± {g('dppl', 2):>7}"
               f" {g('kld'):>10} ± {g('kld', 2):>9} {g('kld99'):>10} {g('kldmax'):>9} {g('top'):>7} ± {g('top', 2):>5} %"

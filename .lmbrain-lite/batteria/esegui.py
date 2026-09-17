@@ -106,6 +106,17 @@ MODELLI = {
     },
 }
 
+# M-16: profili di prova, copiati da quelli standard con un nome nuovo in <radice>/profiles (i
+# profili standard non si toccano). Stessa configurazione del modello di partenza: cambiano solo
+# build e ubatch, che stanno nel profilo di prova.
+PROVE = {
+    "G3-int8": ("G3", "qwen3-coder-next.q4_k_m.vulkan.int8", "b10991+moro1, int8 coopmat"),
+    "G3-moro0": ("G3", "qwen3-coder-next.q4_k_m.vulkan.moro0", "b10991+moro0, controllo senza patch"),
+    "G1-int8": ("G1", "qwen3.6-35b-a3b.q4_k_m.vulkan.int8", "b10991+moro1, int8 coopmat"),
+}
+for _sigla, (_da, _profilo, _nota) in PROVE.items():
+    MODELLI[_sigla] = {**MODELLI[_da], "profilo": _profilo, "nome": f"{MODELLI[_da]['nome']} · {_nota}"}
+
 
 def log(msg: str) -> None:
     print(f"[{dt.datetime.now():%H:%M:%S}] {msg}", flush=True)
