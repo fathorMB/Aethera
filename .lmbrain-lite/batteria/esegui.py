@@ -44,6 +44,7 @@ import batteria as b
 
 ENDPOINT = "127.0.0.1:8090"
 RAM_MINIMA_GIB = 16.0
+RAM_MINIMA_FN_GIB = 39.0
 CTX = 32768
 SONNO_ATTESA_S = 300
 
@@ -95,7 +96,9 @@ MODELLI = {
         "max_tokens": 8192,
         "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
         "fonte_sampling": "model card Qwen3.8-Flash-Next (unsloth), modalità thinking, letta il 17-09-2026",
-        "ram_minima_gib": RAM_MINIMA_GIB,
+        # In M-10 T-04 (none, VGM 48) il modello ha consumato ~38,4 GiB di RAM (41,3 disponibili prima,
+        # 2,9 al minimo); il 17-09 con 34,9 disponibili il sorvegliante l'ha fermato al primo prefill.
+        "ram_minima_gib": RAM_MINIMA_FN_GIB,
         # A VGM 48 restano 2-3 GiB di RAM: niente prompt cache in RAM (un'entrata vale 0,5-0,6 GiB a 7k,
         # M-10 T-09) e pochi checkpoint dello stato ricorrente; il sorvegliante ferma llama-server sotto 0,8 GiB.
         "cache": {"cache_ram": 0, "ctx_checkpoints": 8},

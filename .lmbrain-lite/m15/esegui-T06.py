@@ -30,7 +30,7 @@ def main() -> int:
     if not bench.is_file():
         sys.exit(f"m08_bench non trovato: {bench}")
     while True:
-        o = e.ostacoli(radice, e.RAM_MINIMA_GIB)
+        o = e.ostacoli(radice, e.RAM_MINIMA_FN_GIB)
         if not o:
             break
         if not args.attendi:
