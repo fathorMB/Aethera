@@ -11,6 +11,7 @@ use crate::manifest::{
 };
 use crate::memory::{self, MemoryAfter, MemorySection};
 use crate::profile::{Override, Profile};
+use crate::provenance;
 use crate::system::{self, SystemReport};
 use crate::telemetry::{self, Counters, LogParser, LogTail, Record, Reference, Summary};
 use serde::{Deserialize, Serialize};
@@ -232,6 +233,48 @@ pub fn parse_version(text: &str) -> BinaryVersion {
         text: text.replace('\r', "").trim().to_string(),
         build: after("(build ", |c| c.is_ascii_digit()).map(|d| format!("b{d}")),
         commit: after("commit ", |c| c.is_ascii_alphanumeric()),
+    }
+}
+
+/// Il binario è la build che il profilo chiede? Per una build di ggml-org basta `--version`; per
+/// una del fork (`b10991+moro1`) `--version` dice il tag e la serie deve venire dalla provenienza.
+/// Una build del fork non passa mai per una di ggml-org, e viceversa.
+pub fn check_build(
+    binary: &Path,
+    declared: &str,
+    version: &BinaryVersion,
+    provenance: Option<&Result<provenance::Provenance, String>>,
+) -> Result<(), String> {
+    let Some(found) = &version.build else {
+        return Err(format!("build non leggibile da --version: {}", version.text));
+    };
+    let base = crate::machine::parse_build_tag(declared).map(|t| t.base).unwrap_or_else(|| declared.to_string());
+    if *found != base {
+        return Err(format!("{} è la build {found}, il profilo dichiara {declared}", binary.display()));
+    }
+    let wants_series = base != declared;
+    match (wants_series, provenance) {
+        (false, None) => Ok(()),
+        (false, Some(Ok(p))) => Err(format!(
+            "{} è la build del fork {} (serie {}): un profilo che dichiara {declared} usa solo la build di ggml-org, quella patchata va chiesta per nome",
+            binary.display(),
+            p.label(),
+            p.series()
+        )),
+        (false, Some(Err(e))) | (true, Some(Err(e))) => {
+            Err(format!("la build ha un file di provenienza che non si legge, quindi non si sa che serie sia: {e}"))
+        }
+        (true, None) => Err(format!(
+            "il profilo dichiara {declared} ma accanto a {} non c'è {}: non è una build del fork",
+            binary.display(),
+            provenance::PROVENANCE_FILE
+        )),
+        (true, Some(Ok(p))) if p.label() == declared => Ok(()),
+        (true, Some(Ok(p))) => Err(format!(
+            "{} è la build del fork {}, il profilo dichiara {declared}",
+            binary.display(),
+            p.label()
+        )),
     }
 }
 
@@ -464,17 +507,9 @@ impl Engine {
             ));
         }
         let version = read_version(&req.build.binary)?;
-        match &version.build {
-            Some(b) if *b == req.profile.runtime.build => {}
-            Some(b) => {
-                return Err(format!(
-                    "{} è la build {b}, il profilo dichiara {}",
-                    req.build.binary.display(),
-                    req.profile.runtime.build
-                ))
-            }
-            None => return Err(format!("build non leggibile da --version: {}", version.text)),
-        }
+        // M-14: una build del fork dice solo il tag in --version; la serie sta nella provenienza.
+        let provenance = provenance::read(&req.build.dir);
+        check_build(&req.build.binary, &req.profile.runtime.build, &version, provenance.as_ref())?;
         // VRAM libera secondo il backend, prima che il modello la occupi.
         let devices = memory::list_devices(&req.build.binary).unwrap_or_default();
         let memory_before = memory::before(&devices, system::probe().ram_available_gib().or(req.system.ram_available_gib));
@@ -509,6 +544,17 @@ impl Engine {
 
         let command_line = cmdline::render_line(&req.build.binary, &req.args);
         let manifest_path = req.run_dir.join("manifest.toml");
+        // M-14: la serie di patch della build entra nel manifest e fra le condizioni. Chi chiama
+        // può averla già messa (la finestra la usa per il riferimento); se manca la si legge qui.
+        let mut conditions = req.conditions.clone();
+        if conditions.build_series.is_none() {
+            conditions.build_series = Some(provenance::series_of(provenance.as_ref()));
+        }
+        let (provenance, provenance_error) = match provenance {
+            Some(Ok(p)) => (Some(p), None),
+            Some(Err(e)) => (None, Some(e)),
+            None => (None, None),
+        };
         let info = RunInfo {
             run_id: req.run_id.clone(),
             profile: req.profile.name.clone(),
@@ -544,6 +590,8 @@ impl Engine {
                 build_id: req.build.id.clone(),
                 binary: req.build.binary.display().to_string(),
                 version_text: Some(version.text.clone()),
+                provenance,
+                provenance_error,
             },
             model: ModelSection {
                 file: req.profile.model.file.clone(),
@@ -584,7 +632,7 @@ impl Engine {
                 ram_available_gib_before: memory_before.ram_available_gib,
             },
             memory: Some(MemorySection { before: Some(memory_before), after_load: None }),
-            conditions: Some(req.conditions.clone()),
+            conditions: Some(conditions),
             overrides: req.overrides.clone(),
             exit: None,
             effective_profile: req.profile.clone(),
@@ -941,6 +989,39 @@ mod tests {
         assert_eq!(v.build.as_deref(), Some("b10809"));
         assert_eq!(v.commit.as_deref(), Some("5266f24da"));
         assert!(parse_version("garbage").build.is_none());
+    }
+
+    #[test]
+    fn a_fork_build_is_checked_through_its_provenance() {
+        let bin = Path::new(r"X:\builds\llama-b10991+moro1-win-vulkan-x64\llama-server.exe");
+        let v = parse_version("version: 0.4.1-dev (build 10991, commit 8253abef6)");
+        let prov = |serie: u32| -> Result<provenance::Provenance, String> {
+            Ok(provenance::Provenance {
+                schema_version: 1,
+                id: format!("b10991+moro{serie}-vulkan"),
+                base: "b10991".into(),
+                commit_base: "930e2fa59".into(),
+                serie,
+                backend: "vulkan".into(),
+                commit: "8253abef6".into(),
+                data: None,
+                durata_build_s: None,
+                compilatore: None,
+                patch: Vec::new(),
+            })
+        };
+        // ggml-org: basta --version.
+        assert!(check_build(bin, "b10991", &v, None).is_ok());
+        assert!(check_build(bin, "b10809", &v, None).unwrap_err().contains("è la build b10991"));
+        // Fork: tag da --version, serie dalla provenienza.
+        assert!(check_build(bin, "b10991+moro1", &v, Some(&prov(1))).is_ok());
+        assert!(check_build(bin, "b10991+moro2", &v, Some(&prov(1))).unwrap_err().contains("b10991+moro1"));
+        assert!(check_build(bin, "b10809+moro1", &v, Some(&prov(1))).is_err());
+        assert!(check_build(bin, "b10991+moro1", &v, None).unwrap_err().contains("provenienza.toml"));
+        // Una build del fork non passa per quella di ggml-org, né una provenienza rotta per qualcosa.
+        assert!(check_build(bin, "b10991", &v, Some(&prov(0))).unwrap_err().contains("va chiesta per nome"));
+        assert!(check_build(bin, "b10991+moro1", &v, Some(&Err("rotto".into()))).is_err());
+        assert!(check_build(bin, "b10991", &v, Some(&Err("rotto".into()))).is_err());
     }
 
     #[test]

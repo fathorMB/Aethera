@@ -139,6 +139,14 @@ struct Workload {
     turns: usize,
     #[serde(default = "half")]
     divergence_at: f64,
+    /// M-14: nonce uguale per tutte le varianti allo stesso giro (`giro <n>`), così il testo
+    /// generato a temperatura 0 si confronta fra una build e l'altra. La cache resta fredda: il
+    /// nonce cambia comunque da un giro all'altro.
+    #[serde(default)]
+    fixed_nonce: bool,
+    /// M-14: salva tutto il testo generato nella riga, non solo le prime righe e l'impronta.
+    #[serde(default)]
+    save_text: bool,
 }
 
 fn single() -> String {
@@ -182,6 +190,8 @@ struct Row {
     prompt_tokens_sent: Option<u64>,
     text_sha256_12: String,
     text_head: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    text: Option<String>,
     stop_reason: Option<String>,
 }
 
@@ -325,6 +335,7 @@ fn one_request(
         prompt_tokens_sent: v["timings"]["prompt_n"].as_u64(),
         text_sha256_12: sha12(content),
         text_head: content.chars().take(160).collect(),
+        text: w.save_text.then(|| content.to_string()),
         stop_reason: v["stop_type"].as_str().map(str::to_string),
     })
 }
@@ -580,11 +591,11 @@ fn main() -> Result<(), String> {
             let mut prefill = Vec::new();
             for rep in 0..total {
                 let warm = rep < sc.warmup;
-                let nonce = format!(
-                    "{} giro {rep} · {}",
-                    v.name,
-                    chrono::Local::now().timestamp_nanos_opt().unwrap_or(0)
-                );
+                let nonce = if w.fixed_nonce {
+                    format!("giro {rep}")
+                } else {
+                    format!("{} giro {rep} · {}", v.name, chrono::Local::now().timestamp_nanos_opt().unwrap_or(0))
+                };
                 for turn in 0..turns {
                     let prompt = turn_prompt(w, body, &nonce, turn);
                     let row = one_request(

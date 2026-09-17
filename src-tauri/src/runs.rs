@@ -4,6 +4,7 @@
 use crate::conditions::{Conditions, Driver};
 use crate::manifest::{self, Manifest};
 use crate::profile::{self, Override};
+use crate::provenance;
 use crate::telemetry::{self, Record, Reference, Summary};
 use serde::Serialize;
 use std::fs;
@@ -60,6 +61,14 @@ fn row(m: &Manifest, records: &[Record], current: Option<&str>) -> RunRow {
         (None, false) => None,
     };
     let after = m.memory.as_ref().and_then(|x| x.after_load.as_ref());
+    // Gli avvii precedenti a M-14 non registrano la serie: allora non esistevano build compilate
+    // qui, quindi senza provenienza la build è di ggml-org.
+    let conditions = m.conditions.clone().map(|mut c| {
+        if c.build_series.is_none() {
+            c.build_series = Some(series_of_manifest(m));
+        }
+        c
+    });
     let mut summary = telemetry::summarize(records, usize::MAX, Some(m.effective_profile.server.ubatch));
     summary.cache_series.clear();
     summary.decode_series.clear();
@@ -74,7 +83,7 @@ fn row(m: &Manifest, records: &[Record], current: Option<&str>) -> RunRow {
         profile: m.run.profile.clone(),
         overrides: m.overrides.clone(),
         invalidates_cache: m.run.invalidates_cache,
-        build: m.engine.build.clone().unwrap_or_else(|| m.engine.build_declared.clone()),
+        build: build_label(m),
         commit: m.engine.commit.clone(),
         uptime_s,
         load_ms: m.server.load_ms,
@@ -86,8 +95,8 @@ fn row(m: &Manifest, records: &[Record], current: Option<&str>) -> RunRow {
             _ => sp.kind.clone(),
         },
         degraded: Vec::new(),
-        conditions_short: m.conditions.as_ref().map(Conditions::short),
-        conditions: m.conditions.clone(),
+        conditions_short: conditions.as_ref().map(Conditions::short),
+        conditions,
         conditions_changed: Vec::new(),
         reference: None,
         summary,
@@ -98,6 +107,26 @@ fn row(m: &Manifest, records: &[Record], current: Option<&str>) -> RunRow {
         exit_code: m.exit.as_ref().and_then(|e| e.code),
         by_user: m.exit.as_ref().map(|e| e.by_user),
         left_running: m.exit.as_ref().map(|e| e.left_running),
+    }
+}
+
+/// La build come la chiede un profilo: `b10991+moro1` per una build del fork (la versione del
+/// binario dice solo `b10991`), altrimenti quella letta da `--version` o, se manca, la dichiarata.
+fn build_label(m: &Manifest) -> String {
+    if let Some(p) = &m.engine.provenance {
+        return p.label();
+    }
+    if m.engine.provenance_error.is_some() || crate::machine::parse_build_tag(&m.engine.build_declared).is_some_and(|t| t.series.is_some()) {
+        return m.engine.build_declared.clone();
+    }
+    m.engine.build.clone().unwrap_or_else(|| m.engine.build_declared.clone())
+}
+
+fn series_of_manifest(m: &Manifest) -> String {
+    match (&m.engine.provenance, &m.engine.provenance_error) {
+        (Some(p), _) => p.series(),
+        (None, Some(e)) => provenance::series_of(Some(&Err(e.clone()))),
+        (None, None) => provenance::series_of(None),
     }
 }
 
@@ -200,13 +229,14 @@ fn opt<T: ToString>(x: Option<T>) -> Option<String> {
     x.map(|v| v.to_string())
 }
 
-/// Perché due avvii non si confrontano come se differissero solo per il profilo.
-fn not_comparable(ma: &Manifest, mb: &Manifest) -> Vec<String> {
+/// Perché due avvii non si confrontano come se differissero solo per il profilo. Si leggono le
+/// condizioni delle righe, già completate con la serie di patch.
+fn not_comparable(ra: &RunRow, rb: &RunRow) -> Vec<String> {
     let mut out = Vec::new();
-    if ma.run.machine != mb.run.machine {
-        out.push(format!("macchina {} · {}", ma.run.machine, mb.run.machine));
+    if ra.machine != rb.machine {
+        out.push(format!("macchina {} · {}", ra.machine, rb.machine));
     }
-    match (&ma.conditions, &mb.conditions) {
+    match (&ra.conditions, &rb.conditions) {
         (Some(ca), Some(cb)) => {
             let kb = cb.comparable();
             for (k, va) in ca.comparable() {
@@ -227,7 +257,7 @@ pub fn compare(runs: &Path, a: &str, b: &str, current: Option<&str>) -> Result<C
     let before = |m: &Manifest| m.memory.as_ref().and_then(|x| x.before.clone()).unwrap_or_default();
     let (ba, bb) = (before(&ma), before(&mb));
     let c = |label: &str, a: Option<String>, b: Option<String>| Condition { label: label.into(), a, b };
-    let (ca, cb) = (ma.conditions.clone().unwrap_or_default(), mb.conditions.clone().unwrap_or_default());
+    let (ca, cb) = (da.row.conditions.clone().unwrap_or_default(), db.row.conditions.clone().unwrap_or_default());
     let drivers = |ds: &[Driver]| {
         (!ds.is_empty()).then(|| ds.iter().map(|d| d.version.clone().unwrap_or_else(|| "?".into())).collect::<Vec<_>>().join(" + "))
     };
@@ -236,11 +266,12 @@ pub fn compare(runs: &Path, a: &str, b: &str, current: Option<&str>) -> Result<C
         (Some(v), Some(d)) => Some(format!("{v} · {d}")),
         (v, _) => v.clone(),
     };
-    let not_comparable = not_comparable(&ma, &mb);
+    let not_comparable = not_comparable(&da.row, &db.row);
     let conditions = vec![
         c("Macchina", Some(ma.run.machine.clone()), Some(mb.run.machine.clone())),
         c("Build", Some(da.row.build.clone()), Some(db.row.build.clone())),
         c("Commit", ma.engine.commit.clone(), mb.engine.commit.clone()),
+        c("Serie di patch", ca.build_series.clone(), cb.build_series.clone()),
         c("Driver GPU", drivers(&ca.gpus), drivers(&cb.gpus)),
         c("AMD Software", ca.adrenalin.clone(), cb.adrenalin.clone()),
         c("Driver NPU", drivers(&ca.npus), drivers(&cb.npus)),

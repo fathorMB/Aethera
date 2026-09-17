@@ -1,0 +1,43 @@
+# M-14 T-06b — la patch int8 coopmat (serie moro1) contro il tag liscio compilato qui (moro0),
+# sul Coder-Next G3 (profilo standard: ubatch 512, senza speculazione). Una variabile: la patch.
+# Stesso disegno A-B-A e stesse regole di T-06a.
+measure = "T-06b"
+title = "int8 coopmat (PR #27952) su b10991: Coder-Next G3"
+base = "qwen3-coder-next.q4_k_m.vulkan"
+repetitions = 5
+warmup = 1
+
+[[variant]]
+name = "moro0"
+note = "b10991 liscio compilato con build.ps1"
+build = "b10991+moro0"
+
+[[variant]]
+name = "moro1"
+note = "b10991 + patch/int8-coopmat (PR #27952 ribasata)"
+build = "b10991+moro1"
+
+[[variant]]
+name = "moro0-bis"
+note = "ripetizione della base: rumore e deriva"
+build = "b10991+moro0"
+
+[[workload]]
+name = "codice-7k"
+prompt = "../m08/prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.0
+seed = 1234
+fixed_nonce = true
+save_text = true
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "../m08/prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.0
+seed = 1234
+fixed_nonce = true
+save_text = true
