@@ -193,7 +193,7 @@ def ostacoli(radice: Path, ram_minima: float) -> list[str]:
     for occupante in ("llama-server.exe", "llama-bench.exe", "m08_bench.exe", "m15_hold.exe"):
         if occupante in p:
             o.append(f"{occupante} è acceso")
-    build = sorted(p & {"cmake.exe", "ninja.exe", "cl.exe"})
+    build = sorted(p & {"cmake.exe", "ninja.exe", "cl.exe", "cargo.exe", "rustc.exe"})
     if build:
         o.append(f"build in corso: {', '.join(build)}")
     ram = ram_libera_gib()
