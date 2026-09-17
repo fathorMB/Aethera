@@ -227,7 +227,8 @@ primo token incerto.
 
 `esegui.py` di M-15 con l'orchestrazione `.lmbrain-lite/m16/batteria.py`, sessioni nuove
 (`int8-1`, `int8-2`), stessi 15 compiti e stessi tetti di `notte-1`, un giro per sessione, Nonio
-`C:\Git\Nonio\target\release\nonio.exe` (lo stesso binario di `notte-1`, invariato dal 15-09).
+dalla build release del suo checkout (`AETHERA_NONIO_EXE`): lo stesso binario di `notte-1`,
+invariato dal 15-09.
 
 Due configurazioni, tutte e due su profili di prova (i profili standard non sono toccati):
 - **G3-int8**: `qwen3-coder-next.q4_k_m.vulkan.int8` — `b10991+moro1`, ubatch 2048;

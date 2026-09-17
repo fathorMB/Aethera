@@ -107,7 +107,7 @@ Le soglie si ricalcolano quando cambia il tag di base: i metri vanno rimisurati 
 
 | # | ramo | origine | stato al 17-09-2026 | note |
 |---|---|---|---|---|
-| 1 | `patch/int8-coopmat` | PR ggml-org/llama.cpp#27952 (int8 coopmat1 per il prefill, RDNA3/RDNA4) | PR aperta; misurata in M-14, verdetto nel rapporto `fork-leggero-2026-09.md` | la 890M è riconosciuta come RDNA3 (dot product int8 accelerato), quindi il percorso si accende |
+| 1 | `patch/int8-coopmat` | PR ggml-org/llama.cpp#27952 (int8 coopmat1 per il prefill, RDNA3/RDNA4) | **adottata** in `moro-ai` (serie `moro1`, commit 8253abef6) con M-16, rapporto `int8-coopmat-2026-09.md`; PR ancora aperta upstream al 17-09 | la 890M è riconosciuta come RDNA3 (dot product int8 accelerato), quindi il percorso si accende. La testa della PR è stata ribasata il 17-09 su un master che divide `ggml-vulkan.cpp` (#28732): prima del prossimo tag il ramo va ripreso da `pull/27952/head`, perché quello di oggi non ribasa più in modo meccanico |
 | 2 | `patch/lazy-readahead` | follow-up della PR #27794 (lettura a lotti per `--lazy-mode`) | da scrivere | serve a M-10 |
 | 3 | `patch/mtp-flash-next` | PR #28243 (MTP per Qwen3.8-Flash-Next) | bozza, in conflitto con master | serve a M-10 T-11; entra solo se ribasa in modo meccanico |
 | 4 | `patch/mmid-gfx1150` | nostra: forme dei tile e subgroup di `mul_mat_id` sulla 890M | dopo una profilazione con il logger di prestazioni Vulkan di ggml | l'unica che scriveremmo noi |
