@@ -24,7 +24,7 @@ generated: true
 | 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | active | 6/7 | 86% |
 | 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | active | 8/9 (1 blocked) | 89% |
 | 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | active | 5/7 (2 blocked) | 71% |
-| 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | approved | 0/6 | 0% |
+| 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | active | 6/6 | 100% |
 
 ## M-01 — Mockup di design della v1
 
@@ -133,7 +133,7 @@ generated: true
 
 ## M-16 — Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti
 
-- `status`: approved
+- `status`: active
 - `priority`: 16
 - `file`: milestones/M-16.md
 - `outcome`: Si decide con misure se la patch int8 coopmat (PR ggml-org#27952, build b10991+moro1) entra nel fork e in un profilo: la fedeltà numerica è misurata con divergenza KL e token identici contro la base, e confrontata con quanto cambia la base stessa cambiando solo l'ubatch; si conosce la combinazione migliore di patch e ubatch per G1 e G3; la batteria di M-15 dice se i compiti riusciti restano gli stessi; la regola di coerenza del fork è riscritta su queste basi.
