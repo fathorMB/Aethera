@@ -2,24 +2,22 @@
 updated: 2026-09-18
 by: lead
 ---
-**Sessione chiusa il 18-09 alle 00:10.** Macchina libera: motore spento, VGM 48, nessun banco in corso.
+**Notte del 18-09 — linea tracciata, direzione nuova.** VGM 48.
 
-## Su GitHub (`main` = `9994f6d` più commit locali)
-PR #1–#6 unite. Repo pubblico, percorsi fuori. Bozza e tag `v0.1.0-rc.1` fino alla v0.1.0.
+## Deciso dall'operatore stanotte
+- **Obiettivo**: massimo rendimento della macchina (server quasi headless) per l'agente di coding, con Nonio o un harness nostro; servono 128–256k di contesto. Metro: compiti riusciti per ora; a contesto lungo, costo per turno a profondità.
+- **Linea**: tag `v0.1.0` messo su main (PR #7), prove della finestra non fatte dichiarate nelle note. M-06, M-07, M-09, M-16 chiusi. Finestra v2 in PR #8, si unisce senza prova.
+- FN e FC si chiudono con un no. Nessun modello nuovo finché G1 e G3 non sono spremuti.
+- Parere del critico: `reports/critica-piano-2026-09-18.md` (decode = 70 % del tempo; MTP perde in profondità; la batteria non distingue i quant).
 
-## Chiuso in questa sessione
-- **M-16**: la patch int8 coopmat entra; regola di fedeltà nuova (KL contro i metri ubatch e CPU, non il testo identico); report in `design/int8-coopmat-2026-09`.
-- **Profilo standard G3** su `b10991+moro1` e ubatch 2048, verificato: prefill 281,8 · decode 18,7 (copia `.prima-di-m16`).
-- **M-10 T-09 e M-15 T-06**: i checkpoint non recuperano il riuso dopo una modifica a metà prompt (71% con prompt identico, 0 dopo una divergenza).
+## In corso, da solo
+1. M-11 T-04 (FC contesto lungo e riuso) → rapporto e chiusura.
+2. M-17 T-01…T-03: costo fisso su G3, G1, denso 8B, poi log a `-lv 5`.
+3. Download G1 Q6_K e Q8_0.
+4. `m18/notte-1.sh`: sentinella, speculativa a n-grammi su G3, MTP/n-grammi su G1, costo per turno a 64k e 128k, KLD dei quant.
+5. Agente Opus su Nonio (ramo `aethera/m18-harness`, niente push): `finish` respinto, `run_shell`, regole del riuso → `reports/nonio-harness-2026-09.md`.
 
-## Da sapere sulla macchina
-- **Riavviare prima di una sessione di misure**: dopo 12 ore di banchi il decode del denso cala del 13% e il G3 dimezza il prefill.
-- I ~6 GiB delle funzioni AI di Windows sono morbidi: il sistema li restituisce.
-- FN a VGM 48 con `none` fa crescere il file di paging: la batteria su FN si fa a **VGM 64 con mmap**, in una sessione dedicata (circa 2 ore e mezza).
-
-## Aperto, per l'operatore
-1. Prova della finestra v2 (M-12 T-10, gruppo 6b), poi merge di `m12-finestra-v2` e parte finestra di M-14 T-07.
-2. Tag `v0.1.0` (M-13 T-07).
-3. Milestone da aprire sul costo fisso di 1,5 s per richiesta (vale per G1 e G3).
-4. Rapporti di chiusura di M-10 (T-13) e M-11 (T-06); profilo G1 con la patch solo dopo il merge upstream.
-5. Commit locali non pubblicati: stato del kit e soglia della batteria.
+## Per l'operatore
+- Pubblicare la bozza della release v0.1.0 su GitHub (gesto tuo).
+- Poi: verifica mirata py-slug/py-ledger con e senza patch int8 (decisa, da mettere in una notte).
+- TDP/modalità di potenza nel BIOS: 5 minuti, quando riavvii.
