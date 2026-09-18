@@ -236,7 +236,7 @@ fn step(id: &'static str, title: &'static str, what: &'static str, page: &'stati
 /// dipendono l'uno dall'altro. Un passo è fatto quando c'è la cosa che deve esserci, non quando
 /// qualcuno l'ha spuntato: così la guida dice sempre la verità anche se si arriva da metà strada.
 #[tauri::command]
-pub fn setup(state: State<AppState>) -> Setup {
+pub async fn setup(state: State<'_, AppState>) -> Result<Setup, String> {
     let o = build_overview(&state);
     let root_ok = o.data_root.is_some() && o.data_root_error.is_none() && o.machine.is_some();
     let mut steps = vec![step(
@@ -270,19 +270,24 @@ pub fn setup(state: State<AppState>) -> Setup {
         }),
     ));
 
-    let models: Vec<String> = match (&root, &machine) {
-        (Some(r), Some(m)) => {
-            let probe = system::probe();
-            let mut cat = catalog::load(r).unwrap_or_default();
-            let empty = BTreeMap::new();
-            catalog::scan(&mut cat, &ScanInput { machine: m, profiles: &[], compute: &empty, probe: probe.as_ref() })
-                .into_iter()
-                .filter(|x| x.size_bytes.is_some())
-                .map(|x| x.id)
-                .collect()
-        }
-        _ => Vec::new(),
-    };
+    // Basta sapere quali .gguf ci sono: niente metadati. La scansione completa (con la lettura dei
+    // GGUF e la cache nel catalogo) resta al Catalogo; qui una lettura per file costerebbe 1-2 s e
+    // questa funzione la finestra la chiama ogni pochi secondi.
+    let models: Vec<String> = machine
+        .as_ref()
+        .and_then(|m| m.models_dir.as_ref())
+        .and_then(|d| std::fs::read_dir(d).ok())
+        .map(|entries| {
+            let mut v: Vec<String> = entries
+                .flatten()
+                .filter(|e| e.file_type().map(|f| f.is_file()).unwrap_or(false))
+                .map(|e| e.file_name().to_string_lossy().to_string())
+                .filter(|n| n.to_ascii_lowercase().ends_with(".gguf"))
+                .collect();
+            v.sort();
+            v
+        })
+        .unwrap_or_default();
     steps.push(step(
         "modello",
         "Un modello",
@@ -318,7 +323,7 @@ pub fn setup(state: State<AppState>) -> Setup {
     ));
 
     let complete = steps.iter().all(|s| s.done);
-    Setup { steps, complete }
+    Ok(Setup { steps, complete })
 }
 
 #[derive(Serialize)]
@@ -352,7 +357,7 @@ fn read_profiles(root: &DataRoot) -> Result<Vec<ProfileEntry>, String> {
 }
 
 #[tauri::command]
-pub fn list_profiles(state: State<AppState>) -> Result<Vec<ProfileEntry>, String> {
+pub async fn list_profiles(state: State<'_, AppState>) -> Result<Vec<ProfileEntry>, String> {
     read_profiles(&data_root(&state)?)
 }
 
@@ -402,7 +407,7 @@ fn estimate_for(root: &DataRoot, p: &Profile, model_size: Option<u64>) -> Estima
 }
 
 #[tauri::command]
-pub fn preview(state: State<AppState>, base: String, edited: Profile) -> Result<Preview, String> {
+pub async fn preview(state: State<'_, AppState>, base: String, edited: Profile) -> Result<Preview, String> {
     let (root, m) = root_and_machine(&state)?;
     let p = launch::prepare(&root, &m, &base, &edited, &root.runs().join("{run}").join("slots"));
     let binary = p.build.as_ref().map(|b| b.binary.clone()).unwrap_or_else(|| PathBuf::from(machine::server_binary_name()));
@@ -810,17 +815,17 @@ fn current_run(state: &AppState) -> Option<String> {
 }
 
 #[tauri::command]
-pub fn runs_list(state: State<AppState>) -> Result<Vec<RunRow>, String> {
+pub async fn runs_list(state: State<'_, AppState>) -> Result<Vec<RunRow>, String> {
     Ok(runs::list(&data_root(&state)?.runs(), current_run(&state).as_deref()))
 }
 
 #[tauri::command]
-pub fn run_detail(state: State<AppState>, id: String) -> Result<RunDetail, String> {
+pub async fn run_detail(state: State<'_, AppState>, id: String) -> Result<RunDetail, String> {
     runs::detail(&data_root(&state)?.runs(), &id, current_run(&state).as_deref())
 }
 
 #[tauri::command]
-pub fn runs_compare(state: State<AppState>, a: String, b: String) -> Result<Comparison, String> {
+pub async fn runs_compare(state: State<'_, AppState>, a: String, b: String) -> Result<Comparison, String> {
     runs::compare(&data_root(&state)?.runs(), &a, &b, current_run(&state).as_deref())
 }
 
@@ -897,7 +902,7 @@ pub struct CatalogView {
 }
 
 #[tauri::command]
-pub fn catalog_list(state: State<AppState>) -> Result<CatalogView, String> {
+pub async fn catalog_list(state: State<'_, AppState>) -> Result<CatalogView, String> {
     let (_, rows, error) = scan_catalog(&state)?;
     Ok(CatalogView { rows, error })
 }
@@ -1165,8 +1170,13 @@ pub struct BuildsView {
 }
 
 #[tauri::command]
-pub fn builds_list(state: State<AppState>, refresh: bool) -> Result<BuildsView, String> {
-    let (root, machine) = root_and_machine(&state)?;
+pub async fn builds_list(state: State<'_, AppState>, refresh: bool) -> Result<BuildsView, String> {
+    builds_view(&state, refresh)
+}
+
+/// Il corpo di `builds_list`, sincrono: lo usa anche `builds_import_dir`.
+fn builds_view(state: &AppState, refresh: bool) -> Result<BuildsView, String> {
+    let (root, machine) = root_and_machine(state)?;
     let mut used_by: BTreeMap<String, u32> = BTreeMap::new();
     for p in profiles_of(&root) {
         *used_by.entry(format!("{} · {}", p.runtime.build, p.runtime.backend)).or_default() += 1;
@@ -1325,7 +1335,7 @@ pub fn builds_import_dir(state: State<AppState>, path: String) -> Result<BuildsV
     }
     machine.builds.push(BuildEntry { id, path: dir });
     root.save_machine(&machine)?;
-    builds_list(state, false)
+    builds_view(&state, false)
 }
 
 #[derive(Serialize)]
