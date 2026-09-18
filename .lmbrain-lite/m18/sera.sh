@@ -7,7 +7,6 @@
 set -u
 . "$(dirname "$0")/../percorsi.sh"
 export AETHERA_RADICE AETHERA_REPO AETHERA_PESI PYTHONIOENCODING=utf-8
-export AETHERA_NONIO_EXE="C:\Git\Nonio\target\release\nonio.exe"
 QUI="$(cd "$(dirname "$0")" && pwd)"; B="$QUI/../batteria"
 while tasklist | grep -qi "cargo.exe\|rustc.exe"; do sleep 30; done
 

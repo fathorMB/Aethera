@@ -51,6 +51,9 @@ RAM_MINIMA_GIB = 16.0
 RAM_MINIMA_FN_GIB = 28.0
 CTX = int(os.environ.get("AETHERA_BATTERIA_CTX", "32768"))  # M-18 T-10: contesto servito, per i giri a contesto lungo
 SONNO_ATTESA_S = 300
+# M-18 T-11: Nonio di un ramo in prova, per le configurazioni che lo chiedono; se manca, quello
+# normale (AETHERA_NONIO_EXE). Il percorso sta in percorsi.local.sh, che non si pubblica.
+NONIO_RIUSO_EXE = os.environ.get("AETHERA_NONIO_RIUSO_EXE")
 
 # Configurazione per modello. `thinking` è quello che Nonio chiede al template (enable_thinking);
 # `extra` va alla riga di llama-server (non sono leve gestite dallo schema del profilo);
@@ -134,7 +137,7 @@ MODELLI = {
         "ram_minima_gib": RAM_MINIMA_GIB,
         "cache": {},
         "sorveglia_min_gib": None,
-        "nonio_exe": "C:/Git/Nonio/target-riuso/release/nonio.exe",
+        "nonio_exe": NONIO_RIUSO_EXE,
     },
     "G1TR": {
         "nome": "Qwen3.6-35B-A3B Q4_K_M, thinking, ragionamento rimandato (G1TR)",
@@ -148,7 +151,7 @@ MODELLI = {
         "ram_minima_gib": RAM_MINIMA_GIB,
         "cache": {},
         "sorveglia_min_gib": None,
-        "nonio_exe": "C:/Git/Nonio/target-riuso/release/nonio.exe",
+        "nonio_exe": NONIO_RIUSO_EXE,
     },
     # M-17 T-07 e M-18 T-11: i checkpoint spenti (--ctx-checkpoints 0, -82% del costo fisso) sulla
     # batteria vera, con il binario del ramo del riuso. G1B e' il riferimento con i checkpoint accesi e
@@ -165,7 +168,7 @@ MODELLI = {
         "ram_minima_gib": RAM_MINIMA_GIB,
         "cache": {},
         "sorveglia_min_gib": None,
-        "nonio_exe": "C:/Git/Nonio/target-riuso/release/nonio.exe",
+        "nonio_exe": NONIO_RIUSO_EXE,
     },
     "G1C0": {
         "nome": "Qwen3.6-35B-A3B Q4_K_M, binario del ramo del riuso, checkpoint spenti (G1C0)",
@@ -178,7 +181,7 @@ MODELLI = {
         "ram_minima_gib": RAM_MINIMA_GIB,
         "cache": {"ctx_checkpoints": 0},
         "sorveglia_min_gib": None,
-        "nonio_exe": "C:/Git/Nonio/target-riuso/release/nonio.exe",
+        "nonio_exe": NONIO_RIUSO_EXE,
     },
     "G1T0": {
         "nome": "Qwen3.6-35B-A3B Q4_K_M, thinking, checkpoint spenti, ragionamento NON rimandato (G1T0)",
@@ -191,7 +194,7 @@ MODELLI = {
         "ram_minima_gib": RAM_MINIMA_GIB,
         "cache": {"ctx_checkpoints": 0},
         "sorveglia_min_gib": None,
-        "nonio_exe": "C:/Git/Nonio/target-riuso/release/nonio.exe",
+        "nonio_exe": NONIO_RIUSO_EXE,
     },
     "G1TR0": {
         "nome": "Qwen3.6-35B-A3B Q4_K_M, thinking, checkpoint spenti, ragionamento rimandato (G1TR0)",
@@ -205,7 +208,7 @@ MODELLI = {
         "ram_minima_gib": RAM_MINIMA_GIB,
         "cache": {"ctx_checkpoints": 0},
         "sorveglia_min_gib": None,
-        "nonio_exe": "C:/Git/Nonio/target-riuso/release/nonio.exe",
+        "nonio_exe": NONIO_RIUSO_EXE,
     },
     "FC": {
         "profilo": "qwen3.8-flash-coder.q4_k_m.vulkan",

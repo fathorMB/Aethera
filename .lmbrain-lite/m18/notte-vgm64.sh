@@ -13,7 +13,6 @@
 set -u
 . "$(dirname "$0")/../percorsi.sh"
 export AETHERA_RADICE AETHERA_REPO AETHERA_PESI PYTHONIOENCODING=utf-8
-export AETHERA_NONIO_EXE="C:\Git\Nonio\target\release\nonio.exe"
 QUI="$(cd "$(dirname "$0")" && pwd)"; B="$QUI/../batteria"; R=$(cygpath -u "$AETHERA_RADICE")
 
 vgm=$(powershell -NoProfile -Command "[math]::Round((Get-CimInstance Win32_VideoController | Where-Object {\$_.AdapterRAM -gt 0} | Select-Object -First 1).AdapterRAM/1GB)" 2>/dev/null | tr -d '\r')
