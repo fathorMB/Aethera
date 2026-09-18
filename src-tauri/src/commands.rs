@@ -17,6 +17,7 @@ use crate::machine::{self, BuildEntry, DataRoot, MachineConfig, ResolvedBuild};
 use crate::modelcard;
 use crate::profile::{self, Issue, Override, Profile};
 use crate::proposals;
+use crate::provenance::{self, BuildProvenance};
 use crate::runs::{self, Comparison, RunDetail, RunRow};
 use crate::settings::ExitBehavior;
 use crate::conditions::Conditions;
@@ -46,6 +47,9 @@ pub struct Overview {
     pub exit_behavior: ExitBehavior,
     pub builds: Vec<ResolvedBuild>,
     pub builds_missing: Vec<BuildEntry>,
+    /// Provenienza di ogni build di `builds`, nello stesso ordine (M-14): tag, serie e rami del
+    /// fork, oppure niente per una build scaricata.
+    pub builds_provenance: Vec<BuildProvenance>,
     pub endpoint: Option<String>,
     pub endpoint_error: Option<String>,
 }
@@ -72,6 +76,7 @@ fn build_overview(state: &AppState) -> Overview {
         exit_behavior: settings.exit_behavior,
         builds: Vec::new(),
         builds_missing: Vec::new(),
+        builds_provenance: Vec::new(),
         endpoint: state.endpoint.as_ref().ok().cloned(),
         endpoint_error: state.endpoint.as_ref().err().cloned(),
     };
@@ -90,6 +95,7 @@ fn build_overview(state: &AppState) -> Overview {
             Ok(m) => {
                 o.conditions = system::probe().conditions(m.models_dir.as_deref());
                 o.builds = root.builds_available(&m);
+                o.builds_provenance = builds_provenance(&o.builds);
                 o.builds_missing =
                     m.builds.iter().filter(|b| !b.path.join(machine::server_binary_name()).is_file()).cloned().collect();
                 o.machine = Some(m);
@@ -98,6 +104,11 @@ fn build_overview(state: &AppState) -> Overview {
         }
     }
     o
+}
+
+/// La provenienza di ogni build trovata, una per una e nello stesso ordine.
+fn builds_provenance(builds: &[ResolvedBuild]) -> Vec<BuildProvenance> {
+    builds.iter().map(|b| provenance::describe(&b.dir)).collect()
 }
 
 #[tauri::command]
@@ -1352,6 +1363,43 @@ mod tests {
         // Percorsi che non esistono si confrontano come sono scritti, senza esplodere.
         assert!(same_file(Path::new("mai-esistito.gguf"), Path::new("mai-esistito.gguf")));
         assert!(!same_file(Path::new("uno.gguf"), Path::new("due.gguf")));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn every_build_found_carries_its_provenance() {
+        let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!("aethera-cmd-prov-{n}"));
+        let (plain, fork) = (dir.join("llama-b10991-win-vulkan-x64"), dir.join("llama-b10991+moro1-win-vulkan-x64"));
+        fs::create_dir_all(&plain).unwrap();
+        fs::create_dir_all(&fork).unwrap();
+        let file = [
+            "schema_version = 1",
+            "id = \"b10991+moro1-vulkan\"",
+            "base = \"b10991\"",
+            "commit_base = \"930e2fa5995789efbf249a8bf61325bb626e417b\"",
+            "serie = 1",
+            "backend = \"vulkan\"",
+            "commit = \"0123456789abcdef0123456789abcdef01234567\"",
+            "durata_build_s = 640",
+            "",
+            "[[patch]]",
+            "ramo = \"patch/int8-coopmat\"",
+            "commit = \"abcdef0123456789abcdef0123456789abcdef01\"",
+        ]
+        .join("\n");
+        fs::write(fork.join(provenance::PROVENANCE_FILE), file).unwrap();
+        let rb = |d: &Path| ResolvedBuild { id: "x".into(), dir: d.to_path_buf(), binary: d.join("llama-server.exe"), source: "builds/" };
+
+        let out = builds_provenance(&[rb(&plain), rb(&fork)]);
+        assert_eq!(out.len(), 2);
+        // La build scaricata non ha provenienza e non ha errore; quella del fork porta la serie.
+        assert_eq!(out[0].dir, plain);
+        assert!(out[0].provenance.is_none() && out[0].error.is_none());
+        let p = out[1].provenance.as_ref().expect("provenienza della build del fork");
+        assert_eq!(p.label(), "b10991+moro1");
+        assert_eq!(p.series(), "moro1 patch/int8-coopmat@abcdef012");
+        assert_eq!(p.durata_build_s, Some(640));
         let _ = fs::remove_dir_all(&dir);
     }
 }

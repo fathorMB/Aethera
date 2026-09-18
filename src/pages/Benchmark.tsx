@@ -15,8 +15,36 @@ function Cell(props: { v: string | null | undefined; unit?: string }) {
   );
 }
 import { clock, duration, fixed, num, pct } from "../format";
-import { Chips, Head } from "../ui";
-import { countBy, delta, flip } from "../ui-logic";
+import { Alerts, Chips, Head, Q } from "../ui";
+import { buildBase, countBy, delta, flip, parseSeries, seriesAlert, seriesBadge, seriesShort, seriesTitle } from "../ui-logic";
+
+/** La serie di patch di un avvio; senza condizioni registrate resta sconosciuta, non upstream. */
+const seriesOf = (r: RunRow) => r.conditions?.build_series ?? null;
+
+/** La build con accanto, in piccolo, la serie quando non è quella di ggml-org: `b10991 · moro1 int8-coopmat`. */
+function BuildCell(props: { row: RunRow }) {
+  const series = () => seriesOf(props.row);
+  const kind = () => parseSeries(series()).kind;
+  return (
+    <>
+      {buildBase(props.row.build, series())}
+      <Show when={seriesShort(series())}>
+        {(short) => (
+          <>
+            {" "}
+            <span
+              class={kind() === "unknown" ? "mini unk" : kind() === "unreadable" ? "pill x" : "pill acc"}
+              style={{ "font-family": "var(--sans)" }}
+              title={seriesTitle(series())}
+            >
+              {short()}
+            </span>
+          </>
+        )}
+      </Show>
+    </>
+  );
+}
 
 /** Le pillole di stato di un avvio, in una colonna sola. */
 function Notes(props: { row: RunRow }) {
@@ -77,6 +105,12 @@ function Delta(props: { a: number | null | undefined; b: number | null | undefin
 function CompareCard(props: { cmp: Comparison }) {
   const a = () => props.cmp.a;
   const b = () => props.cmp.b;
+  const seriesItems = () => {
+    const alert = seriesAlert(seriesOf(a()), seriesOf(b()));
+    return alert ? [alert] : [];
+  };
+  // La serie diversa ha il suo avviso qui sopra: nella nota restano le altre condizioni.
+  const others = () => props.cmp.not_comparable.filter((x) => !seriesItems().length || !x.startsWith("serie di patch "));
   const metric = (label: string, pick: (r: RunRow) => number | null, digits: number, lowerIsBetter = false) => (
     <tr>
       <td>{label}</td>
@@ -99,9 +133,10 @@ function CompareCard(props: { cmp: Comparison }) {
           A {a().id} · B {b().id}
         </span>
       </h2>
-      <Show when={props.cmp.not_comparable.length}>
+      <Alerts items={seriesItems()} />
+      <Show when={others().length}>
         <div class="note warn mb">
-          <b>A e B non differiscono solo per il profilo:</b> {props.cmp.not_comparable.join(" · ")}. Su questa macchina il solo
+          <b>A e B non differiscono solo per il profilo:</b> {others().join(" · ")}. Su questa macchina il solo
           driver GPU ha spostato il prefill del 17 % (M-08): il Δ qui sotto non è attribuibile al profilo.
         </div>
       </Show>
@@ -169,6 +204,34 @@ function CompareCard(props: { cmp: Comparison }) {
   );
 }
 
+/** La serie per intero: nome, poi un ramo per riga con il suo commit. */
+function SeriesFull(props: { series: string | null }) {
+  const s = () => parseSeries(props.series);
+  return (
+    <Show when={s().kind !== "unknown"} fallback={<span class="unk" title={seriesTitle(null)}>sconosciuta</span>}>
+      <span class="mono">{s().name}</span>{" "}
+      <span class="cond">
+        {s().kind === "upstream"
+          ? "build scaricata, senza patch"
+          : s().kind === "plain"
+            ? "tag liscio compilato qui, senza patch"
+            : s().kind === "unreadable"
+              ? "file di provenienza illeggibile: non si sa che serie sia"
+              : s().branches.length === 1
+                ? "1 ramo di patch"
+                : `${s().branches.length} rami di patch`}
+      </span>
+      <For each={s().branches}>
+        {(b) => (
+          <div class="mono mini" style={{ "overflow-wrap": "anywhere" }}>
+            {b.ramo} @ <Show when={b.commit} fallback={<span class="unk">commit sconosciuto</span>}>{b.commit}</Show>
+          </div>
+        )}
+      </For>
+    </Show>
+  );
+}
+
 function DetailCard(props: { detail: RunDetail }) {
   const d = () => props.detail;
   const row = () => d().row;
@@ -227,6 +290,13 @@ function DetailCard(props: { detail: RunDetail }) {
         <dt>Build · commit</dt>
         <dd class="mono">
           {row().build} · <Val v={row().commit} />
+        </dd>
+        <dt>
+          Serie di patch{" "}
+          <Q title="Da dove viene la build: «ggml-org» è quella scaricata, «moro0» il tag liscio compilato su questa macchina, «moro1» e oltre una serie con patch, con i rami e il commit di ciascuno. Una build patchata sposta i numeri quanto un driver: due avvii con serie diverse non si confrontano senza dirlo. Il file di provenienza intero sta nel manifest." />
+        </dt>
+        <dd>
+          <SeriesFull series={seriesOf(row())} />
         </dd>
         <dt>VRAM misurata</dt>
         <dd>
@@ -436,7 +506,9 @@ export default function Benchmark() {
                           )}
                         </For>
                       </td>
-                      <td class="mono narrow-hide">{r.build}</td>
+                      <td class="mono narrow-hide">
+                        <BuildCell row={r} />
+                      </td>
                       <td class="r num">
                         <Cell v={r.uptime_s == null ? null : duration(r.uptime_s)} />
                       </td>
@@ -518,6 +590,14 @@ export default function Benchmark() {
                     <i />
                     non differiscono solo per il profilo
                   </span>
+                </Show>
+                <Show when={seriesBadge(seriesOf(c().a), seriesOf(c().b))}>
+                  {(text) => (
+                    <span class="badge warn tight" title={seriesAlert(seriesOf(c().a), seriesOf(c().b))?.detail}>
+                      <i />
+                      {text()}
+                    </span>
+                  )}
                 </Show>
                 <button class="btn sm primary right" onClick={() => (cmpOpen() ? setCmpOpen(false) : openCompare())}>
                   {cmpOpen() ? "Chiudi il confronto" : "Apri il confronto"}

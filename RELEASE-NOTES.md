@@ -29,6 +29,13 @@ solo la finestra, secondo il mockup approvato il 16-09 (`design/aethera-v2-ui`).
   l'endpoint è a scomparsa; il tema si sceglie anche da qui.
 - Le spiegazioni lunghe stanno nel «?» accanto ai titoli o in una riga «come si legge»; il testo
   minimo sale a 12 px.
+- **Build del fork (M-14) in Benchmark**: accanto alla build di ogni avvio la serie di patch quando
+  non è quella di ggml-org (`b10991 · moro1 int8-coopmat`), nel dettaglio rami e commit, e nel
+  confronto un avviso se i due avvii hanno serie diverse: il confronto misura anche la patch. Una
+  serie non registrata resta «sconosciuta», mai ggml-org.
+- **Provenienza delle build nelle Impostazioni**: sotto ogni build tag base, serie, rami con commit,
+  data e durata della build; «build scaricata da ggml-org» senza file, «provenienza assente» se
+  l'id dichiara una serie ma il file manca.
 
 ## 0.1.0 — la prima versione utilizzabile
 
