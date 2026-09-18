@@ -1,6 +1,6 @@
 {
   "versione": 1,
-  "congelato_il": "2026-09-17",
+  "congelato_il": "2026-09-18",
   "nota": "scritto da congela.py; ogni compito è stato provato: fixture che fallisce, soluzione che passa",
   "compiti": {
     "rs-durata-en": {
@@ -22,7 +22,7 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 3.86
+      "secondi_verifica_soluzione": 1.18
     },
     "rs-durata-it": {
       "livello": "facile",
@@ -43,7 +43,7 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 4.01
+      "secondi_verifica_soluzione": 1.18
     },
     "rs-lru": {
       "livello": "media",
@@ -64,7 +64,7 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 5.68
+      "secondi_verifica_soluzione": 0.76
     },
     "rs-calc": {
       "livello": "difficile",
@@ -85,7 +85,7 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 3.01
+      "secondi_verifica_soluzione": 1.08
     },
     "rs-report": {
       "livello": "media",
@@ -106,7 +106,7 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 4.47
+      "secondi_verifica_soluzione": 0.96
     },
     "py-slug": {
       "livello": "facile",
@@ -127,7 +127,7 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 1.25
+      "secondi_verifica_soluzione": 0.11
     },
     "py-intervals": {
       "livello": "media",
@@ -148,7 +148,7 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 1.25
+      "secondi_verifica_soluzione": 0.1
     },
     "py-ledger": {
       "livello": "difficile",
@@ -170,7 +170,7 @@
         "toccare ledger/rates.py fallisce": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 1.26
+      "secondi_verifica_soluzione": 0.1
     },
     "py-config-en": {
       "livello": "media",
@@ -192,7 +192,7 @@
         "toccare legacy/README.md fallisce": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 1.38
+      "secondi_verifica_soluzione": 0.21
     },
     "py-config-it": {
       "livello": "media",
@@ -214,7 +214,7 @@
         "toccare legacy/README.md fallisce": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 1.81
+      "secondi_verifica_soluzione": 0.21
     },
     "py-csvreport": {
       "livello": "media",
@@ -235,7 +235,7 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 1.35
+      "secondi_verifica_soluzione": 0.13
     },
     "ts-giorni": {
       "livello": "facile",
@@ -256,7 +256,7 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 0.3
+      "secondi_verifica_soluzione": 0.15
     },
     "ts-eventi-en": {
       "livello": "media",
@@ -277,7 +277,7 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 0.3
+      "secondi_verifica_soluzione": 0.16
     },
     "ts-eventi-it": {
       "livello": "media",
@@ -298,7 +298,28 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 0.3
+      "secondi_verifica_soluzione": 0.15
+    },
+    "lc-py-pipeline": {
+      "livello": "difficile",
+      "lingua": "en",
+      "tipo": "bug",
+      "toolchain": "python",
+      "max_turni": 30,
+      "max_secondi": 1200,
+      "impronte": {
+        "fixture": "bfa1786890c9320ae52c01a59c43c1e9af25adfc918bbda8b7a09ba3b2945059",
+        "nascosti": "211082b6ab05efcada2a93bde507da3a08988558db3f0e6005687a193e6911f0",
+        "soluzione": "a6f81a4d734696754a2619bcc24103e299a16c4ffee084a49bd7d469477bd140",
+        "enunciato": "08083dc113f42ca424e52915afb26886944405d8659efcccf8b79893daac49aa",
+        "verifica": "28097ea3f9f84ed7f51b7c2eed8d638159c61dff9ba83830c6795e5acda6f6bd"
+      },
+      "prova": {
+        "fixture fallisce": true,
+        "soluzione passa": true,
+        "svuotare un test fallisce": true
+      },
+      "secondi_verifica_soluzione": 0.2
     },
     "ts-carrello": {
       "livello": "difficile",
@@ -319,7 +340,7 @@
         "soluzione passa": true,
         "svuotare un test fallisce": true
       },
-      "secondi_verifica_soluzione": 0.32
+      "secondi_verifica_soluzione": 0.15
     }
   }
 }

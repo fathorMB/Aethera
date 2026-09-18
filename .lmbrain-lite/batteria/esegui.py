@@ -120,6 +120,36 @@ MODELLI = {
         "cache": {},
         "sorveglia_min_gib": None,
     },
+    # M-18 T-11: il ragionamento dei turni precedenti. Thinking acceso, identiche tranne send_reasoning;
+    # tutte e due con il binario del ramo aethera/m18-riuso (target-riuso), cosi' la differenza misura
+    # solo il rimando del ragionamento.
+    "G1T": {
+        "nome": "Qwen3.6-35B-A3B Q4_K_M, thinking, ragionamento NON rimandato (G1T)",
+        "profilo": "qwen3.6-35b-a3b.q4_k_m.vulkan",
+        "thinking": True,
+        "extra": "",
+        "max_tokens": 8192,
+        "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
+        "fonte_sampling": "note del profilo G1: valori della modalita' thinking (1.0 / 0.95, senza presence_penalty)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+        "nonio_exe": "C:/Git/Nonio/target-riuso/release/nonio.exe",
+    },
+    "G1TR": {
+        "nome": "Qwen3.6-35B-A3B Q4_K_M, thinking, ragionamento rimandato (G1TR)",
+        "send_reasoning": True,
+        "profilo": "qwen3.6-35b-a3b.q4_k_m.vulkan",
+        "thinking": True,
+        "extra": "",
+        "max_tokens": 8192,
+        "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
+        "fonte_sampling": "note del profilo G1: valori della modalita' thinking (1.0 / 0.95, senza presence_penalty)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+        "nonio_exe": "C:/Git/Nonio/target-riuso/release/nonio.exe",
+    },
     "FC": {
         "profilo": "qwen3.8-flash-coder.q4_k_m.vulkan",
         "nome": "Qwen3.8-Flash-Coder Q4_K_M",
@@ -366,6 +396,7 @@ def profilo_nonio(cfg: dict, pronto: dict, dest: Path) -> Path:
         "[family]",
         'kind = "qwen"',
         f"thinking = {'true' if cfg['thinking'] else 'false'}",
+        *(["send_reasoning = true"] if cfg.get("send_reasoning") else []),
         "",
         "[model]",
         f'expected = "{pronto["alias"]}"',
@@ -429,8 +460,8 @@ def file_toccati(ws: Path) -> list[str]:
     return sorted(line[3:].strip() for line in out.splitlines() if line.strip())
 
 
-def esegui_nonio(compito: dict, profilo: Path, ws: Path, cartella: Path) -> dict:
-    exe = os.environ.get("AETHERA_NONIO_EXE", "nonio.exe")
+def esegui_nonio(compito: dict, profilo: Path, ws: Path, cartella: Path, exe: str | None = None) -> dict:
+    exe = exe or os.environ.get("AETHERA_NONIO_EXE", "nonio.exe")
     cmd = [
         exe, "run", "--json",
         "--max-turns", str(compito["max_turni"]),
@@ -632,7 +663,7 @@ def esegui_compito(compito: dict, sigla: str, cfg: dict, pronto: dict | None, pr
             riga["errore_infrastruttura"] = f"lock rifiutato: HTTP {st} {doc}"
         else:
             try:
-                esito_nonio = esegui_nonio(compito, profilo, ws, art)
+                esito_nonio = esegui_nonio(compito, profilo, ws, art, cfg.get("nonio_exe"))
             finally:
                 time.sleep(2.5)  # le ultime richieste entrano nella telemetria al giro dopo del monitor
                 http("DELETE", "/lock?client=nonio")
