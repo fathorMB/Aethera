@@ -25,7 +25,7 @@ generated: true
 | 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | active | 8/9 (1 blocked) | 89% |
 | 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | active | 6/7 (1 blocked) | 86% |
 | 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | done | 6/6 | 100% |
-| 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | active | 5/8 | 62% |
+| 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | active | 7/8 (1 blocked) | 88% |
 | 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | approved | 1/13 (1 blocked) | 8% |
 
 ## M-01 — Mockup di design della v1
