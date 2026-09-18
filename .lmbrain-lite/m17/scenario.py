@@ -72,6 +72,9 @@ def conversazione(base: str, args, sorgente: str, riga: dict, fh) -> list[dict]:
     """Un giro: prefisso, poi i turni di PASSI. Ritorna le righe scritte."""
     alias = riga["alias"]
     prefisso = sorgente[: args.prefisso]
+    if args.divergenza:
+        meta = args.prefisso // 2
+        prefisso = prefisso[:meta] + f"/* turno {riga['giro']} */" + prefisso[meta:]
     cursore = args.prefisso
     righe = []
     messaggi = [{"role": "system", "content": SISTEMA}, {"role": "user", "content": prefisso + DOMANDA}]
@@ -101,6 +104,15 @@ def conversazione(base: str, args, sorgente: str, riga: dict, fh) -> list[dict]:
         righe.append(r)
         print(f"  giro {riga['giro']} turno {turno:2d}: nuovi {r['prompt_n']} · cache {r['cache_n']} · "
               f"prompt {r['prompt_ms']:.0f} ms · muro {muro:.0f} ms", flush=True)
+        if args.divergenza:
+            # a ogni turno la stessa riga a meta' prefisso cambia: il prefisso in cache non vale piu'
+            meta = args.prefisso // 2
+            base = sorgente[: args.prefisso]
+            nuovo_pref = base[:meta] + f"/* turno {turno + 1} */" + base[meta:]
+            if args.endpoint == "chat":
+                messaggi[1]["content"] = nuovo_pref + DOMANDA
+            else:
+                grezzo = SISTEMA + "\n\n" + nuovo_pref + DOMANDA + "\n\nAnswer: "
         passo = PASSI[turno % len(PASSI)]
         nuovo = sorgente[cursore: cursore + passo]
         cursore += passo
@@ -124,6 +136,9 @@ def main() -> int:
     ap.add_argument("--giri", type=int, default=3)
     ap.add_argument("--n-predict", type=int, default=24)
     ap.add_argument("--senza-thinking", action="store_true")
+    ap.add_argument("--divergenza", action="store_true",
+                    help="riscrive una parola in mezzo al prefisso a ogni turno: simula un harness che "
+                         "ritocca la conversazione, il caso peggiore per i modelli ibridi")
     ap.add_argument("--ctx", type=int)
     ap.add_argument("--extra")
     ap.add_argument("--cache-ram", type=int)
