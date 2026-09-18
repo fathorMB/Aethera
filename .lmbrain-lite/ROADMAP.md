@@ -1,6 +1,6 @@
 ---
 title: Roadmap
-updated: 2026-09-18
+updated: 2026-09-19
 generated: true
 ---
 # Roadmap
@@ -25,8 +25,8 @@ generated: true
 | 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | done | 9/9 | 100% |
 | 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | active | 6/7 (1 blocked) | 86% |
 | 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | done | 6/6 | 100% |
-| 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | active | 7/8 (1 blocked) | 88% |
-| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | approved | 4/13 (1 blocked) | 31% |
+| 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | done | 8/8 | 100% |
+| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | approved | 4/14 (1 blocked) | 29% |
 
 ## M-01 — Mockup di design della v1
 
@@ -142,7 +142,7 @@ generated: true
 
 ## M-17 — Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera
 
-- `status`: active
+- `status`: done
 - `priority`: 17
 - `file`: milestones/M-17.md
 - `outcome`: Si sa da quale fase del motore vengono gli ~1,5 s che ogni richiesta di un agente paga prima del primo token nuovo su G1 e G3 (metà del tempo di prefill della batteria, circa 6 minuti per giro), con una misura riproducibile fuori dalla batteria; per ogni leva provata c'è un numero e un verdetto, e se una leva regge c'è un profilo di prova pronto. I profili standard e il codice di Aethera non si toccano: li decide l'operatore sul rapporto.
