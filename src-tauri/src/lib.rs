@@ -63,6 +63,7 @@ struct TrayItems {
     restart: MenuItem<Wry>,
     stop: MenuItem<Wry>,
     copy: MenuItem<Wry>,
+    start_main: MenuItem<Wry>,
 }
 
 pub fn run() {
@@ -83,6 +84,8 @@ pub fn run() {
             commands::set_data_root,
             commands::save_machine,
             commands::set_exit_behavior,
+            commands::default_profile,
+            commands::set_default_profile,
             commands::machine_text,
             commands::machine_reset,
             commands::setup,
@@ -200,13 +203,27 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         restart: MenuItem::with_id(app, "restart", "Riavvia con la stessa riga", false, None::<&str>)?,
         stop: MenuItem::with_id(app, "stop", "Ferma il motore", false, None::<&str>)?,
         copy: MenuItem::with_id(app, "copy", "Copia riga per i client", false, None::<&str>)?,
+        start_main: MenuItem::with_id(app, "start_main", "Nessun profilo principale scelto", false, None::<&str>)?,
     };
     let open = MenuItem::with_id(app, "open", "Apri Aethera", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Esci…", true, None::<&str>)?;
     let (s1, s2) = (PredefinedMenuItem::separator(app)?, PredefinedMenuItem::separator(app)?);
     let menu = Menu::with_items(
         app,
-        &[&items.state, &items.model, &items.info, &s1, &items.protect, &items.restart, &items.stop, &items.copy, &s2, &open, &quit],
+        &[
+            &items.state,
+            &items.model,
+            &items.info,
+            &s1,
+            &items.start_main,
+            &items.protect,
+            &items.restart,
+            &items.stop,
+            &items.copy,
+            &s2,
+            &open,
+            &quit,
+        ],
     )?;
     let mut tray = TrayIconBuilder::with_id("aethera")
         .tooltip("Aethera")
@@ -228,6 +245,11 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 "restart" => {
                     if let Err(e) = commands::restart(&state) {
                         notice(app, format!("Riavvia dalla tray: {e}"));
+                    }
+                }
+                "start_main" => {
+                    if let Err(e) = commands::start_default(&state) {
+                        notice(app, format!("Avvia il profilo principale dalla tray: {e}"));
                     }
                 }
                 "copy" => {
@@ -267,6 +289,16 @@ fn spawn_watchers(app: AppHandle) {
         let _ = items.restart.set_enabled(v.can_restart);
         let _ = items.stop.set_enabled(v.can_stop);
         let _ = items.copy.set_enabled(v.has_run);
+        match state.settings().default_profile.clone() {
+            Some(name) => {
+                let _ = items.start_main.set_text(format!("Avvia {name}"));
+                let _ = items.start_main.set_enabled(!state.engine.is_running());
+            }
+            None => {
+                let _ = items.start_main.set_text("Nessun profilo principale scelto");
+                let _ = items.start_main.set_enabled(false);
+            }
+        }
         if let Some(t) = tray_app.tray_by_id("aethera") {
             let _ = t.set_tooltip(Some(&v.tooltip));
         }

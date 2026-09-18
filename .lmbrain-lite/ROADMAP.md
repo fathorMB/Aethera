@@ -1,6 +1,6 @@
 ---
 title: Roadmap
-updated: 2026-09-18
+updated: 2026-09-19
 generated: true
 ---
 # Roadmap
@@ -15,18 +15,18 @@ generated: true
 | 4 | M-04 | Catalogo: metadati GGUF, stima di memoria, verifica e download di pesi e build | done | 10/10 | 100% |
 | 5 | M-05 | Uso quotidiano senza toccare i file a mano | done | 8/8 | 100% |
 | 6 | M-06 | Comportamento quando qualcosa va storto | done | 9/9 | 100% |
-| 7 | M-07 | Confezionamento, prima esecuzione e documentazione | active | 6/7 (1 blocked) | 86% |
+| 7 | M-07 | Confezionamento, prima esecuzione e documentazione | done | 7/7 | 100% |
 | 8 | M-08 | Misure del motore sulla Minisforum: banda, memoria oltre i 48 GB, cache, NPU | done | 14/14 | 100% |
 | 9 | M-09 | Aethera impara dalle misure: condizioni dell'avvio, cache dei client, leve nuove | done | 11/11 | 100% |
-| 10 | M-10 | Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD | active | 7/13 | 54% |
-| 11 | M-11 | Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48 | active | 3/6 | 50% |
-| 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | active | 10/11 (1 blocked) | 91% |
-| 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | active | 6/7 | 86% |
-| 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | active | 8/9 (1 blocked) | 89% |
+| 10 | M-10 | Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD | done | 8/13 | 62% |
+| 11 | M-11 | Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48 | done | 6/6 | 100% |
+| 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | done | 11/11 | 100% |
+| 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | done | 7/7 | 100% |
+| 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | done | 9/9 | 100% |
 | 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | active | 6/7 (1 blocked) | 86% |
 | 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | done | 6/6 | 100% |
-| 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | active | 0/8 | 0% |
-| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | approved | 0/13 | 0% |
+| 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | done | 8/8 | 100% |
+| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | approved | 4/15 (1 blocked) | 27% |
 
 ## M-01 — Mockup di design della v1
 
@@ -72,7 +72,7 @@ generated: true
 
 ## M-07 — Confezionamento, prima esecuzione e documentazione
 
-- `status`: active
+- `status`: done
 - `priority`: 7
 - `file`: milestones/M-07.md
 - `outcome`: Aethera si installa e si avvia su una macchina pulita senza toolchain di sviluppo, guida chi la apre per la prima volta dalla radice dati fino al motore acceso, e chi non l'ha mai vista capisce dal README cosa fa, cosa serve e dove finiscono i suoi dati.
@@ -93,35 +93,35 @@ generated: true
 
 ## M-10 — Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD
 
-- `status`: active
+- `status`: done
 - `priority`: 10
 - `file`: milestones/M-10.md
 - `outcome`: Si sa, con misure e non con stime, se Qwen3.8-Flash-Next intero (tutti i 512 esperti, nessuna potatura) gira su questa macchina come agente di coding utilizzabile: corpo del modello residente nella VGM regolata a 64 o 72 GB, tabella n-gram lasciata su SSD con --lazy-mode, prefill freddo e caldo, decode a 32k e 64k, e task riusciti per ora di macchina contro Qwen3.6-35B-A3B. Alla fine c'è un rapporto con un verdetto per quant (IQ3_XXS, Q3_K_XL, IQ4_XS) e la ricetta da portare nei profili.
 
 ## M-11 — Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48
 
-- `status`: active
+- `status`: done
 - `priority`: 11
 - `file`: milestones/M-11.md
 - `outcome`: Si sa, con misure, se il taglio «coding» di Qwen3.8-Flash-Next fatto da Jab1718 (160 esperti su 512, tabella n-gram tolta, calibrazione DoRA, 42,6 miliardi di parametri) vale come modello di coding su questa macchina senza toccare la VGM: tutto in VGM 48, decode e prefill a 32k e 64k, e soprattutto task riusciti per ora di macchina con Nonio contro Qwen3.6-35B-A3B e contro Flash-Next intero di M-10. Le affermazioni della scheda (91% pass@1 su una batteria propria) non contano come prova.
 
 ## M-12 — Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare
 
-- `status`: active
+- `status`: done
 - `priority`: 12
 - `file`: milestones/M-12.md
 - `outcome`: La finestra di Aethera segue il mockup approvato in design/aethera-v2-ui: lo stato del motore e le due azioni (Riavvia, Ferma) sono sempre visibili nella striscia in alto; ogni pagina ha le sue azioni nella testa; in Avvio le dodici leve essenziali hanno l'etichetta in italiano e le altre stanno in «Avanzate» con i verdetti di M-08, e la fascia con Avvia/Scarta/Aggiorna/Salva come resta fissa in cima; Motore mostra quattro KPI con giudizio, memoria come barra impilata, avvisi in una fascia sola e riga di comando/log a scomparsa; Catalogo e Benchmark hanno lista a sinistra e dettaglio a destra, con la fascia di confronto a due spunte; Impostazioni è in tre schede (Macchina, Client, App). Tutti i dati di oggi restano; nessun comando Tauri nuovo; l'operatore la vede e la approva dalla finestra.
 
 ## M-13 — Release automatica su GitHub: installatore Windows da un tag
 
-- `status`: active
+- `status`: done
 - `priority`: 13
 - `file`: milestones/M-13.md
 - `outcome`: Un push di un tag v* sul repository produce, senza passi a mano sulla macchina dell'operatore, una GitHub Release in bozza con l'installatore NSIS di Aethera, il suo SHA-256 e le note prese da RELEASE-NOTES.md; ogni pull request passa gli stessi controlli (build del frontend, vitest, cargo test); una versione diversa fra tag, tauri.conf.json e Cargo.toml ferma la release. L'installatore scaricato dalla release è quello che l'operatore installa e prova. La firma digitale resta fuori.
 
 ## M-14 — Fork leggero di llama.cpp: build locali con patch misurate sopra master
 
-- `status`: active
+- `status`: done
 - `priority`: 14
 - `file`: milestones/M-14.md
 - `outcome`: Aethera può usare build di llama.cpp compilate su questa macchina da master più una serie corta di patch, ognuna in un ramo suo, ribasata a ogni build adottata e tenuta solo se una misura la giustifica. Uno script fa checkout, rebase, build Vulkan e copia in builds/ con un id che dichiara base, serie di patch e backend (per esempio b10991+moro1-vulkan); il manifest di ogni avvio lo registra e Benchmark non confronta una build patchata con una liscia senza dirlo. La prima patch (int8 coopmat, PR #27952) è misurata contro la base con la procedura di M-08, e il rapporto dice se entra o si butta.
@@ -142,7 +142,7 @@ generated: true
 
 ## M-17 — Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera
 
-- `status`: active
+- `status`: done
 - `priority`: 17
 - `file`: milestones/M-17.md
 - `outcome`: Si sa da quale fase del motore vengono gli ~1,5 s che ogni richiesta di un agente paga prima del primo token nuovo su G1 e G3 (metà del tempo di prefill della batteria, circa 6 minuti per giro), con una misura riproducibile fuori dalla batteria; per ogni leva provata c'è un numero e un verdetto, e se una leva regge c'è un profilo di prova pronto. I profili standard e il codice di Aethera non si toccano: li decide l'operatore sul rapporto.

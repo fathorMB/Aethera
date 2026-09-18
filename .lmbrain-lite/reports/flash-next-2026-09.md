@@ -1,10 +1,10 @@
 # Qwen3.8-Flash-Next intero sulla Minisforum: che cosa dicono le misure
 
-> **M-10, 16/18-09-2026. Rapporto parziale, scritto il 18-09 a VGM 48.** Le misure di velocità, di
-> memoria, di contesto lungo e di riuso ci sono tutte (T-04, T-07, T-08, T-09). Manca la batteria di
-> coding di FN (T-10), che aspetta una sessione a VGM 64 con `mmap`: fino ad allora il verdetto sulla
-> *qualità* di FN come agente resta «sconosciuto», non zero. Il verdetto sulla *velocità* invece c'è
-> già, ed è negativo. Sigle: FN = Flash-Next intero, FC = Flash-Coder, G1 = Qwen3.6-35B-A3B,
+> **M-10, 16/18-09-2026. Chiuso con un no il 18-09 per decisione dell'operatore.** Le misure di
+> velocità, di memoria, di contesto lungo e di riuso ci sono tutte (T-04, T-07, T-08, T-09). La
+> batteria di coding di FN (T-10) non si fa: il verdetto sulla *qualità* di FN come agente resta
+> «sconosciuto», non zero, ma quello sulla *velocità* basta (8-9 tok/s, un compito in 407 s contro 41
+> del G1). Con la direzione nuova (massimo rendimento) FN esce dai candidati; i pesi restano sul disco. Sigle: FN = Flash-Next intero, FC = Flash-Coder, G1 = Qwen3.6-35B-A3B,
 > G3 = Qwen3-Coder-Next. Motore `b10991` Vulkan, KV f16, ubatch 2048, un solo slot.
 
 **In breve.**

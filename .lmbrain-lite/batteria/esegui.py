@@ -49,8 +49,11 @@ RAM_MINIMA_GIB = 16.0
 # disponibili, lavorando a 126 tok/s di prefill e 9,09 di decode. La soglia serve solo a evitare
 # l'avvio con la macchina già occupata da altro; durante il lavoro protegge il sorvegliante (0,8 GiB).
 RAM_MINIMA_FN_GIB = 28.0
-CTX = 32768
+CTX = int(os.environ.get("AETHERA_BATTERIA_CTX", "32768"))  # M-18 T-10: contesto servito, per i giri a contesto lungo
 SONNO_ATTESA_S = 300
+# M-18 T-11: Nonio di un ramo in prova, per le configurazioni che lo chiedono; se manca, quello
+# normale (AETHERA_NONIO_EXE). Il percorso sta in percorsi.local.sh, che non si pubblica.
+NONIO_RIUSO_EXE = os.environ.get("AETHERA_NONIO_RIUSO_EXE")
 
 # Configurazione per modello. `thinking` è quello che Nonio chiede al template (enable_thinking);
 # `extra` va alla riga di llama-server (non sono leve gestite dallo schema del profilo);
@@ -67,6 +70,145 @@ MODELLI = {
         "ram_minima_gib": RAM_MINIMA_GIB,
         "cache": {},
         "sorveglia_min_gib": None,
+    },
+    # M-18 T-03: lo stesso G1 ma con la speculativa a n-grammi al posto di MTP (misure di T-12b).
+    "G1N": {
+        "profilo": "qwen3.6-35b-a3b.q4_k_m.vulkan.ngram",
+        "nome": "Qwen3.6-35B-A3B Q4_K_M, n-grammi invece di MTP (G1N)",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+    },
+    # M-18 T-04: la scala dei quant del G1, stesse leve del profilo standard (MTP compreso:
+    # tutti e tre i GGUF contengono il layer nextn, verificato).
+    "G1Q6": {
+        "profilo": "qwen3.6-35b-a3b.q6_k.vulkan",
+        "nome": "Qwen3.6-35B-A3B Q6_K (G1Q6)",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+    },
+    "G1Q8": {
+        "profilo": "qwen3.6-35b-a3b.q8_0.vulkan",
+        "nome": "Qwen3.6-35B-A3B Q8_0 (G1Q8)",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+    },
+    # M-18: G3 con la speculativa a n-grammi (sul G3 il confronto e' contro «niente», non contro MTP).
+    "G3N": {
+        "profilo": "qwen3-coder-next.q4_k_m.vulkan.ngram",
+        "nome": "Qwen3-Coder-Next Q4_K_M, n-grammi (G3N)",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 40, "min_p": 0.01, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+    },
+    # M-18 T-11: il ragionamento dei turni precedenti. Thinking acceso, identiche tranne send_reasoning;
+    # tutte e due con il binario del ramo aethera/m18-riuso (target-riuso), cosi' la differenza misura
+    # solo il rimando del ragionamento.
+    "G1T": {
+        "nome": "Qwen3.6-35B-A3B Q4_K_M, thinking, ragionamento NON rimandato (G1T)",
+        "profilo": "qwen3.6-35b-a3b.q4_k_m.vulkan",
+        "thinking": True,
+        "extra": "",
+        "max_tokens": 8192,
+        "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
+        "fonte_sampling": "note del profilo G1: valori della modalita' thinking (1.0 / 0.95, senza presence_penalty)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+        "nonio_exe": NONIO_RIUSO_EXE,
+    },
+    "G1TR": {
+        "nome": "Qwen3.6-35B-A3B Q4_K_M, thinking, ragionamento rimandato (G1TR)",
+        "send_reasoning": True,
+        "profilo": "qwen3.6-35b-a3b.q4_k_m.vulkan",
+        "thinking": True,
+        "extra": "",
+        "max_tokens": 8192,
+        "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
+        "fonte_sampling": "note del profilo G1: valori della modalita' thinking (1.0 / 0.95, senza presence_penalty)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+        "nonio_exe": NONIO_RIUSO_EXE,
+    },
+    # M-17 T-07 e M-18 T-11: i checkpoint spenti (--ctx-checkpoints 0, -82% del costo fisso) sulla
+    # batteria vera, con il binario del ramo del riuso. G1B e' il riferimento con i checkpoint accesi e
+    # lo stesso binario; G1T0/G1TR0 dicono se col thinking il rimando del ragionamento serve davvero
+    # quando i checkpoint non ci sono.
+    "G1B": {
+        "nome": "Qwen3.6-35B-A3B Q4_K_M, binario del ramo del riuso, checkpoint accesi (G1B)",
+        "profilo": "qwen3.6-35b-a3b.q4_k_m.vulkan",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+        "nonio_exe": NONIO_RIUSO_EXE,
+    },
+    "G1C0": {
+        "nome": "Qwen3.6-35B-A3B Q4_K_M, binario del ramo del riuso, checkpoint spenti (G1C0)",
+        "profilo": "qwen3.6-35b-a3b.q4_k_m.vulkan",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {"ctx_checkpoints": 0},
+        "sorveglia_min_gib": None,
+        "nonio_exe": NONIO_RIUSO_EXE,
+    },
+    "G1T0": {
+        "nome": "Qwen3.6-35B-A3B Q4_K_M, thinking, checkpoint spenti, ragionamento NON rimandato (G1T0)",
+        "profilo": "qwen3.6-35b-a3b.q4_k_m.vulkan",
+        "thinking": True,
+        "extra": "",
+        "max_tokens": 8192,
+        "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
+        "fonte_sampling": "note del profilo G1: valori della modalita' thinking (1.0 / 0.95, senza presence_penalty)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {"ctx_checkpoints": 0},
+        "sorveglia_min_gib": None,
+        "nonio_exe": NONIO_RIUSO_EXE,
+    },
+    "G1TR0": {
+        "nome": "Qwen3.6-35B-A3B Q4_K_M, thinking, checkpoint spenti, ragionamento rimandato (G1TR0)",
+        "profilo": "qwen3.6-35b-a3b.q4_k_m.vulkan",
+        "thinking": True,
+        "send_reasoning": True,
+        "extra": "",
+        "max_tokens": 8192,
+        "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
+        "fonte_sampling": "note del profilo G1: valori della modalita' thinking (1.0 / 0.95, senza presence_penalty)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {"ctx_checkpoints": 0},
+        "sorveglia_min_gib": None,
+        "nonio_exe": NONIO_RIUSO_EXE,
     },
     "FC": {
         "profilo": "qwen3.8-flash-coder.q4_k_m.vulkan",
@@ -314,6 +456,7 @@ def profilo_nonio(cfg: dict, pronto: dict, dest: Path) -> Path:
         "[family]",
         'kind = "qwen"',
         f"thinking = {'true' if cfg['thinking'] else 'false'}",
+        *(["send_reasoning = true"] if cfg.get("send_reasoning") else []),
         "",
         "[model]",
         f'expected = "{pronto["alias"]}"',
@@ -377,8 +520,8 @@ def file_toccati(ws: Path) -> list[str]:
     return sorted(line[3:].strip() for line in out.splitlines() if line.strip())
 
 
-def esegui_nonio(compito: dict, profilo: Path, ws: Path, cartella: Path) -> dict:
-    exe = os.environ.get("AETHERA_NONIO_EXE", "nonio.exe")
+def esegui_nonio(compito: dict, profilo: Path, ws: Path, cartella: Path, exe: str | None = None) -> dict:
+    exe = exe or os.environ.get("AETHERA_NONIO_EXE", "nonio.exe")
     cmd = [
         exe, "run", "--json",
         "--max-turns", str(compito["max_turni"]),
@@ -562,6 +705,7 @@ def esegui_compito(compito: dict, sigla: str, cfg: dict, pronto: dict | None, pr
         "run_id": (pronto or {}).get("run_id"),
         "build": (pronto or {}).get("build"),
         "ctx_servito": (pronto or {}).get("ctx_served"),
+        "ctx_chiesto": CTX,
         "inizio": dt.datetime.now().isoformat(timespec="seconds"),
         "windows": build_windows(),
         "ram_libera_gib_inizio": round(ram_libera_gib() or 0, 1) or None,
@@ -579,7 +723,7 @@ def esegui_compito(compito: dict, sigla: str, cfg: dict, pronto: dict | None, pr
             riga["errore_infrastruttura"] = f"lock rifiutato: HTTP {st} {doc}"
         else:
             try:
-                esito_nonio = esegui_nonio(compito, profilo, ws, art)
+                esito_nonio = esegui_nonio(compito, profilo, ws, art, cfg.get("nonio_exe"))
             finally:
                 time.sleep(2.5)  # le ultime richieste entrano nella telemetria al giro dopo del monitor
                 http("DELETE", "/lock?client=nonio")

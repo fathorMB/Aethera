@@ -1,0 +1,61 @@
+measure = "T-12b"
+title = "G1 35B-A3B: MTP di oggi contro nessuna speculazione, n-grammi, e MTP insieme a n-grammi"
+base = "qwen3.6-35b-a3b.q4_k_m.vulkan"
+repetitions = 3
+warmup = 1
+
+[[variant]]
+name = "mtp-3"
+note = "il profilo standard di oggi"
+
+[[variant]]
+name = "senza-speculazione"
+[variant.speculative]
+type = "none"
+
+[[variant]]
+name = "ngram-mod"
+[variant.speculative]
+type = "ngram-mod"
+
+[[variant]]
+name = "mtp-3+ngram-mod"
+[variant.speculative]
+type = "draft-mtp,ngram-mod"
+draft_n_max = 3
+
+[[workload]]
+name = "riscrittura-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi per intero il file cmdline.rs qui sopra cambiando una cosa sola: la funzione `build_args` si chiama `compose_args`, ovunque compaia. Tutto il resto resta identico, commenti compresi. Rispondi con il solo codice."
+n_predict = 768
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+presence_penalty = 1.5
+seed = 1234
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+presence_penalty = 1.5
+seed = 1234
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "prompt-21k.txt"
+instruction = "Riassumi in italiano, in dodici righe al massimo, che cosa fa questo programma nel suo insieme e dove sono i punti in cui una modifica sbagliata farebbe danni."
+n_predict = 384
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+presence_penalty = 1.5
+seed = 1234

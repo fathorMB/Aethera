@@ -538,6 +538,7 @@ export default function App() {
                     <Avvio
                       overview={o()}
                       status={status()}
+                      onChange={setOverview}
                       onStarted={() => setPage("motore")}
                       pendingModel={pendingModel()}
                       onPendingHandled={() => setPendingModel(null)}

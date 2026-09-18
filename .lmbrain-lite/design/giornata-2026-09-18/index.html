@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aethera — la giornata del 18 settembre: il profilo che vince</title>
+<style>
+:root{
+  --bg:#f4f5f7;--bg2:#ffffff;--bg3:#e9ebef;--line:#d5d8de;--fg:#1a1c20;--fg2:#5b6270;--fg3:#7b828d;
+  --acc:#2f6fed;--acc-bg:#e6eefd;--ok:#1f7a45;--ok-bg:#e3f2e8;--warn:#8f5605;--warn-bg:#fbf0dd;
+  --err:#c62f2f;--err-bg:#fbe6e6;
+  --mono:"Cascadia Mono","JetBrains Mono",Consolas,ui-monospace,monospace;
+  --sans:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#141619;--bg2:#1c1f24;--bg3:#24282f;--line:#30353d;--fg:#e6e8eb;--fg2:#a3a9b3;--fg3:#8a919b;
+  --acc:#5b8dff;--acc-bg:#1d2a44;--ok:#3ec46f;--ok-bg:#16301f;--warn:#e5a23a;--warn-bg:#35270f;
+  --err:#f26b6b;--err-bg:#3a1c1c;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.55 var(--sans);padding:24px 16px 72px}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:34px}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance}
+h1{font-size:26px;font-weight:700}
+h2{font-size:18px;font-weight:600;padding-bottom:6px;border-bottom:1px solid var(--line)}
+h3{font-size:14px;font-weight:600;color:var(--fg2)}
+p{margin:0;max-width:74ch}
+ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:74ch}
+section{display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
+code,.mono{font-family:var(--mono);font-size:12.5px}
+code{background:var(--bg3);padding:1px 5px;border-radius:3px}
+pre{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:10px 12px;overflow-x:auto;font:12.5px/1.5 var(--mono);margin:0}
+header{display:flex;flex-direction:column;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.lede{font-size:16px;color:var(--fg2)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:7px}
+.card .big{font-family:var(--mono);font-size:23px;font-weight:600;font-variant-numeric:tabular-nums}
+.card p{font-size:13px;color:var(--fg2)}
+.tag{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:999px;width:max-content}
+.t-ok{background:var(--ok-bg);color:var(--ok)}.t-warn{background:var(--warn-bg);color:var(--warn)}
+.t-err{background:var(--err-bg);color:var(--err)}.t-acc{background:var(--acc-bg);color:var(--acc)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg2)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--bg3);font-size:11.5px;font-weight:600;color:var(--fg2);letter-spacing:.02em;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.best td{background:var(--acc-bg)}
+.up{color:var(--ok);font-weight:600}
+.sig{font-family:var(--mono);font-weight:600;color:var(--acc)}
+.chart{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:14px}
+.chart svg{display:block;width:100%;height:auto}
+.chart text{fill:var(--fg2);font-family:var(--mono);font-size:11px}
+.chart .lab{fill:var(--fg);font-family:var(--sans);font-size:12px;font-weight:600}
+.chart .grid{stroke:var(--line)}
+.b0{fill:var(--fg3)}.b1{fill:var(--acc)}
+.legenda{display:flex;gap:16px;font-size:12px;color:var(--fg2);align-items:center;flex-wrap:wrap}
+.sw{display:inline-block;width:11px;height:11px;border-radius:2px;vertical-align:-1px;margin-right:5px}
+.asks{list-style:none;padding:0;display:flex;flex-direction:column;gap:10px;max-width:none}
+.asks li{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:5px}
+.asks li.si{border-left-color:var(--ok)}
+.asks li.no{border-left-color:var(--warn)}
+.asks p{font-size:13px;color:var(--fg2)}
+footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-size:12.5px;display:flex;flex-direction:column;gap:6px}
+@media (max-width:620px){h1{font-size:22px}body{font-size:13.5px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Aethera · 18 settembre 2026, dal mattino all'una di notte · Minisforum AI X1 Pro, VGM 48 poi 64</span>
+  <h1>La giornata del 18: il profilo che vince, e che cosa non conviene</h1>
+  <p class="lede">Dopo la notte sul motore, una giornata sul lavoro vero: la batteria di coding con Nonio corretto, la scala dei quant, il contesto lungo fino a 200.000 token e la VGM portata a 64. Ne esce un candidato netto per il profilo standard, e due leve che sul banco sembravano grandi e sul lavoro vero non lo sono.</p>
+  <div class="legenda">
+    <span><span class="sig">G1</span> Qwen3.6-35B-A3B (Q4_K_M oggi, Q8_0 candidato)</span>
+    <span><span class="sig">G3</span> Qwen3-Coder-Next Q4_K_M</span>
+    <span>metro: compiti risolti per ora di macchina, 15 compiti con Nonio</span>
+  </div>
+</header>
+
+<section>
+  <h2>In tre numeri</h2>
+  <div class="cards">
+    <div class="card">
+      <span class="tag t-ok">il candidato</span>
+      <span class="big">G1 Q8_0</span>
+      <p><b>33-36 compiti risolti per ora</b> su due giri, contro i 27-28 dello stesso modello in Q4. Ha il decode più lento, ma sbaglia meno e rifà meno: 101-106 turni contro 134-155.</p>
+    </div>
+    <div class="card">
+      <span class="tag t-ok">contesto lungo</span>
+      <span class="big">0 errori</span>
+      <p><b>Nessuna risposta sbagliata fino a 200.000 token</b>, su G1, Q8 e G3, in tutte le posizioni. Il limite a quelle profondità non è il modello ma il prefill a freddo: 28 minuti per 200k.</p>
+    </div>
+    <div class="card">
+      <span class="tag t-ok">l'harness</span>
+      <span class="big">+30 %</span>
+      <p><b>Nonio corretto</b> — virgolette su Windows, timeout che ora uccide davvero, revisione al «finish» con un criterio — vale più di qualunque leva del motore. Unito e pubblicato.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>1. La scala dei quant: il Q8 vince, il Q6 no</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>G1, 15 compiti, Nonio corretto</th><th class="n">risolti</th><th class="n">compiti per ora</th><th class="n">decode</th><th class="n">turni</th></tr></thead>
+    <tbody>
+      <tr class="best"><td>Q8_0, giro 1</td><td class="n">13</td><td class="n">35,9</td><td class="n">24,6</td><td class="n">101</td></tr>
+      <tr class="best"><td>Q8_0, giro 2</td><td class="n">12</td><td class="n">33,0</td><td class="n">24,8</td><td class="n">106</td></tr>
+      <tr><td>Q6_K</td><td class="n">12</td><td class="n">26,5</td><td class="n">26,8</td><td class="n">123</td></tr>
+      <tr><td>Q4_K_M, giro 1</td><td class="n">12</td><td class="n">27,5</td><td class="n">32,4</td><td class="n">134</td></tr>
+      <tr><td>Q4_K_M, giro 2</td><td class="n">11</td><td class="n">26,8</td><td class="n">31,3</td><td class="n">155</td></tr>
+    </tbody>
+  </table></div>
+  <p>Il Q8 genera meno token al secondo, ma ne spreca molti meno. I compiti risolti stanno dentro il rumore — il Q8 non risolve cose che il Q4 non risolve — però <b>ci arriva prima</b>. Il Q6 non porta niente: sta dove sta il Q4. La misura della distanza fatta la notte prima lo lasciava intuire: il Q4 si discosta dal Q8 di 45 volte il rumore di fondo e cambia il 4 % dei primi token.</p>
+  <p>Un dettaglio che scioglie un dubbio: <code>rs-lru</code>, che col Q4 falliva e che avevo segnato come possibile regressione di Nonio, il Q8 lo risolve in 66 secondi. Era la qualità del quant, non l'harness.</p>
+</section>
+
+<section>
+  <h2>2. Il Q8 a 256k costa quanto a 32k</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>G1 Q8_0</th><th class="n">compiti per ora</th><th class="n">decode</th><th class="n">secondi per turno</th></tr></thead>
+    <tbody>
+      <tr><td>contesto 32k, VGM 48 (due giri)</td><td class="n">33,0 – 35,9</td><td class="n">24,6 – 24,8</td><td class="n">12,3 – 12,9</td></tr>
+      <tr><td>contesto 131k, VGM 48</td><td class="n">27,9</td><td class="n">24,7</td><td class="n">12,8</td></tr>
+      <tr class="best"><td>contesto 256k, VGM 64</td><td class="n">33,0</td><td class="n">25,7</td><td class="n">11,9</td></tr>
+    </tbody>
+  </table></div>
+  <p>Il costo per turno non cambia con il contesto servito: allocare una cache grande è gratis. A VGM 48 il Q8 sta fino a 131k; <b>a VGM 64 ci sta con 256k</b> e 19 GB di RAM ancora liberi. La differenza nei compiti per ora a 131k viene tutta dal numero di turni del giro, non dal contesto.</p>
+</section>
+
+<section>
+  <h2>3. Il contesto lungo: il modello non si perde</h2>
+  <p>Una costante inventata, messa al 10, al 50 o al 90 % di una conversazione di codice vero, e poi chiesta. Giusto o sbagliato.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>risposte giuste</th><th class="n">32k</th><th class="n">64k</th><th class="n">128k</th><th class="n">200k</th></tr></thead>
+    <tbody>
+      <tr><td>G1 Q4</td><td class="n">6/6</td><td class="n">6/6</td><td class="n">6/6</td><td class="n">4/4</td></tr>
+      <tr><td>G1 Q8</td><td class="n">—</td><td class="n">—</td><td class="n">3/3</td><td class="n">3/3</td></tr>
+      <tr><td>G3</td><td class="n">3/3</td><td class="n">3/3</td><td class="n">3/3</td><td class="n">3/3</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Nessuna risposta sbagliata in tutta la giornata</b>, nemmeno a metà conversazione, che è il classico punto debole. Quello che costa è il prefill a freddo:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>prefill a freddo, token al secondo</th><th class="n">32k</th><th class="n">64k</th><th class="n">128k</th><th class="n">200k</th></tr></thead>
+    <tbody>
+      <tr><td>G1 Q4</td><td class="n">291</td><td class="n">226</td><td class="n">148</td><td class="n">104</td></tr>
+      <tr><td>G1 Q8</td><td class="n">—</td><td class="n">—</td><td class="n">~150</td><td class="n">105 – 111</td></tr>
+      <tr><td>G3</td><td class="n">216</td><td class="n">172</td><td class="n">119</td><td class="n">98 – 103</td></tr>
+    </tbody>
+  </table></div>
+  <p>Un prompt intero da 128k costa 11 minuti, uno da 200k ne costa 28. E il Q8 in profondità va come il Q4: il quant più pesante si paga sul decode, non sul prefill profondo. <b>Quindi la macchina regge i tuoi contesti a una condizione: quel prefisso si paga una volta sola.</b></p>
+</section>
+
+<section>
+  <h2>4. Due leve che sul lavoro vero non valgono quanto sul banco</h2>
+  <p><b>La speculativa a n-grammi.</b> Sul banco raddoppiava il decode quando il modello riscrive un file. Sulla batteria il G1 con gli n-grammi perde un quarto contro MTP, e il G3 con gli n-grammi è più lento per turno (16,9 secondi contro 13,1): il vantaggio apparente nei compiti per ora viene da un giro con meno turni. Un agente scrive codice nuovo e patch, e lì gli n-grammi non hanno niente da indovinare. <b>Esce dal piano.</b></p>
+  <p><b>Spegnere i checkpoint.</b> Sul banco toglieva l'82 % del costo fisso di ogni richiesta. Sulla batteria, a parità di compiti, il prefill per richiesta scende solo del 4 %:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>G1 Q4, stessi 8 compiti, VGM 64</th><th class="n">risolti</th><th class="n">prefill per richiesta</th><th class="n">riuso del prefisso</th></tr></thead>
+    <tbody>
+      <tr><td>checkpoint accesi — <i>come oggi</i></td><td class="n">6/8</td><td class="n">2,95 s</td><td class="n">92,6 %</td></tr>
+      <tr><td>checkpoint spenti</td><td class="n">6/8</td><td class="n">2,82 s</td><td class="n">81,1 %</td></tr>
+    </tbody>
+  </table></div>
+  <p>Senza checkpoint il riuso cala di undici punti: anche con Nonio corretto le sessioni vere ogni tanto divergono dentro il testo già generato, e senza checkpoint ogni divergenza costa di più. Il sospetto è che Nonio rimandi gli argomenti delle chiamate agli strumenti riscritti in JSON normalizzato invece dei byte generati. <b>I checkpoint restano accesi</b> finché quella divergenza non è trovata e chiusa: è il primo lavoro di domani, e vale il −82 % se riesce.</p>
+</section>
+
+<section>
+  <h2>5. Il thinking</h2>
+  <p>L'agente su Nonio ha estratto il template di chat dal GGUF vero: il ragionamento dei turni precedenti <b>viene reso</b> nel prompt nella forma che hanno le sessioni di Nonio. Quindi rimandarlo è utile, e Nonio ora ha l'opzione <code>send_reasoning</code>.</p>
+  <p>Le misure però dicono che conta meno di quanto pensavamo. Con i checkpoint accesi non c'è nessuna differenza (riuso 90,3 % contro 89,3 %): il server riparte dal checkpoint salvato proprio dove il prompt diverge. Con i checkpoint spenti il rimando toglie un terzo dei token ri-elaborati per turno (980 contro 646) — ma la temuta «ripartenza da zero a ogni turno» non si vede nemmeno senza rimando, e perché il prefisso resti valido va ancora capito.</p>
+  <p>A margine, su quattro compiti e quindi solo indicativo: col thinking acceso il G1 ne risolve 7 su 8, compreso <code>rs-lru</code>. Vale una batteria intera, per decidere se esiste un profilo «intelligente» col thinking.</p>
+</section>
+
+<section>
+  <h2>6. Il resto</h2>
+  <ul>
+    <li><b>Nonio</b>: le tre correzioni di ieri sono in <code>main</code> e pubblicate, misurate su due giri (+28/+32 %). Le altre tre — turno troncato, chiamate malformate, rimando del ragionamento — sono sul ramo <code>aethera/m18-riuso</code>, con 619 test verdi, non pubblicate.</li>
+    <li><b>Il G1 Q8 fa il doppio del G3</b>: 33-36 compiti per ora contro 17-20. Il G3 a VGM 64 non spilla più e con Nonio corretto è migliorato molto (era a 12), ma resta dietro di un fattore due.</li>
+    <li><b>Servire 131k invece di 32k non costa niente</b> nemmeno col Q4: 28,3 compiti per ora contro 27,5 e 26,8.</li>
+    <li><b>La deriva della macchina</b>: il riavvio restituisce l'8 % di decode (15,15 contro 14,0), e cinque ore di prefill profondi quasi continui ne tolgono il 10,7 %. Le misure di velocità vanno messe a inizio notte.</li>
+    <li><b>M-14 è chiuso</b>: la serie di patch delle build si vede in Benchmark e nelle Impostazioni. <b>M-17 è chiuso</b>, con il verdetto sui checkpoint.</li>
+    <li><b>Release v0.1.0 pubblicata.</b></li>
+  </ul>
+</section>
+
+<section>
+  <h2>7. Che cosa decidi tu</h2>
+  <ul class="asks">
+    <li class="si"><b>Il profilo standard del G1.</b> La proposta: <code>Qwen_Qwen3.6-35B-A3B-Q8_0.gguf</code> invece del Q4, MTP come oggi, checkpoint come oggi, e contesto a <b>262.144 con VGM 64</b> (o 131.072 se torni a 48). Due giri su 15 compiti a favore, più il contesto lungo verificato fino a 200k. Il profilo di prova <code>qwen3.6-35b-a3b.q8_0.vulkan</code> è già pronto; cambiarlo è una riga.</li>
+    <li class="si"><b>La VGM a 64 come impostazione fissa.</b> Serve per il Q8 a 256k e toglie lo spill al G3. Costa RAM a Windows: 21 GB liberi a vuoto, circa 8 con il Q8 caricato a 256k, senza pressione sul file di paging.</li>
+    <li><b>Il ramo del riuso di Nonio.</b> Tre correzioni con i test verdi: te lo propongo da unire e pubblicare come quello di ieri.</li>
+    <li><b>La divergenza residua di Nonio.</b> È il lavoro con la resa potenziale più alta che resta: se la troviamo, spegnere i checkpoint vale davvero il −82 % del costo fisso.</li>
+    <li class="no"><b>Gli n-grammi escono</b> dal piano, su tutti e due i modelli.</li>
+    <li><b>Una batteria intera col thinking</b>, per decidere se c'è un profilo «intelligente»: è una notte.</li>
+  </ul>
+</section>
+
+<footer>
+  <span>Numeri e verdetti nel LOG del kit, milestone M-17 (chiuso) e M-18. Dati grezzi in <code>&lt;radice&gt;\m15\risultati</code> (sessioni nonio-corretto, ctx131k, quant-1, quant-2, quant-131k, q8-256k, g3ngram-64, ragionamento-1, ragionamento-ckpt0, ckpt0-1) e <code>&lt;radice&gt;\m18</code>.</span>
+  <span>Tutto il lavoro della giornata è in commit locali del kit; Nonio <code>main</code> è pubblicato, il ramo del riuso no.</span>
+</footer>
+
+</div>
+</body>
+</html>

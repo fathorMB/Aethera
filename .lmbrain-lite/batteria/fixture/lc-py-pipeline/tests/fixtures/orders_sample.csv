@@ -1,0 +1,5 @@
+order_id,customer_id,product_id,quantity,unit_price_cents,currency,order_date
+o-1,c-ann,p-1,2,1500,EUR,2026-01-03
+o-2,c-bob,p-2,1,2000,USD,2026-01-01
+o-3,c-ann,p-1,1,1500,EUR,2026-01-05
+o-4,c-cara,p-3,3,500,GBP,2026-01-02

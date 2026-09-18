@@ -1,25 +1,26 @@
 ---
-updated: 2026-09-18
+updated: 2026-09-19
 by: lead
 ---
-**Sessione chiusa il 18-09 alle 00:10.** Macchina libera: motore spento, VGM 48, nessun banco in corso.
+**Fine della giornata del 18-09, ore 00:30 del 19.** Macchina libera, motore spento, VGM 64. L'operatore riavvia.
 
-## Su GitHub (`main` = `9994f6d` più commit locali)
-PR #1–#6 unite. Repo pubblico, percorsi fuori. Bozza e tag `v0.1.0-rc.1` fino alla v0.1.0.
+## Report per te
+`.lmbrain-lite/design/giornata-2026-09-18/index.html` — le decisioni sono l'ultima sezione.
 
-## Chiuso in questa sessione
-- **M-16**: la patch int8 coopmat entra; regola di fedeltà nuova (KL contro i metri ubatch e CPU, non il testo identico); report in `design/int8-coopmat-2026-09`.
-- **Profilo standard G3** su `b10991+moro1` e ubatch 2048, verificato: prefill 281,8 · decode 18,7 (copia `.prima-di-m16`).
-- **M-10 T-09 e M-15 T-06**: i checkpoint non recuperano il riuso dopo una modifica a metà prompt (71% con prompt identico, 0 dopo una divergenza).
+## I risultati
+1. **Il candidato è il G1 Q8_0** (`Qwen_Qwen3.6-35B-A3B-Q8_0.gguf`): 33-36 compiti/ora su due giri contro 27-28 del Q4. A VGM 64 regge 256k di contesto allo stesso costo per turno.
+2. **Contesto lungo: nessuna risposta sbagliata fino a 200k** su G1, Q8 e G3. Il limite è il prefill a freddo (28 min per 200k): il prefisso va pagato una volta sola.
+3. **Nonio corretto: +30 %**, già pubblicato.
+4. **n-grammi fuori dal piano**: sul lavoro vero non aiutano né G1 né G3.
+5. **Checkpoint spenti: −4 % sul lavoro vero, non −82 %**: senza checkpoint il riuso cala da 92,6 a 81,1 %, perché le sessioni divergono ancora. Restano accesi. M-17 chiuso.
 
-## Da sapere sulla macchina
-- **Riavviare prima di una sessione di misure**: dopo 12 ore di banchi il decode del denso cala del 13% e il G3 dimezza il prefill.
-- I ~6 GiB delle funzioni AI di Windows sono morbidi: il sistema li restituisce.
-- FN a VGM 48 con `none` fa crescere il file di paging: la batteria su FN si fa a **VGM 64 con mmap**, in una sessione dedicata (circa 2 ore e mezza).
+## Da decidere
+1. Profilo standard del G1 al **Q8, contesto 262.144, VGM 64**.
+2. VGM 64 come impostazione fissa.
+3. Unire e pubblicare il ramo `aethera/m18-riuso` di Nonio (619 test verdi).
 
-## Aperto, per l'operatore
-1. Prova della finestra v2 (M-12 T-10, gruppo 6b), poi merge di `m12-finestra-v2` e parte finestra di M-14 T-07.
-2. Tag `v0.1.0` (M-13 T-07).
-3. Milestone da aprire sul costo fisso di 1,5 s per richiesta (vale per G1 e G3).
-4. Rapporti di chiusura di M-10 (T-13) e M-11 (T-06); profilo G1 con la patch solo dopo il merge upstream.
-5. Commit locali non pubblicati: stato del kit e soglia della batteria.
+## Prossimo lavoro
+1. **M-18 T-14**: trovare la divergenza residua di Nonio (sospetto: argomenti delle chiamate ri-serializzati). Se si chiude, i checkpoint spenti valgono il −82 %.
+2. Batteria intera col thinking acceso (una notte), per un eventuale profilo «intelligente».
+3. Capire perché col thinking e senza checkpoint il prefisso resta valido anche senza rimando (log a `-lv 4`).
+4. Compito a contesto lungo che tocchi molti file.

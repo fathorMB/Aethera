@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aethera — la notte del 18 settembre: che cosa abbiamo portato a casa</title>
+<style>
+:root{
+  --bg:#f4f5f7;--bg2:#ffffff;--bg3:#e9ebef;--line:#d5d8de;--fg:#1a1c20;--fg2:#5b6270;--fg3:#7b828d;
+  --acc:#2f6fed;--acc-bg:#e6eefd;--ok:#1f7a45;--ok-bg:#e3f2e8;--warn:#8f5605;--warn-bg:#fbf0dd;
+  --err:#c62f2f;--err-bg:#fbe6e6;
+  --mono:"Cascadia Mono","JetBrains Mono",Consolas,ui-monospace,monospace;
+  --sans:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#141619;--bg2:#1c1f24;--bg3:#24282f;--line:#30353d;--fg:#e6e8eb;--fg2:#a3a9b3;--fg3:#8a919b;
+  --acc:#5b8dff;--acc-bg:#1d2a44;--ok:#3ec46f;--ok-bg:#16301f;--warn:#e5a23a;--warn-bg:#35270f;
+  --err:#f26b6b;--err-bg:#3a1c1c;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.55 var(--sans);padding:24px 16px 72px}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:34px}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance}
+h1{font-size:26px;font-weight:700}
+h2{font-size:18px;font-weight:600;padding-bottom:6px;border-bottom:1px solid var(--line)}
+h3{font-size:14px;font-weight:600;color:var(--fg2)}
+p{margin:0;max-width:74ch}
+ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:74ch}
+section{display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
+code,.mono{font-family:var(--mono);font-size:12.5px}
+code{background:var(--bg3);padding:1px 5px;border-radius:3px}
+pre{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:10px 12px;overflow-x:auto;font:12.5px/1.5 var(--mono);margin:0}
+header{display:flex;flex-direction:column;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.lede{font-size:16px;color:var(--fg2)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:7px}
+.card .big{font-family:var(--mono);font-size:23px;font-weight:600;font-variant-numeric:tabular-nums}
+.card p{font-size:13px;color:var(--fg2)}
+.tag{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:999px;width:max-content}
+.t-ok{background:var(--ok-bg);color:var(--ok)}.t-warn{background:var(--warn-bg);color:var(--warn)}
+.t-err{background:var(--err-bg);color:var(--err)}.t-acc{background:var(--acc-bg);color:var(--acc)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg2)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--bg3);font-size:11.5px;font-weight:600;color:var(--fg2);letter-spacing:.02em;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.best td{background:var(--acc-bg)}
+.up{color:var(--ok);font-weight:600}
+.sig{font-family:var(--mono);font-weight:600;color:var(--acc)}
+.chart{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:14px}
+.chart svg{display:block;width:100%;height:auto}
+.chart text{fill:var(--fg2);font-family:var(--mono);font-size:11px}
+.chart .lab{fill:var(--fg);font-family:var(--sans);font-size:12px;font-weight:600}
+.chart .grid{stroke:var(--line)}
+.b0{fill:var(--fg3)}.b1{fill:var(--acc)}
+.legenda{display:flex;gap:16px;font-size:12px;color:var(--fg2);align-items:center;flex-wrap:wrap}
+.sw{display:inline-block;width:11px;height:11px;border-radius:2px;vertical-align:-1px;margin-right:5px}
+.asks{list-style:none;padding:0;display:flex;flex-direction:column;gap:10px;max-width:none}
+.asks li{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:5px}
+.asks li.si{border-left-color:var(--ok)}
+.asks li.no{border-left-color:var(--warn)}
+.asks p{font-size:13px;color:var(--fg2)}
+footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-size:12.5px;display:flex;flex-direction:column;gap:6px}
+@media (max-width:620px){h1{font-size:22px}body{font-size:13.5px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Aethera · notte fra il 17 e il 18 settembre 2026 · Minisforum AI X1 Pro, VGM 48, Windows 26200.9457</span>
+  <h1>Che cosa abbiamo portato a casa stanotte</h1>
+  <p class="lede">Il progetto ha cambiato direzione: il launcher è congelato nella v0.1.0 e da qui si lavora per far rendere al massimo la macchina con un agente di coding. In una notte abbiamo capito da dove viene il tempo perso, trovato una leva che ne toglie l’82 % senza toccare il codice, e scartato — con una misura sul lavoro vero — l’idea che sembrava la più promettente, e trovato che il guadagno più grande non era nel motore ma nel client.</p>
+  <div class="legenda">
+    <span><span class="sig">G1</span> Qwen3.6-35B-A3B Q4_K_M (oggi con MTP)</span>
+    <span><span class="sig">G3</span> Qwen3-Coder-Next Q4_K_M</span>
+    <span><span class="sig">D8</span> Qwen3-8B Q4_K_M, denso, usato come metro</span>
+  </div>
+</header>
+
+<section>
+  <h2>In tre numeri</h2>
+  <div class="cards">
+    <div class="card">
+      <span class="tag t-ok">l'harness</span>
+      <span class="big">+30 %</span>
+      <p><b>Tre correzioni a Nonio</b> valgono più di qualunque leva del motore: da 20,9 a 27 compiti risolti per ora di macchina, su due giri. La velocità non era dove la cercavamo (sezione 7).</p>
+    </div>
+    <div class="card">
+      <span class="tag t-ok">attesa</span>
+      <span class="big">−82 %</span>
+      <p><b>Checkpoint spenti.</b> Il tempo che ogni richiesta paga prima del primo token scende da 2,2 a 0,4 secondi sul G3 e da 1,85 a 0,33 sul G1. Su una sessione da 240 richieste sono 7-9 minuti.</p>
+    </div>
+    <div class="card">
+      <span class="tag t-warn">da togliere</span>
+      <span class="big">MTP ×3</span>
+      <p><b>MTP costa, in profondità.</b> A 128k di contesto il G1 con MTP paga 5,0 secondi di attesa per richiesta contro 1,76 senza. A 32k conviene ancora; più in là il conto cambia e va rifatto.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>1. Il costo fisso: non è calcolo, è una copia</h2>
+  <p>Sapevamo da ieri che ogni richiesta di un agente paga circa un secondo e mezzo prima del primo token, anche quando i token nuovi sono venti. Non sapevamo perché. Ora sì: il <b>94 % di quel tempo è copiare lo stato del modello dalla GPU alla RAM</b>, un tensore alla volta.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Fase, su una richiesta con 57 token nuovi (G3)</th><th class="n">tempo</th><th class="n">quota</th></tr></thead>
+    <tbody>
+      <tr><td>confronto del prefisso</td><td class="n">0 ms</td><td class="n">—</td></tr>
+      <tr class="best"><td><b>creazione di 3 checkpoint (226 MiB)</b></td><td class="n"><b>2.254 ms</b></td><td class="n"><b>94 %</b></td></tr>
+      <tr><td>calcolo dei token nuovi</td><td class="n">16 ms</td><td class="n">0,7 %</td></tr>
+      <tr><td>ultimo passo e scelta del primo token</td><td class="n">117 ms</td><td class="n">5 %</td></tr>
+      <tr><td>totale</td><td class="n">2.395 ms</td><td class="n">100 %</td></tr>
+    </tbody>
+  </table></div>
+  <p>Un checkpoint copia 75 MiB e ci mette mezzo secondo: sono <b>130 MB/s</b> su una macchina che di banda ne ha 75.000. Non è un limite fisico, è che <code>llama.cpp</code> copia ogni tensore separatamente, aspettando la GPU ogni volta — una settantina di attese per checkpoint. Nel sorgente c'è pure un commento che dice di raggrupparle, non ancora fatto.</p>
+  <p>Due conferme che la spiegazione è giusta: sul modello <b>denso</b> questi checkpoint non esistono e il costo fisso è <b>zero</b>; sul G1 il checkpoint <b>cresce con il contesto</b>, da 63 a 78 MiB in un solo giro, perché si porta dentro la cache del modello di supporto.</p>
+</section>
+
+<section>
+  <h2>2. Il costo fisso non cresce con il contesto. MTP sì</h2>
+  <p>Questa era la domanda che contava per i tuoi compiti, che chiedono 128-256k di contesto.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Secondi di attesa per richiesta</th><th class="n">32k</th><th class="n">64k</th><th class="n">128k</th></tr></thead>
+    <tbody>
+      <tr><td>G1 con MTP — <i>il profilo di oggi</i></td><td class="n">1,85</td><td class="n">3,34</td><td class="n">4,99</td></tr>
+      <tr class="best"><td>G1 senza speculazione</td><td class="n">—</td><td class="n">1,75</td><td class="n">1,76</td></tr>
+      <tr class="best"><td>G3</td><td class="n">2,20</td><td class="n">2,12</td><td class="n">2,29</td></tr>
+    </tbody>
+  </table></div>
+  <p>Il costo fisso è <b>piatto</b>. Triplica solo con MTP, perché ogni checkpoint copia anche la cache del modello di supporto, che cresce con la conversazione. A 128k una richiesta sul G1 paga <b>6,3 secondi</b> di sola preparazione contro 2,3 senza MTP.</p>
+</section>
+
+<section>
+  <h2>3. La speculativa a n-grammi: la leva più grande</h2>
+  <p>Il decode vale il 70 % del tempo di una sessione con un agente, e non l'avevamo mai attaccato. La decodifica speculativa a n-grammi indovina il testo che sta per arrivare guardando quello che c'è già nel contesto: è fatta apposta per un agente che riscrive un file cambiando tre righe.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Token al secondo</th><th class="n">riscrittura di un file</th><th class="n">codice nuovo</th><th class="n">riassunto 21k</th></tr></thead>
+    <tbody>
+      <tr><td colspan="4"><b>G3 Coder-Next</b></td></tr>
+      <tr><td>senza speculazione — <i>il profilo di oggi</i></td><td class="n">19,2</td><td class="n">19,3</td><td class="n">—</td></tr>
+      <tr class="best"><td><code>ngram-map-k</code></td><td class="n">41,0 <span class="up">+114 %</span></td><td class="n">19,5</td><td class="n">—</td></tr>
+      <tr><td><code>ngram-mod</code></td><td class="n">42,5</td><td class="n">17,4</td><td class="n">—</td></tr>
+      <tr><td><code>ngram-cache</code></td><td class="n">9,0</td><td class="n">6,3</td><td class="n">—</td></tr>
+      <tr><td colspan="4"><b>G1 35B-A3B</b></td></tr>
+      <tr><td>MTP — <i>il profilo di oggi</i></td><td class="n">34,3</td><td class="n">26,8</td><td class="n">18,5</td></tr>
+      <tr><td>senza speculazione</td><td class="n">21,4</td><td class="n">21,4</td><td class="n">19,9</td></tr>
+      <tr class="best"><td><code>ngram-mod</code></td><td class="n">53,7 <span class="up">+151 %</span></td><td class="n">19,5</td><td class="n">19,2</td></tr>
+      <tr><td>MTP + <code>ngram-mod</code></td><td class="n">52,9</td><td class="n">27,1</td><td class="n">17,4</td></tr>
+    </tbody>
+  </table></div>
+  <p>Il prefill non cambia mai. <code>ngram-cache</code> è da buttare: dimezza tutto. Sul G3 la scelta sembrerebbe <code>ngram-map-k</code>, che raddoppia sulla riscrittura senza perdere niente sul resto; sul G1 <code>ngram-mod</code> quasi triplica la riscrittura ma costa sul codice nuovo, dove MTP resta avanti.</p>
+  <p><b>Poi abbiamo provato sul lavoro vero, e il quadro si è rovesciato.</b> Vedi la sezione qui sotto: è il risultato più utile della notte, anche se è un no.</p>
+</section>
+
+<section>
+  <h2>4. La batteria dice il contrario. E aveva ragione lei</h2>
+  <p>Prima di proporti un cambio di profilo ho fatto girare la batteria vera: quindici compiti di coding con Nonio, lo stesso binario e gli stessi tetti delle misure di ieri, G1 con gli n-grammi contro G1 con MTP.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>G1, batteria di 15 compiti a 32k</th><th class="n">risolti</th><th class="n">ore</th><th class="n">compiti per ora</th><th class="n">decode mediano</th></tr></thead>
+    <tbody>
+      <tr><td><code>ngram-mod</code></td><td class="n">12</td><td class="n">0,76</td><td class="n">15,8</td><td class="n">19,8 tok/s</td></tr>
+      <tr class="best"><td>MTP — <i>il profilo di oggi</i></td><td class="n">12</td><td class="n">0,57</td><td class="n">20,9</td><td class="n">31,5 tok/s</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>MTP vince di un quarto</b>, e risolve gli stessi compiti. Il decode degli n-grammi sul lavoro vero è 19,8, cioè esattamente quello di <i>nessuna</i> speculazione: sui compiti veri non indovina niente.</p>
+  <p>La ragione è che il carico «riscrittura» del micro-banco — ricopiare un file cambiando un nome — <b>non somiglia a quello che fa un agente</b>, che scrive codice nuovo e patch. Lì gli n-grammi non hanno niente da cui copiare. È l'avvertimento che il critico aveva messo per iscritto prima di cominciare, ed è il motivo per cui il metro resta «compiti risolti per ora», mai i token al secondo.</p>
+  <p><b>Il profilo del G1 quindi non si tocca</b>, a 32k. Ma la storia non è chiusa: a 128k MTP paga 3,1 secondi in più per richiesta, che su una quindicina di richieste per compito fanno quasi un minuto, e il suo vantaggio si annulla. Serve la stessa batteria a quella profondità, ed è la prima cosa che metterei nella prossima sessione.</p>
+</section>
+
+<section>
+  <h2>5. Togliere i checkpoint, e quanto costa farlo</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Leva</th><th class="n">G3</th><th class="n">G1</th><th>verdetto</th></tr></thead>
+    <tbody>
+      <tr><td>profilo di oggi</td><td class="n">2.202 ms</td><td class="n">1.855 ms</td><td>riferimento</td></tr>
+      <tr class="best"><td><code>--ctx-checkpoints 0</code></td><td class="n">400 ms</td><td class="n">329 ms</td><td>−82 %</td></tr>
+      <tr><td><code>--ctx-checkpoints 1</code></td><td class="n">2.123 ms</td><td class="n">1.861 ms</td><td>inutile</td></tr>
+      <tr><td><code>--cache-ram 0</code></td><td class="n">2.118 ms</td><td class="n">1.793 ms</td><td>inutile</td></tr>
+    </tbody>
+  </table></div>
+  <p>Solo lo zero funziona: i checkpoint di fine prompt si creano comunque, ignorando anche il passo minimo. <b>Il prezzo</b> è che senza checkpoint, se il prompt cambia in mezzo al testo già generato, si ricalcola tutto. Misurato: una divergenza costa <b>3,4 secondi in più</b>, una richiesta normale ne costa <b>1,8-2,2 in meno</b>. Il pareggio è intorno al 55 % di richieste divergenti.</p>
+  <p>Con un harness che scrive solo in coda le divergenze sono <b>zero</b>, quindi conviene. Ma va acceso <b>dopo</b> aver corretto le tre cose che oggi in Nonio rompono la sola aggiunta, altrimenti a 128k un ricalcolo costa minuti invece di secondi.</p>
+</section>
+
+<section>
+  <h2>6. Nonio: due difetti corretti, e uno che non sospettavamo</h2>
+  <p>Il lavoro è su un ramo, non unito, con tutti i test verdi: 616 passati, zero falliti, clippy pulito.</p>
+  <ul>
+    <li><b>Le virgolette doppie su Windows.</b> Ogni comando che ne conteneva veniva rovinato prima di arrivare alla shell. Ora la riga passa grezza.</li>
+    <li><b>Il timeout non uccideva niente.</b> Questo non lo sospettavamo: il commento nel codice diceva che il processo veniva chiuso alla scadenza, e non era vero. È la spiegazione dei comandi che restavano appesi fino al tetto dei turni.</li>
+    <li><b>La revisione obbligatoria al primo «ho finito».</b> Costava un turno a ogni compito, anche quando era già risolto. Ora scatta solo se qualcosa è cambiato dopo l'ultima verifica riuscita.</li>
+  </ul>
+  <p><b>E i test misurano davvero qualcosa.</b> Rimettendo per un momento il codice vecchio, <code>python -c "print('hello')"</code> esce con codice 0 e <b>stdout vuoto</b>: è esattamente il sintomo che la batteria aveva registrato ieri, ora riprodotto dentro una prova automatica. E senza la chiusura dell'albero dei processi, il file scritto da un nipote continua a crescere <i>dopo</i> che il timeout ha ucciso la shell. Poi il codice vecchio è stato rimesso a posto e i test rilanciati verdi.</p>
+  <p>Sul riuso del prefisso la notizia è buona: la conversazione è davvero in sola aggiunta e il prompt è identico byte per byte a ogni turno. Tre cose lo rompono, ed è la condizione per spegnere i checkpoint: il ragionamento che non viene rimandato indietro — la peggiore, ed è il motivo per cui oggi teniamo il thinking spento —, il turno troncato che viene sostituito da un avviso, e le chiamate malformate tolte dalla cronologia.</p>
+</section>
+
+<section>
+  <h2>7. E poi, la mattina: la leva più grande non era nel motore</h2>
+  <p>Con il tuo via ho unito e pubblicato le correzioni a Nonio, e le ho misurate sulla batteria vera. Il risultato batte qualunque leva del motore provata stanotte.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>G1, stessi 15 compiti e stessi tetti</th><th class="n">risolti</th><th class="n">compiti per ora</th><th class="n">turni</th><th class="n">comandi falliti</th></tr></thead>
+    <tbody>
+      <tr class="best"><td>Nonio corretto, primo giro</td><td class="n">12</td><td class="n">27,5</td><td class="n">134</td><td class="n">13</td></tr>
+      <tr class="best"><td>Nonio corretto, secondo giro</td><td class="n">11</td><td class="n">26,8</td><td class="n">155</td><td class="n">24</td></tr>
+      <tr><td>Nonio di prima</td><td class="n">12</td><td class="n">20,9</td><td class="n">249</td><td class="n">102</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Fra il 28 e il 32 % di compiti in più per ora di macchina</b>, confermato su due giri, con gli stessi compiti risolti. I turni quasi si dimezzano e i comandi in errore crollano da 102 a una ventina: erano compiti che il modello risolveva già e che perdevano tempo a combattere con l'harness. <code>py-config-en</code> passa da 121 a 37 secondi, <code>py-ledger</code> da 212 a 88.</p>
+  <p>Due cose vanno dette per onestà. Il criterio nuovo sul «ho finito» non ha peggiorato niente: <code>py-intervals</code> fallisce a un giro e riesce all'altro, quindi era rumore. Ma <code>rs-lru</code> fallisce in entrambi i giri corretti e prima riusciva: guardando i dati arriva al tetto dei venti turni in tutti e tre i casi, quindi era già marginale e prima si era fermato al punto giusto per caso — con due giri contro uno non si distingue dal rumore, e resta da guardare.</p>
+</section>
+
+<section>
+  <h2>8. Il resto della notte</h2>
+  <ul>
+    <li><b>La v0.1.0 è pubblicata</b> come tag, con l'installatore pronto in bozza su GitHub: pubblicarla è un tuo clic. Le note dicono chiaramente che cosa nessuno ha guardato dalla finestra.</li>
+    <li><b>La finestra v2 è in <code>main</code></b>, e la serie di patch delle build compare in Benchmark e nelle Impostazioni, su un ramo con i test verdi.</li>
+    <li><b>Flash-Next e Flash-Coder sono chiusi con un no.</b> Flash-Coder a 58k di contesto fa 120 token al secondo di prefill e 8,7 di decode; il riuso si comporta come Flash-Next, 71 % con il prefisso identico e zero dopo una riga cambiata.</li>
+    <li><b>I quant alti del G1 sono scaricati</b> — Q6_K e Q8_0, 69 GB in venti minuti, hash verificati. Il Q4 di oggi si discosta dal Q8 di 45 volte il rumore di fondo e cambia il 4 % dei primi token: la batteria sui quant è giustificata.</li>
+    <li><b>La deriva della macchina colpisce la banda, non il calcolo.</b> In quattro ore di banchi il decode è calato del 7 % e il prefill è salito del 3,6 %. Le sentinelle di stanotte sono rimaste tutte entro il 3 %.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>9. Che cosa decidi tu</h2>
+  <ul class="asks">
+    <li class="si"><b>Fatto: la release v0.1.0 è pubblicata</b> e Nonio è aggiornato su GitHub. Restano le voci qui sotto.</li>
+    <li><b>Spegnere i checkpoint nei profili standard.</b> Vale 1,8-2,2 secondi su ogni richiesta, e ora la condizione c'è: Nonio è corretto. Restano da chiudere le tre rotture del riuso che l'analisi ha trovato — il ragionamento non rimandato è la più grossa. Non ho toccato i profili standard: li cambi tu.</li>
+    <li class="no"><b>Gli n-grammi non entrano.</b> Sul G1 la batteria li ha bocciati. Sul G3, che oggi non ha nessuna speculazione, la prova non l'ho ancora fatta: lì il confronto è contro «niente», non contro MTP, e potrebbe andare diversamente. Dimmi se vuoi che la faccia.</li>
+    <li><b>La batteria a contesto lungo.</b> È la cosa che manca per rispondere alla tua domanda vera: tutto quello che abbiamo misurato sui compiti sta a 32k, e i tuoi compiti stanno a 128-256k. La metterei prima di ogni altra cosa.</li>
+    <li><b>La scala dei quant.</b> Q6_K e Q8_0 sono sul disco e la loro distanza dal Q4 è misurata e reale. La batteria su quelli è una notte di lavoro: la faccio quando dici.</li>
+    <li><b>Un'issue upstream sui checkpoint lenti.</b> Abbiamo numeri che nessuno sembra avere. Serve il tuo via perché parlerebbe a nome del progetto.</li>
+    <li><b>Il TDP nel BIOS</b>, quando riavvii: cinque minuti, ed è l'unica leva della macchina che non ho potuto provare.</li>
+  </ul>
+</section>
+
+<footer>
+  <span>Misure e rapporti in <code>.lmbrain-lite/reports/</code>: costo fisso per richiesta, Flash-Coder, Flash-Next, Nonio, parere del critico. Dati grezzi in <code>&lt;radice&gt;\m17</code>, <code>\m18</code> e <code>\m15\risultati\ngram-1</code>.</span>
+  <span>Tutto il lavoro di stanotte è in commit locali: nessun push oltre al tag v0.1.0 e alle due PR già unite.</span>
+</footer>
+
+</div>
+</body>
+</html>
+

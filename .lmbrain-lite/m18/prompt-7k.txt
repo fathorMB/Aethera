@@ -1,0 +1,611 @@
+// ==== src/cmdline.rs ====
+//! Composizione della riga di comando di `llama-server` da un profilo.
+//!
+//! Flag lunghi, nell'ordine di `serve.ps1` di minis-config; poi le leve che `serve.ps1` lasciava al
+//! default del motore o in `extra_args`. `--load-mode` è sempre esplicito: nessuna leva nascosta.
+
+use crate::profile::Profile;
+use serde::Serialize;
+use std::path::{Path, PathBuf};
+
+pub struct LaunchPaths {
+    pub model: PathBuf,
+    /// Presente solo se il profilo chiede il salvataggio degli slot.
+    pub slot_dir: Option<PathBuf>,
+    pub draft_model: Option<PathBuf>,
+}
+
+fn kv(a: &mut Vec<String>, flag: &str, value: impl ToString) {
+    a.push(flag.to_string());
+    a.push(value.to_string());
+}
+
+pub fn build_args(p: &Profile, paths: &LaunchPaths) -> Vec<String> {
+    let s = &p.server;
+    let mut a = Vec::new();
+    kv(&mut a, "--model", paths.model.display());
+    kv(&mut a, "--host", &s.host);
+    kv(&mut a, "--port", s.port);
+    kv(&mut a, "--ctx-size", s.ctx);
+    kv(&mut a, "--parallel", s.n_parallel);
+    kv(&mut a, "--n-gpu-layers", s.n_gpu_layers);
+    kv(&mut a, "--ubatch-size", s.ubatch);
+    kv(&mut a, "--batch-size", s.batch);
+    kv(&mut a, "--flash-attn", &s.flash_attn);
+    kv(&mut a, "--cache-type-k", &s.cache_type_k);
+    kv(&mut a, "--cache-type-v", &s.cache_type_v);
+    kv(&mut a, "--alias", &p.name);
+    if let Some(dir) = &paths.slot_dir {
+        kv(&mut a, "--slot-save-path", dir.display());
+    }
+    if s.metrics {
+        a.push("--metrics".into());
+    }
+    // --jinja è il default di questa build, ma il default può cambiare: si dichiara in entrambi i sensi.
+    a.push(if s.jinja { "--jinja" } else { "--no-jinja" }.into());
+    kv(&mut a, "--load-mode", &s.load_mode);
+    if let Some(t) = s.threads {
+        kv(&mut a, "--threads", t);
+    }
+    if let Some(t) = s.threads_batch {
+        kv(&mut a, "--threads-batch", t);
+    }
+    let sp = &p.speculative;
+    if sp.kind != "none" {
+        kv(&mut a, "--spec-type", &sp.kind);
+        if let Some(n) = sp.draft_n_max {
+            kv(&mut a, "--spec-draft-n-max", n);
+        }
+        if let Some(n) = sp.draft_n_min {
+            kv(&mut a, "--spec-draft-n-min", n);
+        }
+        if let Some(x) = sp.draft_p_min {
+            kv(&mut a, "--spec-draft-p-min", x);
+        }
+        if let Some(m) = &paths.draft_model {
+            kv(&mut a, "--spec-draft-model", m.display());
+        }
+    }
+    if let Some(n) = p.cache.cache_reuse {
+        kv(&mut a, "--cache-reuse", n);
+    }
+    if let Some(n) = p.cache.ctx_checkpoints {
+        kv(&mut a, "--ctx-checkpoints", n);
+    }
+    a.extend(s.extra_args.iter().cloned());
+    a
+}
+
+/// Riga leggibile e copiabile: gli argomenti con spazi fra virgolette, come `serve.ps1`.
+pub fn render_line(binary: &Path, args: &[String]) -> String {
+    let quoted: Vec<String> = args
+        .iter()
+        .map(|x| if x.contains(char::is_whitespace) { format!("\"{x}\"") } else { x.clone() })
+        .collect();
+    format!("\"{}\" {}", binary.display(), quoted.join(" "))
+}
+
+/// Divide una riga resa da `render_line` (o scritta da `serve.ps1`) negli argomenti.
+pub fn split_line(line: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut quoted = false;
+    let mut has = false;
+    for c in line.chars() {
+        match c {
+            '"' => {
+                quoted = !quoted;
+                has = true;
+            }
+            c if c.is_whitespace() && !quoted => {
+                if has {
+                    out.push(std::mem::take(&mut cur));
+                    has = false;
+                }
+            }
+            c => {
+                cur.push(c);
+                has = true;
+            }
+        }
+    }
+    if has {
+        out.push(cur);
+    }
+    out
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ArgStatus {
+    Same,
+    Changed,
+    Added,
+    Removed,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct ArgGroup {
+    pub flag: String,
+    pub value: Option<String>,
+    pub base: Option<String>,
+    pub status: ArgStatus,
+}
+
+fn is_value(token: &str) -> bool {
+    !token.starts_with('-') || token.parse::<f64>().is_ok()
+}
+
+/// Raggruppa gli argomenti in coppie flag → valore.
+pub fn group(args: &[String]) -> Vec<(String, Option<String>)> {
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        let flag = args[i].clone();
+        match args.get(i + 1) {
+            Some(next) if flag.starts_with('-') && is_value(next) => {
+                out.push((flag, Some(next.clone())));
+                i += 2;
+            }
+            _ => {
+                out.push((flag, None));
+                i += 1;
+            }
+        }
+    }
+    out
+}
+
+/// Confronta la riga del profilo base con quella modificata, per evidenziare le differenze.
+pub fn compare(base: &[String], edited: &[String]) -> Vec<ArgGroup> {
+    let mut base_groups: Vec<Option<(String, Option<String>)>> = group(base).into_iter().map(Some).collect();
+    let mut out = Vec::new();
+    for (flag, value) in group(edited) {
+        let hit = base_groups.iter_mut().find(|g| matches!(g, Some((f, _)) if *f == flag));
+        match hit {
+            Some(slot) => {
+                let (_, base_value) = slot.take().unwrap();
+                let status = if base_value == value { ArgStatus::Same } else { ArgStatus::Changed };
+                out.push(ArgGroup { flag, value, base: base_value, status });
+            }
+            None => out.push(ArgGroup { flag, value, base: None, status: ArgStatus::Added }),
+        }
+    }
+    for (flag, base_value) in base_groups.into_iter().flatten() {
+        out.push(ArgGroup { flag, value: None, base: base_value, status: ArgStatus::Removed });
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn s(v: &[&str]) -> Vec<String> {
+        v.iter().map(|x| x.to_string()).collect()
+    }
+
+    #[test]
+    fn split_respects_quotes() {
+        assert_eq!(split_line(r#""C:\a b\x.exe" --model "C:\m m\f.gguf" --metrics"#), s(&[r"C:\a b\x.exe", "--model", r"C:\m m\f.gguf", "--metrics"]));
+    }
+
+    #[test]
+    fn compare_marks_changes() {
+        let base = s(&["--ubatch-size", "4096", "--metrics", "--n-gpu-layers", "-1"]);
+        let edited = s(&["--ubatch-size", "2048", "--metrics", "--n-gpu-layers", "-1", "--cache-reuse", "256"]);
+        let st: Vec<ArgStatus> = compare(&base, &edited).into_iter().map(|g| g.status).collect();
+        assert_eq!(st, vec![ArgStatus::Changed, ArgStatus::Same, ArgStatus::Same, ArgStatus::Added]);
+    }
+}
+
+// ==== src/estimate.rs ====
+//! Stima di memoria prima dell'avvio, dai metadati del GGUF e dalle leve del profilo.
+//!
+//! Regola del progetto: una stima si dichiara stima, e quello che non si sa resta sconosciuto.
+//! Qui si **calcolano** i pesi (dal file, esatti), la cache KV al contesto scelto e lo stato
+//! ricorrente degli ibridi. Il **buffer di calcolo** non è derivabile in modo onesto da una
+//! formula: llama.cpp lo alloca secondo il grafo, il backend e `ubatch`. Invece di inventarlo,
+//! lo si prende dagli avvii già misurati (`runs/`) con lo stesso ubatch e backend; se non c'è,
+//! resta sconosciuto e il totale vale come **minimo**, non come previsione.
+//!
+//! Dopo il caricamento la stima non serve più: la sostituisce la misura (`memory::MemoryAfter`).
+
+use crate::gguf::ModelInfo;
+use crate::profile::Server;
+use serde::Serialize;
+
+/// Byte per valore di una cache: i quantizzati hanno il loro blocco (32 valori) più le scale.
+pub fn cache_type_bytes(name: &str) -> Option<f64> {
+    Some(match name {
+        "f32" => 4.0,
+        "f16" | "bf16" => 2.0,
+        "q8_0" => 34.0 / 32.0,
+        "q5_1" => 24.0 / 32.0,
+        "q5_0" => 22.0 / 32.0,
+        "q4_1" => 20.0 / 32.0,
+        "q4_0" | "iq4_nl" => 18.0 / 32.0,
+        _ => return None,
+    })
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct Estimate {
+    /// Pesi: la dimensione del file, non una stima.
+    pub weights_bytes: Option<u64>,
+    /// Cache KV al contesto dichiarato, con i tipi di cache del profilo.
+    pub kv_bytes: Option<u64>,
+    /// Stato dei blocchi ricorrenti: non cresce col contesto.
+    pub state_bytes: Option<u64>,
+    /// Buffer di calcolo: misurato su un avvio precedente confrontabile, oppure sconosciuto.
+    pub compute_bytes: Option<u64>,
+    /// Da quale avvio viene il buffer di calcolo.
+    pub compute_from: Option<String>,
+    /// Somma delle voci note.
+    pub total_bytes: Option<u64>,
+    /// Senza buffer di calcolo il totale è un minimo, non una previsione.
+    pub total_is_lower_bound: bool,
+    /// Blocchi ad attenzione piena: sugli ibridi solo questi tengono la KV.
+    pub full_attention_blocks: Option<u64>,
+    /// Che cosa non si è potuto calcolare e perché.
+    pub notes: Vec<String>,
+}
+
+/// Buffer di calcolo misurato su un avvio passato, già confrontabile per ubatch e backend.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MeasuredCompute {
+    pub run_id: String,
+    pub bytes: u64,
+}
+
+/// `info` assente significa GGUF non letto: si stima solo quello che si sa.
+pub fn estimate(
+    info: Option<&ModelInfo>,
+    server: &Server,
+    weights_bytes: Option<u64>,
+    compute: Option<MeasuredCompute>,
+) -> Estimate {
+    let mut e = Estimate { weights_bytes, ..Default::default() };
+    if weights_bytes.is_none() {
+        e.notes.push("pesi non trovati sul disco: dimensione sconosciuta".into());
+    }
+
+    let Some(i) = info else {
+        e.notes.push("metadati GGUF non letti: cache KV e stato non calcolabili".into());
+        e.total_bytes = weights_bytes;
+        e.total_is_lower_bound = true;
+        return e;
+    };
+
+    // Cache KV: per ogni blocco ad attenzione piena, per ogni token, le teste KV con le loro chiavi e valori.
+    let (kb, vb) = (cache_type_bytes(&server.cache_type_k), cache_type_bytes(&server.cache_type_v));
+    if kb.is_none() {
+        e.notes.push(format!("cache_type_k «{}» sconosciuto: KV non calcolabile", server.cache_type_k));
+    }
+    if vb.is_none() {
+        e.notes.push(format!("cache_type_v «{}» sconosciuto: KV non calcolabile", server.cache_type_v));
+    }
+    // Sugli ibridi l'attenzione piena è un blocco ogni N: gli altri tengono uno stato, non la KV.
+    let blocks = i.block_count;
+    e.full_attention_blocks = match (blocks, i.full_attention_interval) {
+        (Some(b), Some(n)) if n > 0 => Some(b / n),
+        (b, _) => b,
+    };
+    match (e.full_attention_blocks, i.head_count_kv, i.key_length, i.value_length, kb, vb) {
+        (Some(blk), Some(heads), Some(kl), Some(vl), Some(kb), Some(vb)) => {
+            let per_token = heads as f64 * (kl as f64 * kb + vl as f64 * vb);
+            e.kv_bytes = Some((per_token * server.ctx as f64 * blk as f64) as u64);
+        }
+        _ => e.notes.push("il GGUF non dichiara teste KV o lunghezze di chiave e valore: cache KV sconosciuta".into()),
+    }
+
+    // Stato ricorrente degli ibridi: conv + stato SSM per blocco ricorrente, in f32, indipendente dal contesto.
+    if let (Some(blocks), Some(interval), Some(inner), Some(state), Some(conv)) =
+        (blocks, i.full_attention_interval, i.ssm_inner_size, i.ssm_state_size, i.ssm_conv_kernel)
+    {
+        let recurrent = blocks.saturating_sub(blocks / interval.max(1));
+        let per_block = inner as f64 * (state as f64 + conv.saturating_sub(1) as f64) * 4.0;
+        e.state_bytes = Some((per_block * recurrent as f64 * server.n_parallel.max(1) as f64) as u64);
+    }
+
+    match compute {
+        Some(m) => {
+            e.compute_bytes = Some(m.bytes);
+            e.compute_from = Some(m.run_id);
+        }
+        None => {
+            e.total_is_lower_bound = true;
+            e.notes.push(format!(
+                "buffer di calcolo sconosciuto: nessun avvio misurato con ubatch {} su questo backend, il totale è un minimo",
+                server.ubatch
+            ));
+        }
+    }
+
+    let parts = [e.weights_bytes, e.kv_bytes, e.state_bytes, e.compute_bytes];
+    if parts.iter().any(Option::is_some) {
+        e.total_bytes = Some(parts.iter().flatten().sum());
+    }
+    if e.kv_bytes.is_none() {
+        e.total_is_lower_bound = true;
+    }
+    e
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Valori letti davvero dal GGUF del G1 (`gguf_dump`, 16-09), non inventati.
+    fn qwen36() -> ModelInfo {
+        ModelInfo {
+            arch: Some("qwen35moe".into()),
+            block_count: Some(41),
+            context_train: Some(262_144),
+            embedding_length: Some(2048),
+            head_count: Some(16),
+            head_count_kv: Some(2),
+            key_length: Some(256),
+            value_length: Some(256),
+            expert_count: Some(256),
+            expert_used_count: Some(8),
+            full_attention_interval: Some(4),
+            mtp_layers: Some(1),
+            ssm_conv_kernel: Some(4),
+            ssm_state_size: Some(128),
+            ssm_inner_size: Some(4096),
+            ssm_group_count: Some(16),
+            vocab_size: Some(248_320),
+            ..Default::default()
+        }
+    }
+
+    fn server(ctx: u32, k: &str, v: &str) -> Server {
+        Server {
+            host: "127.0.0.1".into(),
+            port: 8081,
+            ctx,
+            n_parallel: 1,
+            n_gpu_layers: 999,
+            flash_attn: "on".into(),
+            cache_type_k: k.into(),
+            cache_type_v: v.into(),
+            ubatch: 2048,
+            batch: 4096,
+            load_mode: "auto".into(),
+            threads: None,
+            threads_batch: None,
+            metrics: true,
+            jinja: true,
+            slot_save: true,
+            extra_args: Vec::new(),
+        }
+    }
+
+    const G1_WEIGHTS: u64 = 22_285_080_192;
+
+    #[test]
+    fn kv_counts_only_full_attention_blocks() {
+        let e = estimate(Some(&qwen36()), &server(32_768, "f16", "f16"), Some(G1_WEIGHTS), None);
+        // 41 blocchi con attenzione piena ogni 4 → 10 blocchi tengono la KV, non 41.
+        assert_eq!(e.full_attention_blocks, Some(10));
+        // 10 blocchi × 32.768 token × 2 teste KV × (256+256) × 2 byte = 0,67 GB
+        assert_eq!(e.kv_bytes, Some(671_088_640));
+        // Lo stato ricorrente dei 31 blocchi non ad attenzione piena non cresce col contesto.
+        assert_eq!(e.state_bytes, Some(4096 * (128 + 3) * 4 * 31));
+        // Senza un avvio misurato il buffer resta sconosciuto e il totale è un minimo.
+        assert_eq!(e.compute_bytes, None);
+        assert!(e.total_is_lower_bound);
+        assert!(e.notes.iter().any(|n| n.contains("buffer di calcolo")), "{:?}", e.notes);
+    }
+
+    #[test]
+    fn quantised_cache_costs_less_and_context_scales_it() {
+        let f16 = estimate(Some(&qwen36()), &server(32_768, "f16", "f16"), None, None).kv_bytes.unwrap();
+        let q8 = estimate(Some(&qwen36()), &server(32_768, "q8_0", "q8_0"), None, None).kv_bytes.unwrap();
+        let f16_64k = estimate(Some(&qwen36()), &server(65_536, "f16", "f16"), None, None).kv_bytes.unwrap();
+        assert!(q8 < f16 && q8 > f16 / 2, "q8_0 costa poco più della metà di f16: {q8} vs {f16}");
+        assert_eq!(f16_64k, f16 * 2);
+    }
+
+    #[test]
+    fn measured_compute_makes_the_total_a_real_estimate() {
+        let m = MeasuredCompute { run_id: "r-20260916-001040".into(), bytes: 2_200_000_000 };
+        let e = estimate(Some(&qwen36()), &server(32_768, "f16", "f16"), Some(G1_WEIGHTS), Some(m));
+        assert!(!e.total_is_lower_bound);
+        assert_eq!(e.compute_from.as_deref(), Some("r-20260916-001040"));
+        let total = e.total_bytes.unwrap();
+        // Pesi + KV + buffer: intorno ai 25 GB, come il totale del mockup.
+        assert!((25.0..26.0).contains(&(total as f64 / 1e9)), "totale {total}");
+        assert!(e.notes.is_empty(), "{:?}", e.notes);
+    }
+
+    #[test]
+    fn without_metadata_only_the_weights_are_known() {
+        let e = estimate(None, &server(32_768, "f16", "f16"), Some(G1_WEIGHTS), None);
+        assert_eq!(e.total_bytes, Some(G1_WEIGHTS));
+        assert_eq!(e.kv_bytes, None);
+        assert!(e.total_is_lower_bound);
+    }
+
+    #[test]
+    fn unknown_cache_type_is_not_guessed() {
+        let e = estimate(Some(&qwen36()), &server(32_768, "q3_k", "f16"), Some(G1_WEIGHTS), None);
+        assert_eq!(e.kv_bytes, None);
+        assert!(e.notes.iter().any(|n| n.contains("q3_k")), "{:?}", e.notes);
+        assert_eq!(cache_type_bytes("f16"), Some(2.0));
+        assert_eq!(cache_type_bytes("inventato"), None);
+    }
+}
+
+// ==== src/telemetry.rs ====
+//! Telemetria per richiesta in `runs/<id>/telemetry.jsonl`.
+//!
+//! Fonte fissata su b10809 (15-09): i tempi di ogni richiesta vengono dalle righe `print_timing` del
+//! log del server (prefill, decode, token proposti e accettati), chiuse dalla riga `release`. I token
+//! riusati dalla cache non sono nel log: si leggono da `/slots` mentre la richiesta è in corso
+//! (`id_task`, `n_prompt_tokens_cache`; a richiesta rilasciata il campo torna a zero). Per le richieste
+//! più brevi di una lettura resta la differenza di `llamacpp:prompt_tokens_cached_total`, valida solo
+//! se nessuna richiesta nuova è partita nel frattempo: quel contatore sale all'avvio della richiesta.
+//! Altrimenti i token dalla cache restano sconosciuti.
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::BTreeMap;
+use std::fs::{File, OpenOptions};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
+
+pub const FILE: &str = "telemetry.jsonl";
+/// Richieste considerate per le mediane «recenti».
+pub const RECENT: usize = 20;
+/// Sotto questa soglia di token elaborati il prefill misura l'avvio della richiesta, non la velocità.
+pub const PREFILL_MIN_TOKENS: u32 = 128;
+pub const DEGRADED_UPTIME_S: u64 = 24 * 3600;
+pub const DEGRADED_DECODE_RATIO: f64 = 0.7;
+const DEGRADED_MIN_REQUESTS: usize = 10;
+const DEGRADED_LAST: usize = 5;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Record {
+    pub at: String,
+    pub task: i64,
+    /// Token di prompt elaborati, esclusi quelli riusati dalla cache.
+    pub prompt_n: u32,
+    pub prompt_ms: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt_tps: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_n: Option<u32>,
+    pub gen_n: u32,
+    pub gen_ms: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decode_tps: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draft_n: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draft_accepted: Option<u32>,
+}
+
+impl Record {
+    pub fn prompt_total(&self) -> Option<u32> {
+        self.cache_n.map(|c| c + self.prompt_n)
+    }
+    pub fn cache_share(&self) -> Option<f64> {
+        let total = self.prompt_total()?;
+        (total > 0).then(|| self.cache_n.unwrap_or(0) as f64 / total as f64)
+    }
+}
+
+/// Tempi di una richiesta letti dal log, prima di attribuire la cache.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Timing {
+    pub task: i64,
+    pub prompt_n: u32,
+    pub prompt_ms: f64,
+    pub prompt_tps: Option<f64>,
+    pub gen_n: u32,
+    pub gen_ms: f64,
+    pub decode_tps: Option<f64>,
+    pub draft_n: Option<u32>,
+    pub draft_accepted: Option<u32>,
+}
+
+impl Timing {
+    pub fn into_record(self, at: String, cache_n: Option<u32>) -> Record {
+        Record {
+            at,
+            task: self.task,
+            prompt_n: self.prompt_n,
+            prompt_ms: self.prompt_ms,
+            prompt_tps: self.prompt_tps,
+            cache_n,
+            gen_n: self.gen_n,
+            gen_ms: self.gen_ms,
+            decode_tps: self.decode_tps,
+            draft_n: self.draft_n,
+            draft_accepted: self.draft_accepted,
+        }
+    }
+}
+
+#[derive(Default)]
+struct Partial {
+    prompt: Option<(f64, u32, Option<f64>)>,
+    eval: Option<(f64, u32, Option<f64>)>,
+    draft: Option<(u32, u32)>,
+}
+
+/// Numeri in un frammento di riga, nell'ordine: `831.87 ms / 36 tokens (...)` → 831.87, 36, ….
+fn numbers(s: &str) -> Vec<f64> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    for c in s.chars().chain(std::iter::once(' ')) {
+        if c.is_ascii_digit() || (c == '.' && !cur.is_empty()) {
+            cur.push(c);
+        } else if !cur.is_empty() {
+            if let Ok(n) = cur.trim_end_matches('.').parse() {
+                out.push(n);
+            }
+            cur.clear();
+        }
+    }
+    out
+}
+
+fn task_of(line: &str) -> Option<i64> {
+    let i = line.find("| task ")? + "| task ".len();
+    let s: String = line[i..].chars().take_while(|c| c.is_ascii_digit() || *c == '-').collect();
+    s.parse().ok()
+}
+
+fn timing_triple(segment: &str) -> Option<(f64, u32, Option<f64>)> {
+    let n = numbers(segment);
+    Some((*n.first()?, *n.get(1)? as u32, n.get(3).copied()))
+}
+
+#[derive(Default)]
+pub struct LogParser {
+    pending: BTreeMap<i64, Partial>,
+}
+
+impl LogParser {
+    /// Una riga del log; restituisce i tempi quando la richiesta è stata rilasciata.
+    pub fn feed(&mut self, line: &str) -> Option<Timing> {
+        if line.contains("print_timing:") {
+            let task = task_of(line)?;
+            let p = self.pending.entry(task).or_default();
+            if let Some(i) = line.find("prompt eval time =") {
+                p.prompt = timing_triple(&line[i + "prompt eval time =".len()..]);
+            } else if let Some(i) = line.find("| task").and_then(|t| line[t..].find(" eval time =").map(|j| t + j)) {
+                p.eval = timing_triple(&line[i + " eval time =".len()..]);
+            } else if let Some(i) = line.find("draft acceptance =") {
+                let n = numbers(&line[i..]);
+                if let (Some(acc), Some(gen)) = (n.get(1), n.get(2)) {
+                    p.draft = Some((*gen as u32, *acc as u32));
+                }
+            }
+            return None;
+        }
+        if line.contains("release:") && line.contains("stop processing") {
+            let task = task_of(line)?;
+            let p = self.pending.remove(&task)?;
+            let (prompt_ms, prompt_n, prompt_tps) = p.prompt?;
+            let (gen_ms, gen_n, decode_tps) = p.eval?;
+            return Some(Timing {
+                task,
+                prompt_n,
+                prompt_ms,
+                prompt_tps,
+                gen_n,
+                gen_ms,
+                decode_tps,
+                draft_n: p.draft.map(|d| d.0),
+                draft_accepted: p.draft.map(|d| d.1),
+            });
+        }
+        None
+    }
+}
+
+/// `slot launch_slot_: id  0 | task 68 | processing task`: una richiesta è partita.

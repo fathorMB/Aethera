@@ -209,6 +209,8 @@ export interface Overview {
   system: SystemReport;
   conditions: Conditions;
   exit_behavior: ExitBehavior;
+  /** Il profilo che si seleziona da solo in Avvio; non è detto che esista ancora fra i profili. */
+  default_profile: string | null;
   builds: ResolvedBuild[];
   builds_missing: BuildEntry[];
   builds_provenance: BuildProvenance[];
@@ -673,6 +675,7 @@ export const overview = () => invoke<Overview>("overview");
 export const setDataRoot = (path: string) => invoke<Overview>("set_data_root", { path });
 export const saveMachine = (machine: MachineConfig) => invoke<Overview>("save_machine", { machine });
 export const setExitBehavior = (behavior: ExitBehavior) => invoke<void>("set_exit_behavior", { behavior });
+export const setDefaultProfile = (name: string | null) => invoke<Overview>("set_default_profile", { name });
 export const listProfiles = () => invoke<ProfileEntry[]>("list_profiles");
 export const preview = (base: string, edited: Profile) => invoke<Preview>("preview", { base, edited });
 export const saveProfile = (profile: Profile, replace: string | null) =>
