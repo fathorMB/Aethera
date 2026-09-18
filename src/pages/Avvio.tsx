@@ -5,7 +5,7 @@ import type { EngineStatus, Issue, ModelRow, Overview, Preview, Profile, Profile
 import { AskName, CommandLine, Confirm, copy, Dialog, Empty, Unknown, Val } from "../components";
 import { fixed, getPath, num, setPath, show } from "../format";
 import { Alerts, type AlertItem, Field, Head, Seg, Stack } from "../ui";
-import { splitBuildId } from "../ui-logic";
+import { orderProfiles, pickInitialProfile, splitBuildId } from "../ui-logic";
 import {
   ADVANCED,
   baseText,
@@ -226,6 +226,7 @@ function ImportDialog(props: { value: string; onCancel: () => void; onConfirm: (
 export default function Avvio(props: {
   overview: Overview;
   status: EngineStatus | null;
+  onChange: (o: Overview) => void;
   onStarted: () => void;
   /** Pesi scelti dal Catalogo con «Avvia…»: il profilo che li usa, o uno nuovo su misura. */
   pendingModel?: string | null;
@@ -256,14 +257,28 @@ export default function Avvio(props: {
     try {
       const list = await api.listProfiles();
       setEntries(list);
-      const name = keep && list.some((e) => e.name === keep) ? keep : list[0]?.name ?? "";
-      select(name, list);
+      if (keep === undefined) {
+        // Solo al primo caricamento: senza un profilo da tenere, si apre sul principale.
+        const pick = pickInitialProfile(list, props.overview.default_profile);
+        select(pick.name, list);
+        if (pick.warning) setMessage({ kind: "err", text: pick.warning });
+      } else {
+        const name = list.some((e) => e.name === keep) ? keep : list[0]?.name ?? "";
+        select(name, list);
+      }
       return list;
     } catch (e) {
       setMessage({ kind: "err", text: String(e) });
       return [] as ProfileEntry[];
     }
   };
+
+  /** «Rendi principale»: il profilo scelto sarà selezionato da solo la prossima volta che si apre Avvio. */
+  const makeDefault = (name: string) =>
+    act(async () => {
+      props.onChange(await api.setDefaultProfile(name));
+      setMessage({ kind: "ok", text: `«${name}» è ora il profilo principale: si apre da solo in Avvio.` });
+    });
 
   /** Un profilo nuovo esiste solo in finestra finché non è salvato: `selected()` resta vuoto. */
   const creating = () => selected() === "" && edited() != null;
@@ -440,10 +455,13 @@ export default function Avvio(props: {
   const canStart = () => !busy() && !engineOn() && !creating() && preview() != null && preview()!.blockers.length === 0;
   const nameIssues = () => (preview()?.issues ?? []).filter((i) => i.field === "name" || i.field === "schema_version");
 
+  const ordered = () => orderProfiles(entries(), props.overview.default_profile);
+  const isDefault = (name: string) => !!props.overview.default_profile && name === props.overview.default_profile;
+
   const visible = () => {
     const q = search().trim().toLowerCase();
-    if (!q) return entries();
-    return entries().filter((e) => e.name.toLowerCase().includes(q) || (e.profile?.model.file.toLowerCase().includes(q) ?? false));
+    if (!q) return ordered();
+    return ordered().filter((e) => e.name.toLowerCase().includes(q) || (e.profile?.model.file.toLowerCase().includes(q) ?? false));
   };
 
   const modelRow = () => {
@@ -566,6 +584,11 @@ export default function Avvio(props: {
                 >
                   <div class="n">{e.name}</div>
                   <div class="m">
+                    <Show when={isDefault(e.name)}>
+                      <span class="pill acc" title="Si apre da solo in Avvio; si cambia da qui o da Impostazioni → App.">
+                        principale
+                      </span>
+                    </Show>
                     <Show when={e.profile?.gate}>
                       <span class="pill g">{e.profile!.gate}</span>
                     </Show>
@@ -672,7 +695,15 @@ export default function Avvio(props: {
                         invalida la cache
                       </span>
                     </Show>
+                    <Show when={isDefault(p().name)}>
+                      <span class="pill acc">principale</span>
+                    </Show>
                     <span class="right" />
+                    <Show when={!creating() && !isDefault(p().name)}>
+                      <button class="btn sm" disabled={busy()} onClick={() => makeDefault(p().name)}>
+                        Rendi principale
+                      </button>
+                    </Show>
                     <button class="btn primary" disabled={!canStart()} onClick={start}>
                       {overrides() ? "Avvia con le modifiche" : "Avvia"}
                     </button>

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { EngineStatus, Provenance, ReadyStatus, Summary } from "./api";
+import type { EngineStatus, Profile, ProfileEntry, Provenance, ReadyStatus, Summary } from "./api";
 import {
   buildBase,
+  orderProfiles,
   parseSeries,
+  pickInitialProfile,
   provenanceSeries,
   provenanceView,
   samePath,
@@ -285,5 +287,79 @@ describe("provenienza delle build (Impostazioni)", () => {
   it("lo stesso percorso scritto in due modi è la stessa cartella", () => {
     expect(samePath("D:\\LLM\\builds\\x\\", "d:/llm/builds/x")).toBe(true);
     expect(samePath("D:\\llm\\builds\\x", "D:\\llm\\builds\\y")).toBe(false);
+  });
+});
+
+describe("profilo principale", () => {
+  const profile = (over: Partial<Profile> = {}): Profile =>
+    ({
+      schema_version: 1,
+      name: "x",
+      model: { file: "x.gguf" },
+      runtime: { kind: "server", backend: "vulkan", build: "b10809" },
+      server: {
+        host: "127.0.0.1", port: 8080, ctx: 4096, n_parallel: 1, flash_attn: "auto", cache_type_k: "f16",
+        cache_type_v: "f16", ubatch: 512, batch: 2048, load_mode: "auto", metrics: true, jinja: true, slot_save: false,
+      },
+      speculative: { type: "none" },
+      cache: {},
+      ...over,
+    }) as Profile;
+
+  const entry = (name: string, over: Partial<ProfileEntry> = {}): ProfileEntry => ({
+    name,
+    file: `${name}.toml`,
+    profile: profile({ name }),
+    issues: [],
+    ...over,
+  });
+
+  describe("pickInitialProfile", () => {
+    it("sceglie il principale quando esiste ed è leggibile", () => {
+      const entries = [entry("altro"), entry("G1")];
+      expect(pickInitialProfile(entries, "G1")).toEqual({ name: "G1", warning: null });
+    });
+
+    it("senza principale sceglie il primo della lista, senza avviso", () => {
+      const entries = [entry("primo"), entry("secondo")];
+      expect(pickInitialProfile(entries, null)).toEqual({ name: "primo", warning: null });
+    });
+
+    it("un principale rinominato o cancellato non si inventa: torna al primo e lo dice", () => {
+      const entries = [entry("primo"), entry("secondo")];
+      const r = pickInitialProfile(entries, "sparito");
+      expect(r.name).toBe("primo");
+      expect(r.warning).toContain("sparito");
+    });
+
+    it("un principale il cui file non si legge conta come assente", () => {
+      const entries = [entry("primo"), entry("G1", { profile: null })];
+      const r = pickInitialProfile(entries, "G1");
+      expect(r.name).toBe("primo");
+      expect(r.warning).toContain("G1");
+    });
+
+    it("senza nessun profilo il nome resta vuoto", () => {
+      expect(pickInitialProfile([], "G1").name).toBe("");
+    });
+  });
+
+  describe("orderProfiles", () => {
+    it("il principale sta in cima, poi i profili con gate, poi gli altri", () => {
+      const gated = entry("beta", { profile: profile({ name: "beta", gate: "prova" }) });
+      const entries = [entry("altro"), gated, entry("G1")];
+      expect(orderProfiles(entries, "G1").map((e) => e.name)).toEqual(["G1", "beta", "altro"]);
+    });
+
+    it("senza principale l'ordine è gate poi il resto, senza cambiare l'ordine fra loro", () => {
+      const g1 = entry("g1-gated", { profile: profile({ name: "g1-gated", gate: "prova" }) });
+      const entries = [entry("a"), g1, entry("b")];
+      expect(orderProfiles(entries, null).map((e) => e.name)).toEqual(["g1-gated", "a", "b"]);
+    });
+
+    it("un principale che non esiste più non cambia l'ordine", () => {
+      const entries = [entry("a"), entry("b")];
+      expect(orderProfiles(entries, "sparito").map((e) => e.name)).toEqual(["a", "b"]);
+    });
   });
 });

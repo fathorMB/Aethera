@@ -2,7 +2,7 @@
  * Logica dei componenti della v2 (Alerts, Kpi, Stack, Chips), separata dal disegno perché si
  * possa provare senza DOM. Nessuna regola nuova: soglie e testi sono quelli di M-09 e del backend.
  */
-import type { BuildProvenance, EngineStatus, MemoryAfter, Provenance, Reference } from "./api";
+import type { BuildProvenance, EngineStatus, MemoryAfter, ProfileEntry, Provenance, Reference } from "./api";
 import { clock, fixed, num } from "./format";
 
 export type Tone = "" | "ok" | "warn" | "err" | "busy" | "acc";
@@ -438,4 +438,42 @@ export function provenanceView(id: string, entry: BuildProvenance | null | undef
 export function samePath(a: string, b: string): boolean {
   const norm = (p: string) => p.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
   return norm(a) === norm(b);
+}
+
+// --- Profilo principale (Avvio, Impostazioni, tray) -----------------------------------------
+
+/**
+ * Quale profilo selezionare aprendo Avvio quando non ce n'è già uno scelto: il principale, se il
+ * nome salvato corrisponde ancora a un profilo che si legge. Se non c'è più (rinominato,
+ * cancellato) non si inventa niente: si torna al primo della lista come oggi, e lo si dice.
+ */
+export function pickInitialProfile(
+  entries: ProfileEntry[],
+  defaultProfile: string | null | undefined,
+): { name: string; warning: string | null } {
+  if (defaultProfile) {
+    const hit = entries.find((e) => e.name === defaultProfile);
+    if (hit?.profile) return { name: hit.name, warning: null };
+    return {
+      name: entries[0]?.name ?? "",
+      warning: `Il profilo principale «${defaultProfile}» non esiste più: scegline un altro nelle Impostazioni.`,
+    };
+  }
+  return { name: entries[0]?.name ?? "", warning: null };
+}
+
+/**
+ * L'ordine della lista in Avvio: il principale in cima, poi quelli con `gate`, poi gli altri.
+ * Dentro ogni gruppo l'ordine di arrivo (alfabetico, dal backend) non cambia.
+ */
+export function orderProfiles(entries: ProfileEntry[], defaultProfile: string | null | undefined): ProfileEntry[] {
+  const main: ProfileEntry[] = [];
+  const gated: ProfileEntry[] = [];
+  const rest: ProfileEntry[] = [];
+  for (const e of entries) {
+    if (defaultProfile && e.name === defaultProfile) main.push(e);
+    else if (e.profile?.gate) gated.push(e);
+    else rest.push(e);
+  }
+  return [...main, ...gated, ...rest];
 }

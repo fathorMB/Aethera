@@ -36,6 +36,12 @@ solo la finestra, secondo il mockup approvato il 16-09 (`design/aethera-v2-ui`).
 - **Provenienza delle build nelle Impostazioni**: sotto ogni build tag base, serie, rami con commit,
   data e durata della build; «build scaricata da ggml-org» senza file, «provenienza assente» se
   l'id dichiara una serie ma il file manca.
+- **Profilo principale**: Avvio si apre da solo su un profilo scelto una volta, che sta in cima
+  alla lista con l'etichetta «principale» (poi i profili con `gate`, poi gli altri); si fissa da
+  Avvio («Rendi principale») o da Impostazioni → App. Un profilo rinominato o cancellato non fa
+  sparire la scelta in silenzio: Avvio lo dice e torna al primo della lista finché non se ne
+  sceglie un altro. La tray ha «Avvia `<profilo principale>`», con gli stessi controlli
+  dell'avvio dalla finestra.
 
 ## 0.1.0 — la prima versione utilizzabile
 
