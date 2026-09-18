@@ -2,23 +2,24 @@
 updated: 2026-09-18
 by: lead
 ---
-**Notte del 18-09 finita alle 07:50.** Macchina libera, motore spento, VGM 48.
+**Sessione del 18-09, ore 10:15.** Macchina libera, motore spento, VGM 48.
+
+## Fatto stamattina
+- **Release v0.1.0 pubblicata** su GitHub (non più bozza, con installatore e SHA-256). M-13 chiuso.
+- **Nonio corretto, unito e pubblicato** (`main` = `608a67a`): **+28/+32 % di compiti per ora**, confermato su due giri (27,5 e 26,8 contro 20,9). Turni da 249 a 134-155, comandi shell falliti da 102 a 13-24. È la leva più grande trovata finora, e non era nel motore.
 
 ## Report per te
-`.lmbrain-lite/design/notte-2026-09-18/index.html` — leggi quello, le decisioni sono l'ultima sezione.
+`.lmbrain-lite/design/notte-2026-09-18/index.html` — aggiornato con i numeri di Nonio. Le decisioni aperte sono l'ultima sezione.
 
-## I tre risultati
-1. **Il costo fisso per richiesta è copia di stato, non calcolo**: il 94 % sono i checkpoint copiati dalla GPU alla RAM a 130 MB/s. `--ctx-checkpoints 0` ne toglie l'82 % (G3 2,20 → 0,40 s; G1 1,85 → 0,33).
-2. **Gli n-grammi sono stati bocciati dalla batteria**: raddoppiavano il decode sul banco, ma sul lavoro vero MTP vince di un quarto (20,9 contro 15,8 compiti/ora). Il profilo del G1 non si tocca a 32k.
-3. **MTP triplica il costo fisso a 128k** (4,99 s contro 1,76): a contesto lungo il conto va rifatto.
-
-## Deciso da te stanotte
-Tag `v0.1.0` messo; finestra v2 in `main`; M-06, M-07, M-09, M-10, M-11, M-12, M-16 chiusi; FN e FC con un no; Nonio corretto su un ramo (test verdi, niente push).
+## I risultati della notte, in breve
+1. Il costo fisso per richiesta è **copia dei checkpoint** (94 %), a 130 MB/s. `--ctx-checkpoints 0` ne toglie l'82 %.
+2. Gli **n-grammi sono bocciati** dalla batteria: sul lavoro vero MTP vince di un quarto. Profilo del G1 invariato a 32k.
+3. **MTP triplica il costo fisso a 128k**: a contesto lungo il conto va rifatto.
 
 ## Aspetta te
-1. **Pubblicare la bozza della release v0.1.0** su GitHub (un clic).
-2. **Unire le correzioni di Nonio** e rifare la batteria: è la condizione per spegnere i checkpoint.
-3. **Batteria a contesto lungo**: tutto quello che sappiamo sui compiti sta a 32k, i tuoi stanno a 128-256k.
-4. Se provare gli n-grammi anche sul G3 (lì il confronto è contro «niente»).
-5. Batteria sui quant (Q6_K e Q8_0 scaricati, distanza dal Q4 misurata e reale).
-6. Issue upstream sui checkpoint lenti; TDP nel BIOS al prossimo riavvio.
+1. **Batteria a contesto lungo** — la cosa che manca per rispondere alla domanda vera: tutto quello che sappiamo sui compiti sta a 32k, i tuoi stanno a 128-256k. È quello che farei adesso.
+2. **Spegnere i checkpoint nei profili standard**: ora la condizione c'è (Nonio corretto), ma restano le tre rotture del riuso, prima fra tutte il ragionamento non rimandato.
+3. Se provare gli n-grammi anche sul G3, dove il confronto è contro «niente».
+4. Batteria sui quant (Q6_K e Q8_0 pronti, distanza dal Q4 misurata).
+5. Issue upstream sui checkpoint lenti; TDP nel BIOS al prossimo riavvio.
+6. Da tenere d'occhio: `rs-lru` fallisce nei due giri col Nonio nuovo e prima riusciva (era già marginale, arriva sempre al tetto dei turni).

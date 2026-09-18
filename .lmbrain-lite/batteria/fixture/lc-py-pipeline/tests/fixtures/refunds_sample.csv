@@ -1,0 +1,3 @@
+refund_id,order_id,amount_cents,reason,refund_date
+r-1,o-2,500,damaged,2026-01-10
+r-2,o-4,1000,,2026-01-11

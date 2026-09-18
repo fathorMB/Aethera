@@ -49,7 +49,7 @@ RAM_MINIMA_GIB = 16.0
 # disponibili, lavorando a 126 tok/s di prefill e 9,09 di decode. La soglia serve solo a evitare
 # l'avvio con la macchina già occupata da altro; durante il lavoro protegge il sorvegliante (0,8 GiB).
 RAM_MINIMA_FN_GIB = 28.0
-CTX = 32768
+CTX = int(os.environ.get("AETHERA_BATTERIA_CTX", "32768"))  # M-18 T-10: contesto servito, per i giri a contesto lungo
 SONNO_ATTESA_S = 300
 
 # Configurazione per modello. `thinking` è quello che Nonio chiede al template (enable_thinking);
@@ -77,6 +77,45 @@ MODELLI = {
         "max_tokens": 4096,
         "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
         "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+    },
+    # M-18 T-04: la scala dei quant del G1, stesse leve del profilo standard (MTP compreso:
+    # tutti e tre i GGUF contengono il layer nextn, verificato).
+    "G1Q6": {
+        "profilo": "qwen3.6-35b-a3b.q6_k.vulkan",
+        "nome": "Qwen3.6-35B-A3B Q6_K (G1Q6)",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+    },
+    "G1Q8": {
+        "profilo": "qwen3.6-35b-a3b.q8_0.vulkan",
+        "nome": "Qwen3.6-35B-A3B Q8_0 (G1Q8)",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+    },
+    # M-18: G3 con la speculativa a n-grammi (sul G3 il confronto e' contro «niente», non contro MTP).
+    "G3N": {
+        "profilo": "qwen3-coder-next.q4_k_m.vulkan.ngram",
+        "nome": "Qwen3-Coder-Next Q4_K_M, n-grammi (G3N)",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 40, "min_p": 0.01, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared)",
         "ram_minima_gib": RAM_MINIMA_GIB,
         "cache": {},
         "sorveglia_min_gib": None,
@@ -575,6 +614,7 @@ def esegui_compito(compito: dict, sigla: str, cfg: dict, pronto: dict | None, pr
         "run_id": (pronto or {}).get("run_id"),
         "build": (pronto or {}).get("build"),
         "ctx_servito": (pronto or {}).get("ctx_served"),
+        "ctx_chiesto": CTX,
         "inizio": dt.datetime.now().isoformat(timespec="seconds"),
         "windows": build_windows(),
         "ram_libera_gib_inizio": round(ram_libera_gib() or 0, 1) or None,

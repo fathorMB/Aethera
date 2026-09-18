@@ -234,6 +234,19 @@ Non modificare i test esistenti. Il compito è finito quando `node --test` passa
 """
 
 [[compito]]
+id = "lc-py-pipeline"
+fixture = "lc-py-pipeline"
+soluzione = "lc-py-pipeline"
+toolchain = "python"
+lingua = "en"
+livello = "difficile"
+tipo = "bug"
+enunciato = """
+The `pipeline` package builds a sales report out of an order feed and a customer feed: read, normalize, validate, dedupe, sort, convert currencies, group by customer, then rank customers by total spend (see README.md for the exact order the stages run in). The ranking is wrong when two or more customers end up with the exact same total: ties must break in ascending alphabetical order of the customer's name (the rule is spelled out in the docstrings of `pipeline/util/ordering.py` and `pipeline/aggregators/top_n.py`), but right now ties are left in whatever order the underlying orders happened to arrive in. Find the cause and fix it without changing the public API of any module.
+Do not modify the existing tests. The task is done when `python -m unittest discover -s tests -t .` passes.
+"""
+
+[[compito]]
 id = "ts-carrello"
 fixture = "ts-carrello"
 soluzione = "ts-carrello"

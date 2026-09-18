@@ -1,0 +1,4 @@
+product_id,name,category,unit_price_cents
+p-1,Widget,hardware,1500
+p-2,Gadget,hardware,2000
+p-3,Service Plan,services,500

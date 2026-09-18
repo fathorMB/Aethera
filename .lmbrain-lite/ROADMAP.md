@@ -22,11 +22,11 @@ generated: true
 | 11 | M-11 | Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48 | done | 6/6 | 100% |
 | 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | done | 11/11 | 100% |
 | 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | done | 7/7 | 100% |
-| 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | active | 8/9 (1 blocked) | 89% |
+| 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | done | 9/9 | 100% |
 | 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | active | 6/7 (1 blocked) | 86% |
 | 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | done | 6/6 | 100% |
 | 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | active | 7/8 (1 blocked) | 88% |
-| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | approved | 3/13 (1 blocked) | 23% |
+| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | approved | 4/13 (1 blocked) | 31% |
 
 ## M-01 — Mockup di design della v1
 
@@ -121,7 +121,7 @@ generated: true
 
 ## M-14 — Fork leggero di llama.cpp: build locali con patch misurate sopra master
 
-- `status`: active
+- `status`: done
 - `priority`: 14
 - `file`: milestones/M-14.md
 - `outcome`: Aethera può usare build di llama.cpp compilate su questa macchina da master più una serie corta di patch, ognuna in un ramo suo, ribasata a ogni build adottata e tenuta solo se una misura la giustifica. Uno script fa checkout, rebase, build Vulkan e copia in builds/ con un id che dichiara base, serie di patch e backend (per esempio b10991+moro1-vulkan); il manifest di ogni avvio lo registra e Benchmark non confronta una build patchata con una liscia senza dirlo. La prima patch (int8 coopmat, PR #27952) è misurata contro la base con la procedura di M-08, e il rapporto dice se entra o si butta.
