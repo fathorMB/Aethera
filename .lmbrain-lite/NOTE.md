@@ -1,25 +1,26 @@
 ---
-updated: 2026-09-18
+updated: 2026-09-19
 by: lead
 ---
-**18-09, ore 15:35.** Batterie in corso fino a circa le 18.
+**Fine della giornata del 18-09, ore 00:30 del 19.** Macchina libera, motore spento, VGM 64. L'operatore riavvia.
 
-## Il risultato del giorno: il Q8 del G1
-Primo giro: **13/15 e 35,9 compiti/ora**, contro 12/15 e 27,5 del Q4. Ha il decode più lento (24,6 contro 32,4) ma spreca meno turni (101 contro 134). Secondo giro in corso per confermare, più una prova a ctx 131k per vedere se 37,8 GB di pesi ci stanno in VGM 48. **Se regge, è il candidato a profilo standard.**
+## Report per te
+`.lmbrain-lite/design/giornata-2026-09-18/index.html` — le decisioni sono l'ultima sezione.
 
-## Contesto lungo: risposta alla tua domanda
-- G1 lucido 18/18 fino a 128k, G3 9/9: a quella profondità **il modello non si perde**, nemmeno a metà conversazione.
-- Il limite è il **prefill a freddo**: 148 tok/s a 128k sul G1 (11 min), 119 sul G3 (14 min), 104 a 200k (28 min).
-- **Servire 131k invece di 32k non costa niente**: proponibile subito come cambio di profilo.
+## I risultati
+1. **Il candidato è il G1 Q8_0** (`Qwen_Qwen3.6-35B-A3B-Q8_0.gguf`): 33-36 compiti/ora su due giri contro 27-28 del Q4. A VGM 64 regge 256k di contesto allo stesso costo per turno.
+2. **Contesto lungo: nessuna risposta sbagliata fino a 200k** su G1, Q8 e G3. Il limite è il prefill a freddo (28 min per 200k): il prefisso va pagato una volta sola.
+3. **Nonio corretto: +30 %**, già pubblicato.
+4. **n-grammi fuori dal piano**: sul lavoro vero non aiutano né G1 né G3.
+5. **Checkpoint spenti: −4 % sul lavoro vero, non −82 %**: senza checkpoint il riuso cala da 92,6 a 81,1 %, perché le sessioni divergono ancora. Restano accesi. M-17 chiuso.
 
-## Nonio
-Tre punti del riuso corretti sul ramo `aethera/m18-riuso` (4 commit, niente push). **Scoperta**: il template Qwen rende il ragionamento dei turni precedenti nella forma che hanno le sessioni di Nonio, quindi rimandarlo chiude la divergenza — e il thinking, spento proprio per questo, potrebbe tornare praticabile. Test e clippy in coda dietro le batterie.
+## Da decidere
+1. Profilo standard del G1 al **Q8, contesto 262.144, VGM 64**.
+2. VGM 64 come impostazione fissa.
+3. Unire e pubblicare il ramo `aethera/m18-riuso` di Nonio (619 test verdi).
 
-## Da fare stanotte
-1. Misura del ragionamento: un compito lungo con thinking acceso, `send_reasoning` on/off, guardando i token riusati (piano preciso in `reports/nonio-harness-2026-09.md`, §7.5).
-2. Congelare `lc-py-pipeline` (oggi la batteria avvisa che non è congelato).
-3. G1 a 200k completo e G3 oltre 128k.
-4. Ridisegnare il compito a contesto lungo: quello di oggi si risolve in 6 turni leggendo 7 file, serve un lavoro che tocchi molti file.
-
-## Aspetta te
-Niente di bloccante. Da decidere quando i numeri sono confermati: profilo standard del G1 al Q8, contesto a 131k, e se spegnere i checkpoint.
+## Prossimo lavoro
+1. **M-18 T-14**: trovare la divergenza residua di Nonio (sospetto: argomenti delle chiamate ri-serializzati). Se si chiude, i checkpoint spenti valgono il −82 %.
+2. Batteria intera col thinking acceso (una notte), per un eventuale profilo «intelligente».
+3. Capire perché col thinking e senza checkpoint il prefisso resta valido anche senza rimando (log a `-lv 4`).
+4. Compito a contesto lungo che tocchi molti file.

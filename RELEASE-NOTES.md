@@ -1,9 +1,16 @@
 # Note di rilascio
 
-## Non ancora rilasciato — la finestra v2 (M-12)
+## 0.2.0 — la finestra v2 e il profilo principale
+
+La finestra ridisegnata, la provenienza delle build del fork, e un profilo principale che si apre
+da solo e si avvia dal tray: la versione per l'uso quotidiano su questa macchina, dove il
+profilo principale è Qwen3.6-35B-A3B Q8_0 (misure in `.lmbrain-lite/design/giornata-2026-09-18`).
+
+### La finestra v2 (M-12)
 
 Stessi dati, disposti meglio. Nessun comando nuovo verso il motore e nessuna misura nuova: cambia
-solo la finestra, secondo il mockup approvato il 16-09 (`design/aethera-v2-ui`).
+solo la finestra, secondo il mockup approvato il 16-09 (`design/aethera-v2-ui`). Unita senza la
+prova dell'operatore dalla finestra, per sua decisione: la prova la fa l'uso.
 
 - **Lo stato del motore si vede da ogni pagina.** Una striscia in alto porta stato, profilo, build
   e porta, prefill, decode e riuso, «in uso» con il motivo, la protezione e i pulsanti **Riavvia**
