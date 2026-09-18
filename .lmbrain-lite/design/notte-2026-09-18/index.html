@@ -73,7 +73,7 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
 <header>
   <span class="eyebrow">Aethera · notte fra il 17 e il 18 settembre 2026 · Minisforum AI X1 Pro, VGM 48, Windows 26200.9457</span>
   <h1>Che cosa abbiamo portato a casa stanotte</h1>
-  <p class="lede">Il progetto ha cambiato direzione: il launcher è congelato nella v0.1.0 e da qui si lavora per far rendere al massimo la macchina con un agente di coding. In una notte abbiamo capito da dove viene il tempo perso, trovato una leva che ne toglie l’82 % senza toccare il codice, e scartato — con una misura sul lavoro vero — l’idea che sembrava la più promettente.</p>
+  <p class="lede">Il progetto ha cambiato direzione: il launcher è congelato nella v0.1.0 e da qui si lavora per far rendere al massimo la macchina con un agente di coding. In una notte abbiamo capito da dove viene il tempo perso, trovato una leva che ne toglie l’82 % senza toccare il codice, e scartato — con una misura sul lavoro vero — l’idea che sembrava la più promettente, e trovato che il guadagno più grande non era nel motore ma nel client.</p>
   <div class="legenda">
     <span><span class="sig">G1</span> Qwen3.6-35B-A3B Q4_K_M (oggi con MTP)</span>
     <span><span class="sig">G3</span> Qwen3-Coder-Next Q4_K_M</span>
@@ -85,9 +85,9 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
   <h2>In tre numeri</h2>
   <div class="cards">
     <div class="card">
-      <span class="tag t-warn">smentita</span>
-      <span class="big">n-grammi</span>
-      <p><b>Sul banco raddoppiavano il decode</b> (G3 da 19 a 41 token al secondo, G1 da 21 a 54). <b>Sulla batteria vera perdono di un quarto</b> contro MTP. Il no più utile della notte: vedi la sezione 4.</p>
+      <span class="tag t-ok">l'harness</span>
+      <span class="big">+30 %</span>
+      <p><b>Tre correzioni a Nonio</b> valgono più di qualunque leva del motore: da 20,9 a 27 compiti risolti per ora di macchina, su due giri. La velocità non era dove la cercavamo (sezione 7).</p>
     </div>
     <div class="card">
       <span class="tag t-ok">attesa</span>
@@ -198,7 +198,22 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
 </section>
 
 <section>
-  <h2>7. Il resto della notte</h2>
+  <h2>7. E poi, la mattina: la leva più grande non era nel motore</h2>
+  <p>Con il tuo via ho unito e pubblicato le correzioni a Nonio, e le ho misurate sulla batteria vera. Il risultato batte qualunque leva del motore provata stanotte.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>G1, stessi 15 compiti e stessi tetti</th><th class="n">risolti</th><th class="n">compiti per ora</th><th class="n">turni</th><th class="n">comandi falliti</th></tr></thead>
+    <tbody>
+      <tr class="best"><td>Nonio corretto, primo giro</td><td class="n">12</td><td class="n">27,5</td><td class="n">134</td><td class="n">13</td></tr>
+      <tr class="best"><td>Nonio corretto, secondo giro</td><td class="n">11</td><td class="n">26,8</td><td class="n">155</td><td class="n">24</td></tr>
+      <tr><td>Nonio di prima</td><td class="n">12</td><td class="n">20,9</td><td class="n">249</td><td class="n">102</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Fra il 28 e il 32 % di compiti in più per ora di macchina</b>, confermato su due giri, con gli stessi compiti risolti. I turni quasi si dimezzano e i comandi in errore crollano da 102 a una ventina: erano compiti che il modello risolveva già e che perdevano tempo a combattere con l'harness. <code>py-config-en</code> passa da 121 a 37 secondi, <code>py-ledger</code> da 212 a 88.</p>
+  <p>Due cose vanno dette per onestà. Il criterio nuovo sul «ho finito» non ha peggiorato niente: <code>py-intervals</code> fallisce a un giro e riesce all'altro, quindi era rumore. Ma <code>rs-lru</code> fallisce in entrambi i giri corretti e prima riusciva: guardando i dati arriva al tetto dei venti turni in tutti e tre i casi, quindi era già marginale e prima si era fermato al punto giusto per caso — con due giri contro uno non si distingue dal rumore, e resta da guardare.</p>
+</section>
+
+<section>
+  <h2>8. Il resto della notte</h2>
   <ul>
     <li><b>La v0.1.0 è pubblicata</b> come tag, con l'installatore pronto in bozza su GitHub: pubblicarla è un tuo clic. Le note dicono chiaramente che cosa nessuno ha guardato dalla finestra.</li>
     <li><b>La finestra v2 è in <code>main</code></b>, e la serie di patch delle build compare in Benchmark e nelle Impostazioni, su un ramo con i test verdi.</li>
@@ -209,11 +224,10 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
 </section>
 
 <section>
-  <h2>8. Che cosa decidi tu</h2>
+  <h2>9. Che cosa decidi tu</h2>
   <ul class="asks">
-    <li class="si"><b>Pubblicare la release v0.1.0.</b> La bozza è pronta su GitHub con l'installatore e il suo hash: è un clic tuo. Poi chiudo l'ultimo task del launcher e cancello la bozza della rc.1.</li>
-    <li><b>Correggere Nonio è la prima cosa da fare.</b> Le tre correzioni sono su un ramo con i test verdi, ma nessuna è stata provata contro un motore vero. Ti propongo: unirle, rifare la batteria e vedere quanto tempo si recupera — il solo timeout che non uccideva i processi può valere parecchio. È anche la condizione per accendere la leva dei checkpoint.</li>
-    <li><b>Spegnere i checkpoint nei profili standard.</b> Vale 1,8-2,2 secondi su ogni richiesta, ma solo dopo le correzioni a Nonio. Non l'ho fatto: i profili standard li cambi tu.</li>
+    <li class="si"><b>Fatto: la release v0.1.0 è pubblicata</b> e Nonio è aggiornato su GitHub. Restano le voci qui sotto.</li>
+    <li><b>Spegnere i checkpoint nei profili standard.</b> Vale 1,8-2,2 secondi su ogni richiesta, e ora la condizione c'è: Nonio è corretto. Restano da chiudere le tre rotture del riuso che l'analisi ha trovato — il ragionamento non rimandato è la più grossa. Non ho toccato i profili standard: li cambi tu.</li>
     <li class="no"><b>Gli n-grammi non entrano.</b> Sul G1 la batteria li ha bocciati. Sul G3, che oggi non ha nessuna speculazione, la prova non l'ho ancora fatta: lì il confronto è contro «niente», non contro MTP, e potrebbe andare diversamente. Dimmi se vuoi che la faccia.</li>
     <li><b>La batteria a contesto lungo.</b> È la cosa che manca per rispondere alla tua domanda vera: tutto quello che abbiamo misurato sui compiti sta a 32k, e i tuoi compiti stanno a 128-256k. La metterei prima di ogni altra cosa.</li>
     <li><b>La scala dei quant.</b> Q6_K e Q8_0 sono sul disco e la loro distanza dal Q4 è misurata e reale. La batteria su quelli è una notte di lavoro: la faccio quando dici.</li>

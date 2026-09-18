@@ -21,12 +21,12 @@ generated: true
 | 10 | M-10 | Qwen3.8-Flash-Next intero sulla Minisforum: corpo in memoria, tabella n-gram su SSD | done | 8/13 | 62% |
 | 11 | M-11 | Qwen3.8-Flash-Coder (160 esperti, senza tabella n-gram) come alternativa a VGM 48 | done | 6/6 | 100% |
 | 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | done | 11/11 | 100% |
-| 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | active | 6/7 | 86% |
+| 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | done | 7/7 | 100% |
 | 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | active | 8/9 (1 blocked) | 89% |
 | 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | active | 6/7 (1 blocked) | 86% |
 | 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | done | 6/6 | 100% |
 | 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | active | 7/8 (1 blocked) | 88% |
-| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | approved | 2/13 (1 blocked) | 15% |
+| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | approved | 3/13 (1 blocked) | 23% |
 
 ## M-01 — Mockup di design della v1
 
@@ -114,7 +114,7 @@ generated: true
 
 ## M-13 — Release automatica su GitHub: installatore Windows da un tag
 
-- `status`: active
+- `status`: done
 - `priority`: 13
 - `file`: milestones/M-13.md
 - `outcome`: Un push di un tag v* sul repository produce, senza passi a mano sulla macchina dell'operatore, una GitHub Release in bozza con l'installatore NSIS di Aethera, il suo SHA-256 e le note prese da RELEASE-NOTES.md; ogni pull request passa gli stessi controlli (build del frontend, vitest, cargo test); una versione diversa fra tag, tauri.conf.json e Cargo.toml ferma la release. L'installatore scaricato dalla release è quello che l'operatore installa e prova. La firma digitale resta fuori.
