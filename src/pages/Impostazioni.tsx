@@ -1,7 +1,16 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createSignal, For, on, onMount, Show } from "solid-js";
 import * as api from "../api";
-import type { BuildProvenance, ClientSnippets, EngineStatus, ExitBehavior, MachineConfig, MachineText, Overview } from "../api";
+import type {
+  BuildProvenance,
+  ClientSnippets,
+  EngineStatus,
+  ExitBehavior,
+  MachineConfig,
+  MachineText,
+  Overview,
+  ProfileEntry,
+} from "../api";
 import type { SettingsTab } from "../App";
 import { Confirm, copy, Empty, Val } from "../components";
 import { clock, duration, fixed, num, pct } from "../format";
@@ -191,6 +200,7 @@ export default function Impostazioni(props: {
   const [raw, setRaw] = createSignal<MachineText | null>(null);
   const [askReset, setAskReset] = createSignal(false);
   const [clientTab, setClientTab] = createSignal<ClientTab>("nonio");
+  const [profiles, setProfiles] = createSignal<ProfileEntry[]>([]);
   const ctxServed = () => {
     const s = props.status;
     return s?.state === "ready" ? s.ctx_served : null;
@@ -261,6 +271,15 @@ export default function Impostazioni(props: {
     });
 
   const exitBehavior = (b: ExitBehavior) => run(() => api.setExitBehavior(b));
+  const setDefaultProfile = (name: string) =>
+    run(async () => {
+      props.onChange(await api.setDefaultProfile(name || null));
+    });
+
+  onMount(() => {
+    // Per la select del profilo principale: se la lista non si legge la select mostra solo «nessuno».
+    api.listProfiles().then(setProfiles, () => setProfiles([]));
+  });
 
   const sys = () => props.overview.system;
   const readyRun = () => (props.status?.state === "ready" ? props.status.run : null);
@@ -689,6 +708,31 @@ export default function Impostazioni(props: {
       </Show>
 
       <Show when={props.tab === "app"}>
+        <div class="card mb">
+          <h2>
+            Profilo principale{" "}
+            <Q title="Il profilo che Avvio seleziona da solo aprendo la pagina, in cima alla lista con l'etichetta «principale», e che la tray può accendere con «Avvia». «Nessuno»: Avvio si apre come oggi, sul primo della lista." />
+          </h2>
+          <Field label="Profilo">
+            <select
+              aria-label="Profilo principale"
+              value={props.overview.default_profile ?? ""}
+              onChange={(e) => setDefaultProfile(e.currentTarget.value)}
+            >
+              <option value="">nessuno</option>
+              <For each={profiles()}>{(p) => <option value={p.name}>{p.name}</option>}</For>
+              <Show when={props.overview.default_profile && !profiles().some((p) => p.name === props.overview.default_profile)}>
+                <option value={props.overview.default_profile!}>{props.overview.default_profile} (non trovato)</option>
+              </Show>
+            </select>
+          </Field>
+          <div class="cond" style={{ "margin-top": "6px" }}>
+            <b>Come si legge:</b> serve a chi usa sempre lo stesso modello: la pagina Avvio si apre già su questo profilo,
+            e la tray offre «Avvia {props.overview.default_profile ?? "…"}» con gli stessi controlli dell'avvio dalla
+            finestra. Se il profilo viene rinominato o cancellato, questa scelta non si cancella da sola: Avvio lo dice e
+            torna al comportamento di prima finché non ne scegli un altro qui.
+          </div>
+        </div>
         <div class="grid g2" style={{ "align-items": "start" }}>
           <div class="card">
             <h2>Comportamento</h2>

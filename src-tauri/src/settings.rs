@@ -18,6 +18,11 @@ pub struct AppSettings {
     pub data_root: Option<PathBuf>,
     #[serde(default)]
     pub exit_behavior: ExitBehavior,
+    /// Il profilo che si seleziona da solo aprendo Avvio, e da cui la tray può accendere il
+    /// motore. Facoltativo: se il nome non corrisponde più a un profilo (rinominato, cancellato)
+    /// non si inventa niente e non si cancella da qui, lo dice chi legge questa impostazione.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_profile: Option<String>,
 }
 
 /// `AETHERA_CONFIG_DIR` sposta le preferenze altrove: prove senza toccare quelle dell'utente.
@@ -43,5 +48,35 @@ impl AppSettings {
         }
         let text = toml::to_string_pretty(self).map_err(|e| e.to_string())?;
         std::fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_profile_is_absent_by_default_and_not_written() {
+        let s = AppSettings::default();
+        assert_eq!(s.default_profile, None);
+        let text = toml::to_string_pretty(&s).unwrap();
+        assert!(!text.contains("default_profile"), "{text}");
+    }
+
+    #[test]
+    fn default_profile_round_trips_through_toml() {
+        let s = AppSettings { default_profile: Some("G1".into()), ..Default::default() };
+        let text = toml::to_string_pretty(&s).unwrap();
+        assert!(text.contains(r#"default_profile = "G1""#), "{text}");
+        let back: AppSettings = toml::from_str(&text).unwrap();
+        assert_eq!(back.default_profile.as_deref(), Some("G1"));
+    }
+
+    #[test]
+    fn settings_without_default_profile_still_load() {
+        // Un settings.toml scritto prima di questa impostazione non la porta: deve restare `None`,
+        // non far fallire la lettura.
+        let s: AppSettings = toml::from_str("exit_behavior = \"ask\"\n").unwrap();
+        assert_eq!(s.default_profile, None);
     }
 }
