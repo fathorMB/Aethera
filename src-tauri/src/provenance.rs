@@ -92,6 +92,26 @@ pub fn series_of(provenance: Option<&Result<Provenance, String>>) -> String {
     }
 }
 
+/// La provenienza di una build come la mostra la scheda Build delle Impostazioni. Senza file
+/// (`provenance` e `error` vuoti) la build è quella scaricata da ggml-org; con un file che non si
+/// legge non si sa che cosa sia, e lo si dice invece di farla passare per upstream.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct BuildProvenance {
+    /// Cartella della build: la chiave con cui la finestra la ritrova.
+    pub dir: std::path::PathBuf,
+    pub provenance: Option<Provenance>,
+    pub error: Option<String>,
+}
+
+pub fn describe(build_dir: &Path) -> BuildProvenance {
+    let (provenance, error) = match read(build_dir) {
+        None => (None, None),
+        Some(Ok(p)) => (Some(p), None),
+        Some(Err(e)) => (None, Some(e)),
+    };
+    BuildProvenance { dir: build_dir.to_path_buf(), provenance, error }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,6 +178,25 @@ commit_della_patch = ["aaaa vulkan: add int8 coopmat quantized matmul shader", "
         let broken = read(&dir).unwrap();
         assert!(broken.is_err());
         assert!(series_of(Some(&broken)).starts_with("moro?"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_settings_page_gets_the_three_cases_apart() {
+        let dir = tmp("describe");
+        // Senza file: né provenienza né errore, cioè build scaricata.
+        let plain = describe(&dir);
+        assert!(plain.provenance.is_none() && plain.error.is_none());
+        assert_eq!(plain.dir, dir);
+        std::fs::write(dir.join(PROVENANCE_FILE), FILE).unwrap();
+        let fork = describe(&dir);
+        assert_eq!(fork.provenance.as_ref().map(Provenance::label).as_deref(), Some("b10991+moro1"));
+        assert!(fork.error.is_none());
+        // Un file rotto non diventa «scaricata da ggml-org»: resta l'errore.
+        std::fs::write(dir.join(PROVENANCE_FILE), "serie = \"uno\"").unwrap();
+        let broken = describe(&dir);
+        assert!(broken.provenance.is_none());
+        assert!(broken.error.as_deref().is_some_and(|e| e.contains(PROVENANCE_FILE)));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

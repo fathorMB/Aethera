@@ -127,6 +127,8 @@ export interface Conditions {
   weights_disk?: string | null;
   weights_bus?: string | null;
   weights_free_gb?: number | null;
+  /** Serie di patch della build (M-14): `ggml-org`, `moro0`, `moro1 patch/…@<commit>`. Assente = sconosciuta. */
+  build_series?: string | null;
 }
 
 const OVERLAYS: Record<string, string> = {
@@ -158,6 +160,35 @@ export interface ResolvedBuild {
   source: string;
 }
 
+/** Un ramo di patch del fork dentro `provenienza.toml` (M-14). */
+export interface PatchBranch {
+  ramo: string;
+  commit: string;
+  commit_della_patch?: string[];
+}
+
+/** Il file `provenienza.toml` accanto a `llama-server`: da che tag viene la build e che patch porta. */
+export interface Provenance {
+  schema_version: number;
+  id: string;
+  base: string;
+  commit_base: string;
+  serie: number;
+  backend: string;
+  commit: string;
+  data?: string | null;
+  durata_build_s?: number | null;
+  compilatore?: string | null;
+  patch?: PatchBranch[];
+}
+
+/** Provenienza di una build trovata: senza file tutti e due i campi sono vuoti (build scaricata). */
+export interface BuildProvenance {
+  dir: string;
+  provenance: Provenance | null;
+  error: string | null;
+}
+
 export interface SystemReport {
   hostname: string | null;
   os: string | null;
@@ -180,6 +211,7 @@ export interface Overview {
   exit_behavior: ExitBehavior;
   builds: ResolvedBuild[];
   builds_missing: BuildEntry[];
+  builds_provenance: BuildProvenance[];
   endpoint: string | null;
   endpoint_error: string | null;
 }
