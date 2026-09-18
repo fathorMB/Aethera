@@ -2,22 +2,23 @@
 updated: 2026-09-18
 by: lead
 ---
-**Notte del 18-09 — linea tracciata, direzione nuova.** VGM 48.
+**Notte del 18-09 finita alle 07:50.** Macchina libera, motore spento, VGM 48.
 
-## Deciso dall'operatore stanotte
-- **Obiettivo**: massimo rendimento della macchina (server quasi headless) per l'agente di coding, con Nonio o un harness nostro; servono 128–256k di contesto. Metro: compiti riusciti per ora; a contesto lungo, costo per turno a profondità.
-- **Linea**: tag `v0.1.0` messo su main (PR #7), prove della finestra non fatte dichiarate nelle note. M-06, M-07, M-09, M-16 chiusi. Finestra v2 in PR #8, si unisce senza prova.
-- FN e FC si chiudono con un no. Nessun modello nuovo finché G1 e G3 non sono spremuti.
-- Parere del critico: `reports/critica-piano-2026-09-18.md` (decode = 70 % del tempo; MTP perde in profondità; la batteria non distingue i quant).
+## Report per te
+`.lmbrain-lite/design/notte-2026-09-18/index.html` — leggi quello, le decisioni sono l'ultima sezione.
 
-## In corso, da solo
-1. M-11 T-04 (FC contesto lungo e riuso) → rapporto e chiusura.
-2. M-17 T-01…T-03: costo fisso su G3, G1, denso 8B, poi log a `-lv 5`.
-3. Download G1 Q6_K e Q8_0.
-4. `m18/notte-1.sh`: sentinella, speculativa a n-grammi su G3, MTP/n-grammi su G1, costo per turno a 64k e 128k, KLD dei quant.
-5. Agente Opus su Nonio (ramo `aethera/m18-harness`, niente push): `finish` respinto, `run_shell`, regole del riuso → `reports/nonio-harness-2026-09.md`.
+## I tre risultati
+1. **Il costo fisso per richiesta è copia di stato, non calcolo**: il 94 % sono i checkpoint copiati dalla GPU alla RAM a 130 MB/s. `--ctx-checkpoints 0` ne toglie l'82 % (G3 2,20 → 0,40 s; G1 1,85 → 0,33).
+2. **Gli n-grammi sono stati bocciati dalla batteria**: raddoppiavano il decode sul banco, ma sul lavoro vero MTP vince di un quarto (20,9 contro 15,8 compiti/ora). Il profilo del G1 non si tocca a 32k.
+3. **MTP triplica il costo fisso a 128k** (4,99 s contro 1,76): a contesto lungo il conto va rifatto.
 
-## Per l'operatore
-- Pubblicare la bozza della release v0.1.0 su GitHub (gesto tuo).
-- Poi: verifica mirata py-slug/py-ledger con e senza patch int8 (decisa, da mettere in una notte).
-- TDP/modalità di potenza nel BIOS: 5 minuti, quando riavvii.
+## Deciso da te stanotte
+Tag `v0.1.0` messo; finestra v2 in `main`; M-06, M-07, M-09, M-10, M-11, M-12, M-16 chiusi; FN e FC con un no; Nonio corretto su un ramo (test verdi, niente push).
+
+## Aspetta te
+1. **Pubblicare la bozza della release v0.1.0** su GitHub (un clic).
+2. **Unire le correzioni di Nonio** e rifare la batteria: è la condizione per spegnere i checkpoint.
+3. **Batteria a contesto lungo**: tutto quello che sappiamo sui compiti sta a 32k, i tuoi stanno a 128-256k.
+4. Se provare gli n-grammi anche sul G3 (lì il confronto è contro «niente»).
+5. Batteria sui quant (Q6_K e Q8_0 scaricati, distanza dal Q4 misurata e reale).
+6. Issue upstream sui checkpoint lenti; TDP nel BIOS al prossimo riavvio.

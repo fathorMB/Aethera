@@ -187,12 +187,13 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
 
 <section>
   <h2>6. Nonio: due difetti corretti, e uno che non sospettavamo</h2>
-  <p>Il lavoro è su un ramo, non unito, con tutti i test verdi: 629 passati, zero falliti, clippy pulito.</p>
+  <p>Il lavoro è su un ramo, non unito, con tutti i test verdi: 616 passati, zero falliti, clippy pulito.</p>
   <ul>
     <li><b>Le virgolette doppie su Windows.</b> Ogni comando che ne conteneva veniva rovinato prima di arrivare alla shell. Ora la riga passa grezza.</li>
     <li><b>Il timeout non uccideva niente.</b> Questo non lo sospettavamo: il commento nel codice diceva che il processo veniva chiuso alla scadenza, e non era vero. È la spiegazione dei comandi che restavano appesi fino al tetto dei turni.</li>
     <li><b>La revisione obbligatoria al primo «ho finito».</b> Costava un turno a ogni compito, anche quando era già risolto. Ora scatta solo se qualcosa è cambiato dopo l'ultima verifica riuscita.</li>
   </ul>
+  <p><b>E i test misurano davvero qualcosa.</b> Rimettendo per un momento il codice vecchio, <code>python -c "print('hello')"</code> esce con codice 0 e <b>stdout vuoto</b>: è esattamente il sintomo che la batteria aveva registrato ieri, ora riprodotto dentro una prova automatica. E senza la chiusura dell'albero dei processi, il file scritto da un nipote continua a crescere <i>dopo</i> che il timeout ha ucciso la shell. Poi il codice vecchio è stato rimesso a posto e i test rilanciati verdi.</p>
   <p>Sul riuso del prefisso la notizia è buona: la conversazione è davvero in sola aggiunta e il prompt è identico byte per byte a ogni turno. Tre cose lo rompono, ed è la condizione per spegnere i checkpoint: il ragionamento che non viene rimandato indietro — la peggiore, ed è il motivo per cui oggi teniamo il thinking spento —, il turno troncato che viene sostituito da un avviso, e le chiamate malformate tolte dalla cronologia.</p>
 </section>
 

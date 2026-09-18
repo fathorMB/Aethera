@@ -21,9 +21,12 @@
   un turno su un turno; poi, più raramente, i turni tagliati al tetto dell'uscita e le chiamate
   malformate. **Nonio non usa `cache_prompt`, `id_slot` né `/slots` save/restore**, e non c'è modo
   di riprendere una sessione contro uno slot caldo.
-- **Niente è stato compilato.** Il motore (`llama-server.exe`, `m08_bench.exe`) è rimasto acceso
-  per tutta la sessione; secondo il vincolo di macchina non è stato lanciato nessun `cargo`. Gli
-  esiti dei test sono quindi **da verificare**: sezione 5.
+- **Compilato e testato**, dopo che la macchina si è liberata a fine sessione: `cargo check`
+  pulito su tutto il workspace (desktop compreso), **616 test verdi, 0 falliti**, `clippy -D
+  warnings` pulito. Le due correzioni sono state anche verificate al contrario, rimettendo per un
+  momento il codice vecchio: senza la riga grezza `python -c "print('hello')"` esce con 0 e
+  stdout vuoto — il sintomo della batteria, riprodotto; senza il `taskkill` il nipote continua a
+  scrivere dopo il timeout. Dettagli in sezione 5.
 
 ## 1. Il primo `finish` respinto sempre
 
@@ -83,7 +86,7 @@ un risultato e `owes_a_review` (riga 125) che decide e consuma l'armamento.
    `RunOptions`, ma non c'è una chiave nel TOML. Il progetto sarebbe una sezione `[run]` con
    `finish_review = "when_unverified" | "always" | "off"`, valore di default
    `when_unverified`, portata da `Profile` → `EffectiveConfig` → `compose`. Non l'ho fatta perché
-   tocca quattro crate e la macchina non permetteva di compilare; è mezz'ora di lavoro meccanico.
+   tocca quattro crate e non era chiesta; è mezz'ora di lavoro meccanico.
 3. Uno strumento MCP che scrive file senza dichiarare `workspace_changed` lascia il ciclo a credere
    che il lavoro sia dove l'ha lasciato l'ultimo comando. È scritto nel commento della costante.
 
@@ -269,7 +272,8 @@ Nessuno di questi è stato implementato.
    `arguments` è una **stringa**, quindi una chiamata malformata si potrebbe rimandare tale e
    quale. Richiede di portare il testo grezzo dentro `ToolCall`
    (`<nonio>/crates/nonio-core/src/tool.rs:31`), che è un campo nuovo su una struttura costruita in
-   24 punti fra crate e test: meccanico ma largo, e non l'ho fatto senza poter compilare.
+   24 punti fra crate e test: meccanico ma largo, e va deciso prima se serve davvero (vedi
+   sopra: il server normalizza comunque).
 4. **Compattazione solo ai confini dei messaggi utente.** Oggi non si pone: la compattazione è un
    fork, cioè un prompt nuovo. Una compattazione «in coda» — che tenesse il prefisso e riscrivesse
    solo la parte vecchia — sugli ibridi **non ha senso**, perché riscrivere la parte vecchia è
@@ -293,24 +297,36 @@ Ramo `aethera/m18-harness`, staccato da `main` (`1e90d0d`). Tutti locali.
 La modifica non committata dell'operatore ad `AGENTS.md` è rimasta dov'era: non toccata, non messa
 in commit, nessuno stash.
 
-## 5. Esiti dei test: **tutto verde**
+## 5. Esiti dei test: verdi
 
-Scritto con il motore acceso, quindi senza compilare: il vincolo di macchina vieta `cargo` mentre
-girano le misure. La verifica è stata fatta dalla sessione principale il 18-09 alle 02:11-02:12,
-nella prima finestra a motore fermo (fra M-17 T-03 e i download di M-18):
+La macchina si è liberata a fine sessione (`llama-server.exe` e `m08_bench.exe` spenti, controllato
+con `tasklist` prima di ogni invocazione, tutte con `-j 4`). Risultati veri:
 
 | comando | esito |
-|---|---|
-| `cargo check --workspace --all-targets` | ok, 22,15 s, dieci crate |
-| `cargo test -j 4 --workspace` | **629 passati, 0 falliti**, 3 ignorati (pre-esistenti) |
-| `cargo clippy -j 4 --workspace --all-targets` | nessun avviso e nessun errore |
+| --- | --- |
+| `cargo check --workspace --all-targets` | pulito, `nonio-desktop` compreso |
+| `cargo test -p nonio-tools process::` | **8 passati, 0 falliti** |
+| `cargo test -p nonio-core run::` | **22 passati, 0 falliti** |
+| `cargo test` (default-members) | **616 passati, 0 falliti, 3 ignorati** |
+| `cargo clippy --workspace --all-targets -- -D warnings` | pulito |
 
-I tre punti che il rapporto dava per sospetti sono tutti a posto: `raw_arg` su
-`tokio::process::Command` compila, il `tokio::select!` con `Box::pin` in `process::run` compila, e
-i percorsi `nonio_core::tool::WORKSPACE_CHANGED` nei due strumenti di scrittura sono giusti.
+I test nuovi sono tutti fra questi, e nessuno è saltato: python c'è (3.13.15), quindi
+`python_dash_c_prints_what_it_was_asked_to_print` e `the_timeout_kills_what_the_shell_started`
+hanno girato davvero.
 
-Resta vero che **niente è stato provato contro un motore vero**: i test sono unitari. Le prove con
-`llama-server` e la batteria sono la sezione 6.
+**Controprova, che vale più dei verdi.** Un test che passa non dice che stava misurando qualcosa.
+Ho rimesso per un momento il codice vecchio e rilanciato:
+
+- con `.arg("/C").arg(command)` al posto della riga grezza,
+  `python -c "print('hello')"` torna
+  `Finished { exit_code: Some(0), stdout: "", stderr: "", duration: 56.8ms }`. È **esattamente** il
+  sintomo della batteria — esce con 0 e non dice niente — riprodotto dentro una prova automatica;
+- senza la chiamata a `kill_tree`, il file del nipote passa da 26 a 44 byte **dopo** che il timeout
+  ha ucciso la shell: il `python` sopravvive al proprio tempo. Il test fallisce con
+  «the grandchild outlived the timeout and kept writing».
+
+Il codice vecchio è stato poi ripristinato da git e i test rilanciati verdi. Nessuna modifica
+residua: l'unica cosa non committata nel repository resta `AGENTS.md`, quella dell'operatore.
 
 ## 6. Misure prima/dopo che la sessione principale dovrà fare
 
