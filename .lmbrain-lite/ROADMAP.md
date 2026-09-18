@@ -23,10 +23,10 @@ generated: true
 | 12 | M-12 | Finestra v2: la stessa ricchezza di dati, più leggibile e più facile da usare | done | 11/11 | 100% |
 | 13 | M-13 | Release automatica su GitHub: installatore Windows da un tag | done | 7/7 | 100% |
 | 14 | M-14 | Fork leggero di llama.cpp: build locali con patch misurate sopra master | done | 9/9 | 100% |
-| 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | active | 6/7 (1 blocked) | 86% |
+| 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | done | 7/7 | 100% |
 | 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | done | 6/6 | 100% |
 | 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | done | 8/8 | 100% |
-| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | approved | 4/15 (1 blocked) | 27% |
+| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | active | 8/15 | 53% |
 
 ## M-01 — Mockup di design della v1
 
@@ -128,7 +128,7 @@ generated: true
 
 ## M-15 — Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina
 
-- `status`: active
+- `status`: done
 - `priority`: 15
 - `file`: milestones/M-15.md
 - `outcome`: Esiste una batteria congelata di compiti di coding agentico, con verificatori oggettivi (test che falliscono prima e passano dopo), e un runner che la fa girare con Nonio contro un motore avviato da Aethera, un modello alla volta, raccogliendo esito, tempo, token e errori di chiamata degli strumenti. Con la batteria si confrontano, sulla stessa macchina a VGM 48, Qwen3.6-35B-A3B (G1), Qwen3-Coder-Next (G3), Flash-Coder Q4_K_M e, se il tempo basta, Flash-Next IQ3_XXS; il risultato è «compiti riusciti per ora di macchina» e chiude i dati mancanti di M-10 T-10 e M-11 T-05. In più si capisce, con ricerca e una prova, se il riuso del prefisso dei modelli ibridi (M-10 T-09) si può recuperare.
@@ -149,7 +149,7 @@ generated: true
 
 ## M-18 — Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina
 
-- `status`: approved
+- `status`: active
 - `priority`: 18
 - `file`: milestones/M-18.md
 - `outcome`: Per la Minisforum usata come server dedicato all'agente di coding (consumi e altri usi non contano) si sa quale configurazione rende di più: una frontiera misurata con la batteria di M-15 — compiti riusciti e compiti riusciti per ora di macchina — su modello, quant, thinking, VGM e leve del motore, con il rumore fra giri dichiarato. Alla fine ci sono due profili consigliati, «veloce» e «intelligente», e l'elenco delle impostazioni della macchina che li reggono. I profili standard li cambia l'operatore sul rapporto.

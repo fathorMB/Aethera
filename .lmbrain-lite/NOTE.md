@@ -2,25 +2,25 @@
 updated: 2026-09-19
 by: lead
 ---
-**Fine della giornata del 18-09, ore 00:30 del 19.** Macchina libera, motore spento, VGM 64. L'operatore riavvia.
+**Sessione chiusa dall'operatore il 19-09 all'1:15.** Sta usando il motore principale. Macchina a **VGM 64**.
 
-## Report per te
-`.lmbrain-lite/design/giornata-2026-09-18/index.html` — le decisioni sono l'ultima sezione.
+## Stato
+- **Aethera 0.2.0 pubblicata** (release su GitHub) e **installata** in `AppData\Local\Programs\Aethera`: finestra v2, profilo principale, finestra che non si blocca più.
+- **Profilo principale: G1 Q8_0** — `qwen3.6-35b-a3b.q8_0.vulkan` (VGM 64, ctx 262144) e `…vgm48` (ctx 131072). In Nonio: `profiles/minisforum-qwen3.6-35b-a3b-q8.toml` e `-q8-vgm48.toml` (pubblicati).
+- **Nonio `main`** pubblicato con le tre correzioni (+30 %). Il ramo **`aethera/m18-riuso`** (turno troncato, chiamate malformate, `send_reasoning`; 619 test verdi) è **locale e non unito**.
 
-## I risultati
-1. **Il candidato è il G1 Q8_0** (`Qwen_Qwen3.6-35B-A3B-Q8_0.gguf`): 33-36 compiti/ora su due giri contro 27-28 del Q4. A VGM 64 regge 256k di contesto allo stesso costo per turno.
-2. **Contesto lungo: nessuna risposta sbagliata fino a 200k** su G1, Q8 e G3. Il limite è il prefill a freddo (28 min per 200k): il prefisso va pagato una volta sola.
-3. **Nonio corretto: +30 %**, già pubblicato.
-4. **n-grammi fuori dal piano**: sul lavoro vero non aiutano né G1 né G3.
-5. **Checkpoint spenti: −4 % sul lavoro vero, non −82 %**: senza checkpoint il riuso cala da 92,6 a 81,1 %, perché le sessioni divergono ancora. Restano accesi. M-17 chiuso.
+## Report
+- `design/giornata-2026-09-18` — Q8 vince, contesto lungo senza errori fino a 200k, n-grammi e checkpoint spenti bocciati dal lavoro vero.
+- `design/notte-2026-09-18` — il costo fisso è copia dei checkpoint.
 
-## Da decidere
-1. Profilo standard del G1 al **Q8, contesto 262.144, VGM 64**.
-2. VGM 64 come impostazione fissa.
-3. Unire e pubblicare il ramo `aethera/m18-riuso` di Nonio (619 test verdi).
+## Prossimo lavoro (M-18)
+1. **T-14**: la divergenza residua di Nonio (riuso 92,6 → 81,1 % senza checkpoint). Sospetto: argomenti delle chiamate ri-serializzati. Se si chiude, i checkpoint spenti valgono il −82 %.
+2. **T-05**: batteria intera col thinking acceso (una notte): profilo «intelligente»?
+3. **T-10**: compito a contesto lungo che tocchi molti file (quello attuale si risolve in 6 turni).
+4. **T-15**: chiave di registro lasciata dal disinstallatore.
+5. **T-01**: TDP nel BIOS al prossimo riavvio.
+6. Decidere se unire il ramo del riuso di Nonio.
 
-## Prossimo lavoro
-1. **M-18 T-14**: trovare la divergenza residua di Nonio (sospetto: argomenti delle chiamate ri-serializzati). Se si chiude, i checkpoint spenti valgono il −82 %.
-2. Batteria intera col thinking acceso (una notte), per un eventuale profilo «intelligente».
-3. Capire perché col thinking e senza checkpoint il prefisso resta valido anche senza rimando (log a `-lv 4`).
-4. Compito a contesto lungo che tocchi molti file.
+## Da sapere
+- Le misure lunghe si fanno di notte, dopo un riavvio (il riavvio vale l'8 % di decode; 5 ore di prefill profondi ne tolgono il 10,7 %).
+- Pesi aggiunti fuori dall'app: aprire il Catalogo una volta, così li registra.
