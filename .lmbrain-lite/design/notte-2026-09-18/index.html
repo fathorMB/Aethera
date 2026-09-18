@@ -73,7 +73,7 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
 <header>
   <span class="eyebrow">Aethera · notte fra il 17 e il 18 settembre 2026 · Minisforum AI X1 Pro, VGM 48, Windows 26200.9457</span>
   <h1>Che cosa abbiamo portato a casa stanotte</h1>
-  <p class="lede">Il progetto ha cambiato direzione: il launcher è congelato nella v0.1.0 e da qui si lavora per far rendere al massimo la macchina con un agente di coding. In una notte sono uscite due leve che valgono più di tutto quello che avevamo misurato finora, e nessuna delle due richiede di toccare il codice: si accendono da profilo.</p>
+  <p class="lede">Il progetto ha cambiato direzione: il launcher è congelato nella v0.1.0 e da qui si lavora per far rendere al massimo la macchina con un agente di coding. In una notte abbiamo capito da dove viene il tempo perso, trovato una leva che ne toglie l’82 % senza toccare il codice, e scartato — con una misura sul lavoro vero — l’idea che sembrava la più promettente.</p>
   <div class="legenda">
     <span><span class="sig">G1</span> Qwen3.6-35B-A3B Q4_K_M (oggi con MTP)</span>
     <span><span class="sig">G3</span> Qwen3-Coder-Next Q4_K_M</span>
@@ -82,12 +82,12 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
 </header>
 
 <section>
-  <h2>Le due leve</h2>
+  <h2>In tre numeri</h2>
   <div class="cards">
     <div class="card">
-      <span class="tag t-ok">decode</span>
-      <span class="big">+114 %</span>
-      <p><b>Speculativa a n-grammi.</b> Quando il modello riscrive un file — quello che un agente fa quasi sempre — il decode raddoppia: G3 da 19 a 41 token al secondo, G1 da 21 a 54. Oggi il G3 non ha nessuna speculazione.</p>
+      <span class="tag t-warn">smentita</span>
+      <span class="big">n-grammi</span>
+      <p><b>Sul banco raddoppiavano il decode</b> (G3 da 19 a 41 token al secondo, G1 da 21 a 54). <b>Sulla batteria vera perdono di un quarto</b> contro MTP. Il no più utile della notte: vedi la sezione 4.</p>
     </div>
     <div class="card">
       <span class="tag t-ok">attesa</span>
@@ -97,7 +97,7 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
     <div class="card">
       <span class="tag t-warn">da togliere</span>
       <span class="big">MTP ×3</span>
-      <p><b>MTP costa, in profondità.</b> A 128k di contesto il G1 con MTP paga 5,0 secondi per richiesta contro 1,76 senza. E gli n-grammi lo battono comunque sul decode.</p>
+      <p><b>MTP costa, in profondità.</b> A 128k di contesto il G1 con MTP paga 5,0 secondi di attesa per richiesta contro 1,76 senza. A 32k conviene ancora; più in là il conto cambia e va rifatto.</p>
     </div>
   </div>
 </section>
@@ -151,11 +151,27 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
       <tr><td>MTP + <code>ngram-mod</code></td><td class="n">52,9</td><td class="n">27,1</td><td class="n">17,4</td></tr>
     </tbody>
   </table></div>
-  <p>Il prefill non cambia mai. <code>ngram-cache</code> è da buttare: dimezza tutto. Sul G3 la scelta è <code>ngram-map-k</code>, che raddoppia sulla riscrittura senza perdere niente sul resto. Sul G1 <code>ngram-mod</code> quasi triplica la riscrittura ma costa sul codice nuovo, dove MTP resta avanti: a 128k però MTP si porta dietro i cinque secondi di attesa, e il conto complessivo lo perde.</p>
+  <p>Il prefill non cambia mai. <code>ngram-cache</code> è da buttare: dimezza tutto. Sul G3 la scelta sembrerebbe <code>ngram-map-k</code>, che raddoppia sulla riscrittura senza perdere niente sul resto; sul G1 <code>ngram-mod</code> quasi triplica la riscrittura ma costa sul codice nuovo, dove MTP resta avanti.</p>
+  <p><b>Poi abbiamo provato sul lavoro vero, e il quadro si è rovesciato.</b> Vedi la sezione qui sotto: è il risultato più utile della notte, anche se è un no.</p>
 </section>
 
 <section>
-  <h2>4. Togliere i checkpoint, e quanto costa farlo</h2>
+  <h2>4. La batteria dice il contrario. E aveva ragione lei</h2>
+  <p>Prima di proporti un cambio di profilo ho fatto girare la batteria vera: quindici compiti di coding con Nonio, lo stesso binario e gli stessi tetti delle misure di ieri, G1 con gli n-grammi contro G1 con MTP.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>G1, batteria di 15 compiti a 32k</th><th class="n">risolti</th><th class="n">ore</th><th class="n">compiti per ora</th><th class="n">decode mediano</th></tr></thead>
+    <tbody>
+      <tr><td><code>ngram-mod</code></td><td class="n">12</td><td class="n">0,76</td><td class="n">15,8</td><td class="n">19,8 tok/s</td></tr>
+      <tr class="best"><td>MTP — <i>il profilo di oggi</i></td><td class="n">12</td><td class="n">0,57</td><td class="n">20,9</td><td class="n">31,5 tok/s</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>MTP vince di un quarto</b>, e risolve gli stessi compiti. Il decode degli n-grammi sul lavoro vero è 19,8, cioè esattamente quello di <i>nessuna</i> speculazione: sui compiti veri non indovina niente.</p>
+  <p>La ragione è che il carico «riscrittura» del micro-banco — ricopiare un file cambiando un nome — <b>non somiglia a quello che fa un agente</b>, che scrive codice nuovo e patch. Lì gli n-grammi non hanno niente da cui copiare. È l'avvertimento che il critico aveva messo per iscritto prima di cominciare, ed è il motivo per cui il metro resta «compiti risolti per ora», mai i token al secondo.</p>
+  <p><b>Il profilo del G1 quindi non si tocca</b>, a 32k. Ma la storia non è chiusa: a 128k MTP paga 3,1 secondi in più per richiesta, che su una quindicina di richieste per compito fanno quasi un minuto, e il suo vantaggio si annulla. Serve la stessa batteria a quella profondità, ed è la prima cosa che metterei nella prossima sessione.</p>
+</section>
+
+<section>
+  <h2>5. Togliere i checkpoint, e quanto costa farlo</h2>
   <div class="scroll"><table>
     <thead><tr><th>Leva</th><th class="n">G3</th><th class="n">G1</th><th>verdetto</th></tr></thead>
     <tbody>
@@ -170,7 +186,7 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
 </section>
 
 <section>
-  <h2>5. Nonio: due difetti corretti, e uno che non sospettavamo</h2>
+  <h2>6. Nonio: due difetti corretti, e uno che non sospettavamo</h2>
   <p>Il lavoro è su un ramo, non unito, con tutti i test verdi: 629 passati, zero falliti, clippy pulito.</p>
   <ul>
     <li><b>Le virgolette doppie su Windows.</b> Ogni comando che ne conteneva veniva rovinato prima di arrivare alla shell. Ora la riga passa grezza.</li>
@@ -181,7 +197,7 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
 </section>
 
 <section>
-  <h2>6. Il resto della notte</h2>
+  <h2>7. Il resto della notte</h2>
   <ul>
     <li><b>La v0.1.0 è pubblicata</b> come tag, con l'installatore pronto in bozza su GitHub: pubblicarla è un tuo clic. Le note dicono chiaramente che cosa nessuno ha guardato dalla finestra.</li>
     <li><b>La finestra v2 è in <code>main</code></b>, e la serie di patch delle build compare in Benchmark e nelle Impostazioni, su un ramo con i test verdi.</li>
@@ -190,4 +206,27 @@ footer{border-top:1px solid var(--line);padding-top:14px;color:var(--fg3);font-s
     <li><b>La deriva della macchina colpisce la banda, non il calcolo.</b> In quattro ore di banchi il decode è calato del 7 % e il prefill è salito del 3,6 %. Le sentinelle di stanotte sono rimaste tutte entro il 3 %.</li>
   </ul>
 </section>
+
+<section>
+  <h2>8. Che cosa decidi tu</h2>
+  <ul class="asks">
+    <li class="si"><b>Pubblicare la release v0.1.0.</b> La bozza è pronta su GitHub con l'installatore e il suo hash: è un clic tuo. Poi chiudo l'ultimo task del launcher e cancello la bozza della rc.1.</li>
+    <li><b>Correggere Nonio è la prima cosa da fare.</b> Le tre correzioni sono su un ramo con i test verdi, ma nessuna è stata provata contro un motore vero. Ti propongo: unirle, rifare la batteria e vedere quanto tempo si recupera — il solo timeout che non uccideva i processi può valere parecchio. È anche la condizione per accendere la leva dei checkpoint.</li>
+    <li><b>Spegnere i checkpoint nei profili standard.</b> Vale 1,8-2,2 secondi su ogni richiesta, ma solo dopo le correzioni a Nonio. Non l'ho fatto: i profili standard li cambi tu.</li>
+    <li class="no"><b>Gli n-grammi non entrano.</b> Sul G1 la batteria li ha bocciati. Sul G3, che oggi non ha nessuna speculazione, la prova non l'ho ancora fatta: lì il confronto è contro «niente», non contro MTP, e potrebbe andare diversamente. Dimmi se vuoi che la faccia.</li>
+    <li><b>La batteria a contesto lungo.</b> È la cosa che manca per rispondere alla tua domanda vera: tutto quello che abbiamo misurato sui compiti sta a 32k, e i tuoi compiti stanno a 128-256k. La metterei prima di ogni altra cosa.</li>
+    <li><b>La scala dei quant.</b> Q6_K e Q8_0 sono sul disco e la loro distanza dal Q4 è misurata e reale. La batteria su quelli è una notte di lavoro: la faccio quando dici.</li>
+    <li><b>Un'issue upstream sui checkpoint lenti.</b> Abbiamo numeri che nessuno sembra avere. Serve il tuo via perché parlerebbe a nome del progetto.</li>
+    <li><b>Il TDP nel BIOS</b>, quando riavvii: cinque minuti, ed è l'unica leva della macchina che non ho potuto provare.</li>
+  </ul>
+</section>
+
+<footer>
+  <span>Misure e rapporti in <code>.lmbrain-lite/reports/</code>: costo fisso per richiesta, Flash-Coder, Flash-Next, Nonio, parere del critico. Dati grezzi in <code>&lt;radice&gt;\m17</code>, <code>\m18</code> e <code>\m15\risultati\ngram-1</code>.</span>
+  <span>Tutto il lavoro di stanotte è in commit locali: nessun push oltre al tag v0.1.0 e alle due PR già unite.</span>
+</footer>
+
+</div>
+</body>
+</html>
 
