@@ -107,8 +107,8 @@ def conversazione(base: str, args, sorgente: str, riga: dict, fh) -> list[dict]:
         if args.divergenza:
             # a ogni turno la stessa riga a meta' prefisso cambia: il prefisso in cache non vale piu'
             meta = args.prefisso // 2
-            base = sorgente[: args.prefisso]
-            nuovo_pref = base[:meta] + f"/* turno {turno + 1} */" + base[meta:]
+            testa = sorgente[: args.prefisso]
+            nuovo_pref = testa[:meta] + f"/* turno {turno + 1} */" + testa[meta:]
             if args.endpoint == "chat":
                 messaggi[1]["content"] = nuovo_pref + DOMANDA
             else:

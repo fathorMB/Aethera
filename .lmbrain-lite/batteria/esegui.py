@@ -68,6 +68,19 @@ MODELLI = {
         "cache": {},
         "sorveglia_min_gib": None,
     },
+    # M-18 T-03: lo stesso G1 ma con la speculativa a n-grammi al posto di MTP (misure di T-12b).
+    "G1N": {
+        "profilo": "qwen3.6-35b-a3b.q4_k_m.vulkan.ngram",
+        "nome": "Qwen3.6-35B-A3B Q4_K_M, n-grammi invece di MTP (G1N)",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+    },
     "FC": {
         "profilo": "qwen3.8-flash-coder.q4_k_m.vulkan",
         "nome": "Qwen3.8-Flash-Coder Q4_K_M",
