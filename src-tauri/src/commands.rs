@@ -345,13 +345,18 @@ fn read_profiles(root: &DataRoot) -> Result<Vec<ProfileEntry>, String> {
     files.sort();
     Ok(files
         .into_iter()
-        .map(|path| {
+        .filter_map(|path| {
             let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
             let (profile, issues) = match fs::read_to_string(&path) {
+                // Un profilo di servizio (M-20) sta nella stessa cartella ma non è un profilo di
+                // avvio: lo legge `services::list_profiles`. Senza questo salto comparirebbe qui
+                // come illeggibile, perché `role` e `[service]` non appartengono a un profilo
+                // principale — ed è giusto che non vi appartengano.
+                Ok(text) if crate::service::is_service(&text) => return None,
                 Ok(text) => profile::load(&text, &stem),
                 Err(e) => (None, vec![Issue { field: String::new(), message: e.to_string() }]),
             };
-            ProfileEntry { name: stem, file: path.display().to_string(), profile, issues }
+            Some(ProfileEntry { name: stem, file: path.display().to_string(), profile, issues })
         })
         .collect())
 }
@@ -802,6 +807,7 @@ pub fn snippets_for(state: &AppState) -> Option<ClientSnippets> {
         chat_template: m.effective_profile.server.chat_template_file.as_deref(),
         claude_config_dir,
         fixed_prompts: &fixed,
+        services: &state.services.view(system::probe().as_ref()),
     }))
 }
 
@@ -1500,4 +1506,91 @@ pub fn app_exit(
     }
     app.exit(0);
     Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Motori di servizio (M-20)
+//
+// Sono volutamente pochi comandi e nessuna magia: elenca, accendi, spegni. Un servizio non ha
+// «anteprima», «salva come» né «riavvia con la stessa riga», perché non è il soggetto di una
+// misura e non c'è nessun avvio precedente da riprodurre.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ServiceEntry {
+    pub profile: crate::service::ServiceProfile,
+    pub issues: Vec<Issue>,
+    /// Lo stato ora, se è acceso.
+    pub running: Option<crate::services::ServiceView>,
+    /// Perché non si può accendere: pesi mancanti, build mancante, porta occupata.
+    pub blockers: Vec<String>,
+}
+
+fn service_paths(state: &AppState, p: &crate::service::ServiceProfile) -> Result<(PathBuf, PathBuf), String> {
+    let (_, machine) = root_and_machine(state)?;
+    let dir = machine
+        .models_dir
+        .clone()
+        .ok_or("cartella dei pesi non impostata (Impostazioni → machine.toml)")?;
+    let root = data_root(state)?;
+    let builds = root.builds_available(&machine);
+    let build = machine::resolve_build(&builds, &p.runtime.build, &p.runtime.backend).ok_or_else(|| {
+        format!("build «{} {}» non dichiarata su questa macchina", p.runtime.build, p.runtime.backend)
+    })?;
+    Ok((build.binary.clone(), crate::service::model_path(&dir, p)))
+}
+
+#[tauri::command]
+pub fn services_list(state: State<AppState>) -> Result<Vec<ServiceEntry>, String> {
+    let root = data_root(&state)?;
+    let viste = state.services.view(system::probe().as_ref());
+    Ok(crate::services::list_profiles(&root.profiles())
+        .into_iter()
+        .map(|(profile, issues)| {
+            let running = viste.iter().find(|v| v.name == profile.name).cloned();
+            let mut blockers = Vec::new();
+            match service_paths(&state, &profile) {
+                Ok((binary, model)) => {
+                    if !binary.is_file() {
+                        blockers.push(format!("manca il binario della build: {}", binary.display()));
+                    }
+                    if !model.is_file() {
+                        blockers.push(format!("mancano i pesi: {}", model.display()));
+                    }
+                }
+                Err(e) => blockers.push(e),
+            }
+            ServiceEntry { profile, issues, running, blockers }
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn service_start(state: State<'_, AppState>, name: String) -> Result<crate::services::ServiceView, String> {
+    let root = data_root(&state)?;
+    let (profile, issues) = crate::services::list_profiles(&root.profiles())
+        .into_iter()
+        .find(|(p, _)| p.name == name)
+        .ok_or_else(|| format!("nessun profilo di servizio «{name}»"))?;
+    if !issues.is_empty() {
+        return Err(format!("il profilo «{name}» ha errori: {}", issues[0].message));
+    }
+    let (binary, model) = service_paths(&state, &profile)?;
+    let kind = profile.service.kind.clone();
+    let view = state.services.start(crate::services::StartService { profile, binary, model })?;
+
+    // Un `/health` verde non basta per il reranker: un GGUF convertito male risponde 200 e poi dà
+    // punteggi vicini a zero anche al documento giusto. Il controllo si fa una volta, all'avvio.
+    if kind == "rerank" {
+        match crate::services::rerank_sanity(&view.base_url) {
+            Ok(score) => state.services.set_sane(&name, score > 0.5),
+            Err(_) => state.services.set_sane(&name, false),
+        }
+    }
+    Ok(view)
+}
+
+#[tauri::command]
+pub async fn service_stop(state: State<'_, AppState>, name: String) -> Result<(), String> {
+    state.services.stop(&name)
 }

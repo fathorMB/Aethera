@@ -23,6 +23,8 @@ pub mod profile;
 pub mod proposals;
 pub mod provenance;
 pub mod runs;
+pub mod service;
+pub mod services;
 pub mod settings;
 pub mod system;
 pub mod tasks;
@@ -41,6 +43,9 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 pub struct AppState {
     settings: Mutex<AppSettings>,
     pub engine: Engine,
+    /// I motori di servizio accesi accanto al principale (M-20). Sono separati apposta: non
+    /// entrano nell'«in uso» del motore e non ne bloccano arresto o riavvio.
+    pub services: services::Services,
     /// Indirizzo dell'endpoint di Aethera, o perché non è partito.
     pub endpoint: Result<String, String>,
     /// Lavori lunghi del catalogo (hash, download, installazioni) con il loro avanzamento.
@@ -68,13 +73,15 @@ struct TrayItems {
 
 pub fn run() {
     let engine = Engine::default();
-    let endpoint = endpoint::spawn(engine.clone(), endpoint::DEFAULT_ADDR).map(|a| a.to_string());
+    let services = services::Services::default();
+    let endpoint = endpoint::spawn(engine.clone(), services.clone(), endpoint::DEFAULT_ADDR).map(|a| a.to_string());
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(AppState {
             settings: Mutex::new(AppSettings::load()),
             engine,
+            services,
             endpoint,
             tasks: tasks::Tasks::default(),
             catalog_lock: Mutex::new(()),
@@ -90,6 +97,9 @@ pub fn run() {
             commands::machine_reset,
             commands::setup,
             commands::list_profiles,
+            commands::services_list,
+            commands::service_start,
+            commands::service_stop,
             commands::preview,
             commands::save_profile,
             commands::import_minis,
@@ -181,10 +191,14 @@ fn request_quit(app: &AppHandle) {
         // Un motore in uso non si ferma in silenzio: si chiede.
         ExitBehavior::Stop if !state.engine.usage().in_use => {
             let _ = state.engine.stop();
+            // I servizi seguono il motore principale, ma non hanno voce in capitolo su questa
+            // decisione: non essendo mai «in uso», non possono trattenere l'uscita (M-20).
+            state.services.stop_all();
             app.exit(0);
         }
         ExitBehavior::Leave => {
             state.engine.detach();
+            state.services.release_all();
             app.exit(0);
         }
         _ => {

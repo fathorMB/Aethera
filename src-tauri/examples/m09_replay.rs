@@ -83,6 +83,7 @@ fn main() -> Result<(), String> {
             chat_template: Some("qwen3.6-tollerante.jinja"),
             claude_config_dir: Some(root.join("clients").join("claude-code").display().to_string()),
             fixed_prompts: &fixed,
+        services: &[],
         });
         let v = serde_json::json!({
             "manifest": m,

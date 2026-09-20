@@ -24,7 +24,9 @@ App alla radice del repo: `src/` (SolidJS), `src-tauri/` (Rust, crate `aethera_l
 | `manifest.rs` | `runs/<id>/manifest.toml`, aggiornato a pronto e all'uscita, con profilo effettivo e `[memory.before]` / `[memory.after_load]` |
 | `memory.rs` | `--list-devices` (VRAM libera prima), memoria dopo il caricamento, doppia copia (working set ≥ metà dei pesi) |
 | `telemetry.rs` | `runs/<id>/telemetry.jsonl`: tempi da `print_timing`, cache dalla riga `release` del log (riserve `/slots` e `/metrics`); come ogni richiesta tratta la conversazione, compattazioni, mediane, degradato contro la mediana di riferimento |
-| `endpoint.rs` | 127.0.0.1:8090: `/status`, `/run`, `POST`/`DELETE /lock` con TTL, `/telemetry/recent`; rifiuta richieste con `Origin` |
+| `endpoint.rs` | 127.0.0.1:8090: `/status`, `/run`, `POST`/`DELETE /lock` con TTL, `/telemetry/recent`, `/services`; rifiuta richieste con `Origin` |
+| `service.rs` | schema dei **profili di servizio** (M-20): un tipo suo, con meno campi del profilo principale; `role = "service"` li distingue |
+| `services.rs` | ciclo di vita dei motori di servizio: avvio in job object, `/health`, VRAM per processo, test di sanità del reranker. Nessun manifest, nessuna telemetria, nessuno stato «in uso» |
 | `runs.rs` | storico e confronto degli avvii per la pagina Benchmark |
 | `gguf.rs` | intestazione di un GGUF senza caricare i pesi (array lunghi saltati): architettura, blocchi, MTP, esperti, parametri della KV, tipi dei tensori |
 | `estimate.rs` | stima prima dell'avvio: pesi + KV + stato ricorrente calcolati, buffer di calcolo **misurato** (vedi sotto) |
@@ -44,6 +46,8 @@ App alla radice del repo: `src/` (SolidJS), `src-tauri/` (Rust, crate `aethera_l
 - Il client di una richiesta si sa solo dal lock sull'endpoint: il log non lo dice, e Aethera non sta fra client e motore.
 - Memoria del processo: PDH `\GPU Process Memory(pid_<pid>_*)\Dedicated Usage` e `Shared Usage` (22,68 GiB su G1, come `serve.ps1`), working set da `GetProcessMemoryInfo`.
 - «In uso»: slot attivo, richiesta negli ultimi 30 s, lock dell'endpoint o protezione manuale; `Engine::stop` rifiuta.
+- **I motori di servizio non entrano in «in uso»** e non bloccano arresto né riavvio del principale: sono servi, non padroni. Vedi [[motori-di-servizio]].
+- «In uso» ha una finestra di 30 s: il 20-09 `/status` diceva `in_use: false` con una sessione di coding aperta ma ferma da 21 minuti. Chi lavora deve prendere un **lock**, altrimenti fra un turno e l'altro il motore sembra libero.
 
 ## Stima di memoria (M-04): che cosa è calcolato e che cosa è misurato
 

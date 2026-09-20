@@ -124,7 +124,7 @@ fn main() -> Result<(), String> {
     }
 
     let engine = Engine::default();
-    let ep = endpoint::spawn(engine.clone(), endpoint::DEFAULT_ADDR)?.to_string();
+    let ep = endpoint::spawn(engine.clone(), aethera_lib::services::Services::default(), endpoint::DEFAULT_ADDR)?.to_string();
     let run_id = chrono::Local::now().format("r-%Y%m%d-%H%M%S").to_string();
     let run_dir = root.runs().join(&run_id);
     let prep = launch::prepare(&root, &machine, G1, &p, &run_dir.join("slots"));
@@ -190,6 +190,7 @@ fn main() -> Result<(), String> {
         chat_template: m.effective_profile.server.chat_template_file.as_deref(),
         claude_config_dir: Some(ws.join(".claude-config").display().to_string()),
         fixed_prompts: &fixed,
+        services: &[],
     });
     check(sn.claude_code_ready, "le righe dicono che Claude Code è pronto", &mut failures);
 

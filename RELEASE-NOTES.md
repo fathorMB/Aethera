@@ -2,6 +2,42 @@
 
 ## Non ancora rilasciata
 
+### Motori di servizio: Aethera ne accende più di uno
+
+Accanto al motore principale Aethera può tenere accesi uno o più `llama-server` piccoli, ognuno
+sulla sua porta: embedding, rerank, o una chat leggera per lavori che non sono codice. Si vedono
+nella pagina Motore, con la porta, la VRAM misurata e lo stato, e si accendono e spengono da lì.
+
+**A che cosa serve.** Un `llama-server` serve un modello solo. Chi ha bisogno di embedding e
+rerank — GalaxyCenter, per esempio, che li pretende e dichiara che i server li gestisce
+l'operatore — con un motore solo non era servito. Impostazioni › Client ha una scheda
+**GalaxyCenter** con il `settings.toml` già pronto, che compare quando i servizi sono accesi
+davvero.
+
+**Non è per andare più veloce.** Su questa macchina un modello più piccolo non è più veloce del
+grosso: un denso da 8B fa 16,0 tok/s di decode contro i 24,3 del MoE da 35B, perché il decode è
+limitato dalla banda e il MoE legge meno byte per token. Un processo separato serve a **non
+toccare la cache del prefisso** del motore principale, che è tutto-o-niente: infilare un'altra
+conversazione nel suo unico slot farebbe ripartire da zero il client che sta lavorando.
+
+**Un servizio non è un motore in piccolo.** Non lascia manifest né telemetria, non compare in
+Benchmark e soprattutto **non rende il motore principale «in uso»**: non ne blocca arresto né
+riavvio. Il suo profilo ha meno leve, non una in più — niente speculazione, checkpoint, budget del
+client o salvataggio degli slot — e un file che le contiene viene rifiutato dicendo quale campo
+non appartiene lì.
+
+**Il reranker viene messo alla prova, non solo avviato.** I GGUF del reranker girati dalla
+comunità sono spesso convertiti male: rispondono e poi danno punteggi vicini a zero anche al
+documento giusto. All'avvio Aethera fa un test di sanità vero e, se fallisce, lo scrive.
+
+Un'installazione nuova nasce con il profilo di servizio dell'embedding
+(`qwen3-embedding-0.6b.q8`), seminato con la stessa regola del profilo principale: solo se il file
+non c'è già. I pesi (610 MiB) restano da scaricare e l'app lo dice.
+
+La memoria dei servizi è misurata per processo dai contatori di Windows. `llama-server
+--list-devices` non serve a questo: su questa macchina riporta lo stesso «free» a motore spento e
+a motore carico, perché è il budget dell'heap e non vede le allocazioni.
+
 ### Un profilo solo, e l'app nasce con quello
 
 Aethera scrive `qwen3.6-35b-a3b.q8_0.vulkan.toml` in `profiles/` alla prima esecuzione, come già

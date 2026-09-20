@@ -6,6 +6,8 @@
 //! e si rifiutano: l'endpoint è per processi locali.
 
 use crate::engine::{Engine, EngineStatus, LockRequest};
+use crate::services::Services;
+use crate::system;
 use serde_json::{json, Value};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
@@ -15,13 +17,13 @@ pub const DEFAULT_ADDR: &str = "127.0.0.1:8090";
 const MAX_HEAD: usize = 16 * 1024;
 const MAX_BODY: usize = 64 * 1024;
 
-pub fn spawn(engine: Engine, addr: &str) -> Result<SocketAddr, String> {
+pub fn spawn(engine: Engine, services: Services, addr: &str) -> Result<SocketAddr, String> {
     let listener = TcpListener::bind(addr).map_err(|e| format!("endpoint {addr}: {e}"))?;
     let local = listener.local_addr().map_err(|e| e.to_string())?;
     std::thread::spawn(move || {
         for stream in listener.incoming().flatten() {
-            let engine = engine.clone();
-            std::thread::spawn(move || handle(&engine, stream));
+            let (engine, services) = (engine.clone(), services.clone());
+            std::thread::spawn(move || handle(&engine, &services, stream));
         }
     });
     Ok(local)
@@ -41,10 +43,10 @@ fn reason(status: u16) -> &'static str {
     }
 }
 
-fn handle(engine: &Engine, mut stream: TcpStream) {
+fn handle(engine: &Engine, services: &Services, mut stream: TcpStream) {
     let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
     let (status, body) = match read_request(&mut stream) {
-        Ok(req) => route(engine, &req.method, &req.target, req.origin, &req.body),
+        Ok(req) => route(engine, services, &req.method, &req.target, req.origin, &req.body),
         Err((status, msg)) => (status, json!({ "error": msg })),
     };
     let text = serde_json::to_string_pretty(&body).unwrap_or_default();
@@ -143,13 +145,22 @@ pub fn status_json(s: &EngineStatus) -> Value {
     v
 }
 
-pub fn route(engine: &Engine, method: &str, target: &str, origin: bool, body: &[u8]) -> (u16, Value) {
+pub fn route(engine: &Engine, services: &Services, method: &str, target: &str, origin: bool, body: &[u8]) -> (u16, Value) {
     if origin {
         return (403, json!({ "error": "richiesta da un browser rifiutata: l'endpoint è per i processi locali" }));
     }
     let (path, query) = target.split_once('?').unwrap_or((target, ""));
     match (method, path) {
-        ("GET", "/status") => (200, status_json(&engine.status())),
+        ("GET", "/status") => {
+            let mut v = status_json(&engine.status());
+            // I servizi stanno accanto allo stato del motore, non dentro `usage`: non lo rendono
+            // «in uso» e non bloccano arresto né riavvio. Chi legge `in_use` legge il principale.
+            if let Some(obj) = v.as_object_mut() {
+                obj.insert("services".into(), json!(services.view(system::probe().as_ref())));
+            }
+            (200, v)
+        }
+        ("GET", "/services") => (200, json!({ "services": services.view(system::probe().as_ref()) })),
         ("GET", "/run") => match engine.manifest() {
             Some(m) => (200, serde_json::to_value(m).unwrap_or(Value::Null)),
             None => (404, json!({ "error": "nessun motore acceso da questo Aethera" })),
@@ -182,7 +193,7 @@ pub fn route(engine: &Engine, method: &str, target: &str, origin: bool, body: &[
                 None => (404, json!({ "error": "nessun motore acceso da questo Aethera" })),
             }
         }
-        (_, "/status" | "/run" | "/lock" | "/telemetry/recent") => (405, json!({ "error": "metodo non ammesso" })),
+        (_, "/status" | "/run" | "/lock" | "/telemetry/recent" | "/services") => (405, json!({ "error": "metodo non ammesso" })),
         _ => (404, json!({ "error": "percorsi: GET /status · GET /run · POST /lock · DELETE /lock · GET /telemetry/recent" })),
     }
 }
@@ -194,21 +205,21 @@ mod tests {
     #[test]
     fn routes_with_engine_off() {
         let e = Engine::default();
-        let (s, v) = route(&e, "GET", "/status", false, b"");
+        let (s, v) = route(&e, &Services::default(), "GET", "/status", false, b"");
         assert_eq!((s, v["state"].as_str()), (200, Some("off")));
-        assert_eq!(route(&e, "GET", "/run", false, b"").0, 404);
-        assert_eq!(route(&e, "POST", "/lock", false, br#"{"client":"nonio","ttl_s":60}"#).0, 409);
-        assert_eq!(route(&e, "POST", "/lock", false, b"nope").0, 400);
-        assert_eq!(route(&e, "DELETE", "/lock", false, b"").0, 400);
-        assert_eq!(route(&e, "DELETE", "/lock?client=nonio", false, b"").0, 200);
-        assert_eq!(route(&e, "GET", "/status", true, b"").0, 403);
-        assert_eq!(route(&e, "PUT", "/lock", false, b"").0, 405);
-        assert_eq!(route(&e, "GET", "/", false, b"").0, 404);
+        assert_eq!(route(&e, &Services::default(), "GET", "/run", false, b"").0, 404);
+        assert_eq!(route(&e, &Services::default(), "POST", "/lock", false, br#"{"client":"nonio","ttl_s":60}"#).0, 409);
+        assert_eq!(route(&e, &Services::default(), "POST", "/lock", false, b"nope").0, 400);
+        assert_eq!(route(&e, &Services::default(), "DELETE", "/lock", false, b"").0, 400);
+        assert_eq!(route(&e, &Services::default(), "DELETE", "/lock?client=nonio", false, b"").0, 200);
+        assert_eq!(route(&e, &Services::default(), "GET", "/status", true, b"").0, 403);
+        assert_eq!(route(&e, &Services::default(), "PUT", "/lock", false, b"").0, 405);
+        assert_eq!(route(&e, &Services::default(), "GET", "/", false, b"").0, 404);
     }
 
     #[test]
     fn serves_over_tcp() {
-        let addr = spawn(Engine::default(), "127.0.0.1:0").unwrap();
+        let addr = spawn(Engine::default(), Services::default(), "127.0.0.1:0").unwrap();
         let mut s = TcpStream::connect(addr).unwrap();
         s.write_all(b"GET /status HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
         let mut out = String::new();

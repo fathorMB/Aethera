@@ -1,0 +1,44 @@
+schema_version = 1
+name = "qwen3-embedding-0.6b.q8"
+role = "service"
+notes = """
+Servizio di embedding, seminato con l'installazione come il profilo principale (M-20).
+
+A che cosa serve: un brain di GalaxyCenter non indicizza e non cerca senza un endpoint
+/v1/embeddings. Il suo contratto dice che i server llama.cpp li gestisce l'operatore e che lui si
+collega soltanto agli endpoint configurati: quell'operatore e' Aethera, e fino alla 0.2.0 accendeva
+un motore solo.
+
+Perche' proprio questo modello e non uno "migliore": chi consuma i vettori fissa il numero di
+dimensioni in configurazione (embed_dim = 1024) e cambiarlo obbliga a reindicizzare tutto. La
+compatibilita' vale piu' della qualita' marginale, quindi il modello e' un dato, non una scelta.
+
+--pooling last non e' un dettaglio: senza, i vettori escono da una media e non corrispondono piu' a
+quelli con cui l'indice e' stato costruito.
+
+Pesi: 610 MiB, SHA-256 verificato al download del 20-09-2026.
+Porta 8081, per lasciare la 8080 al motore principale.
+"""
+
+[model]
+repo = "Qwen/Qwen3-Embedding-0.6B-GGUF"
+file = "Qwen3-Embedding-0.6B-Q8_0.gguf"
+sha256 = "06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439"
+size_gb = 0.64
+quant = "Q8_0"
+
+[service]
+kind = "embedding"
+embed_dim = 1024
+autostart = true
+
+[runtime]
+kind = "llama.cpp"
+backend = "vulkan"
+build = "b10809"
+
+[server]
+host = "127.0.0.1"
+port = 8081
+ctx = 8192
+n_gpu_layers = 999

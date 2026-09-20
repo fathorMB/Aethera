@@ -121,16 +121,49 @@ Aethera espone anche un endpoint locale su `127.0.0.1:8090` per chi vuole coordi
 | `POST` | `/lock` | «sto lavorando»: finché il lock vale, arresto e riavvio sono rifiutati |
 | `DELETE` | `/lock` | rilascia |
 | `GET` | `/telemetry/recent` | prefill, decode, accettazione e quota di cache delle ultime richieste, ognuna con come ha trattato la conversazione, e le compattazioni |
+| `GET` | `/services` | i motori di servizio accesi: che cosa servono, porta, VRAM misurata, stato |
 
 Il lock non cambia il motore: rende solo rifiutati arresto e riavvio. È anche l'unico modo in cui
 Aethera sa **quale** client ha mandato una richiesta: il log del motore non lo dice. Le richieste che
 arrivano da un browser (con `Origin`) sono rifiutate.
 
+## I motori di servizio
+
+Un `llama-server` serve un modello solo. Chi ha bisogno di **embedding** e **rerank** — per
+esempio GalaxyCenter, che li pretende e dichiara che i server li gestisce l'operatore — con un
+motore solo non è servito. Da qui i **motori di servizio**: `llama-server` piccoli accesi accanto
+al principale, ognuno sulla sua porta, che si accendono e si spengono dalla pagina Motore.
+
+**Non servono ad andare più veloce.** Su questa macchina un modello più piccolo non è più veloce
+del grosso: un denso da 8B fa 16,0 tok/s di decode contro i 24,3 del MoE da 35B, perché il decode
+è limitato dalla banda e il MoE legge meno byte per token. Un processo separato serve a **non
+toccare la cache del prefisso** del motore principale, che è tutto-o-niente: infilare un'altra
+conversazione nel suo unico slot farebbe ripartire da zero il client che sta lavorando.
+
+Un servizio non è un motore in piccolo, ed è voluto:
+
+- **non lascia manifest né telemetria** e non compare in Benchmark: non è il soggetto di una
+  misura, o risponde o no;
+- **non rende il motore principale «in uso»** e non ne blocca arresto o riavvio. Se un embedding
+  notturno impedisse di riavviare il motore, avremmo scambiato il servo col padrone;
+- **il suo profilo ha meno leve, non una in più.** Niente speculazione, checkpoint, budget del
+  client o salvataggio degli slot: un file che le contiene viene rifiutato dicendo quale campo non
+  appartiene lì. Si riconosce da `role = "service"`.
+
+La memoria di ogni servizio è **misurata**, per processo, dai contatori di Windows.
+`llama-server --list-devices` a questo non serve: riporta il budget dell'heap, e su questa
+macchina dice lo stesso «free» a motore spento e a motore carico.
+
+Il **reranker** viene messo alla prova, non solo avviato: i GGUF girati dalla comunità sono spesso
+convertiti male e danno punteggi vicini a zero anche al documento giusto. All'avvio Aethera fa un
+test di sanità vero e, se fallisce, lo dice invece di lasciare che se ne accorga l'indice.
+
 ## Che cosa non fa
 
 - **Non lancia banchi** e non misura la qualità dei modelli.
 - **Non aggiorna niente da solo**: né la build, né i pesi, né sé stessa.
-- **Non avvia più motori insieme**: nella v1 se ne accende uno alla volta.
+- **Non accende più di un motore principale alla volta**: quello sì, resta uno. Accanto però
+  possono stare i **motori di servizio**, che sono un'altra cosa (sotto).
 - **Non tocca i file che non ha scritto lei**: un `catalog.toml` o un `machine.toml` che non si
   lasciano leggere vengono mostrati e lasciati dov'erano, mai sovrascritti in silenzio.
 - **Non serve fuori da questo computer**: l'endpoint ascolta solo su `127.0.0.1`.

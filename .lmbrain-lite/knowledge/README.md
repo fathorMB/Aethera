@@ -15,3 +15,4 @@ Pagine di questo progetto:
 - `architettura.md` — backend, fonti delle misure, stima di memoria, come si lancia.
 - `decisioni-di-progetto.md` — le decisioni del 15-09 e le soglie dei mockup.
 - `considerazioni-aethera-dalle-misure.md` — che cosa cambia per l'app dopo M-08 e le prove sulla NPU.
+- `motori-di-servizio.md` — i `llama-server` piccoli accanto al principale (M-20): perché esistono, che cosa li distingue, come si misura la loro memoria, e dove sta la precedenza al coding.

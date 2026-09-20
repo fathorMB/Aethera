@@ -370,29 +370,49 @@ fn finish(mut r: Running, code: Option<i32>, by_user: bool, left_running: bool) 
     Finished { run: r.info.clone(), code, by_user, left_running, ended_at }
 }
 
+/// Perché il motore è «in uso», come elenco di motivi. Estratta dal resto perché è una regola,
+/// non un dettaglio di `Running`: la finestra delle richieste recenti dura
+/// [`IN_USE_WINDOW_S`] secondi, quindi **fra un turno e l'altro di una sessione agentica il
+/// motore sembra libero**, e solo un lock dichiarato lo tiene occupato. È il cardine della
+/// precedenza al coding (M-20 T-03), quindi ha un test suo.
+fn in_use_reasons(
+    protected: bool,
+    slot_processing: Option<bool>,
+    last_request_s: Option<u64>,
+    locks: &[(String, Option<String>)],
+) -> Vec<String> {
+    let mut v = Vec::new();
+    if protected {
+        v.push("protetto a mano".into());
+    }
+    if slot_processing == Some(true) {
+        v.push("slot attivo".into());
+    }
+    if let Some(s) = last_request_s.filter(|s| *s < IN_USE_WINDOW_S) {
+        if slot_processing != Some(true) {
+            v.push(format!("richiesta {s} s fa"));
+        }
+    }
+    for (client, label) in locks {
+        v.push(match label {
+            Some(label) => format!("lock {client} · {label}"),
+            None => format!("lock {client}"),
+        });
+    }
+    v
+}
+
 fn usage_of(protected: bool, r: Option<&mut Running>) -> Usage {
     let mut u = Usage { protected, ..Default::default() };
-    if protected {
-        u.reasons.push("protetto a mano".into());
-    }
     if let Some(r) = r {
         let t = Instant::now();
         r.locks.retain(|l| l.expires > t);
         u.slot_processing = r.slot_processing;
-        if r.slot_processing == Some(true) {
-            u.reasons.push("slot attivo".into());
-        }
         u.last_request_s = r.last_activity.map(|a| a.elapsed().as_secs());
-        if let Some(s) = u.last_request_s.filter(|s| *s < IN_USE_WINDOW_S) {
-            if r.slot_processing != Some(true) {
-                u.reasons.push(format!("richiesta {s} s fa"));
-            }
-        }
+        let locks: Vec<(String, Option<String>)> =
+            r.locks.iter().map(|l| (l.client.clone(), l.label.clone())).collect();
+        u.reasons = in_use_reasons(protected, u.slot_processing, u.last_request_s, &locks);
         for l in &r.locks {
-            u.reasons.push(match &l.label {
-                Some(label) => format!("lock {} · {label}", l.client),
-                None => format!("lock {}", l.client),
-            });
             u.locks.push(LockView {
                 id: l.id.clone(),
                 client: l.client.clone(),
@@ -401,6 +421,8 @@ fn usage_of(protected: bool, r: Option<&mut Running>) -> Usage {
                 expires_in_s: l.expires.saturating_duration_since(t).as_secs(),
             });
         }
+    } else {
+        u.reasons = in_use_reasons(protected, None, None, &[]);
     }
     u.in_use = !u.reasons.is_empty();
     u
@@ -1034,6 +1056,33 @@ mod tests {
         assert_eq!(e.stop().unwrap_err(), "nessun motore acceso");
         assert!(e.acquire_lock(LockRequest { client: "nonio".into(), label: None, ttl_s: None }).is_err());
         assert_eq!(e.release_lock(None, Some("nonio")), 0);
+    }
+
+    /// Il cardine della precedenza al coding (M-20 T-03): la finestra delle richieste recenti
+    /// dura 30 secondi, quindi fra un turno e l'altro il motore sembra libero — misurato il
+    /// 20-09, con una sessione aperta e ferma da 21 minuti `/status` diceva `in_use: false`.
+    /// Solo un lock dichiarato lo tiene occupato nel frattempo.
+    #[test]
+    fn solo_un_lock_tiene_il_motore_occupato_fra_un_turno_e_l_altro() {
+        // Ferma da 21 minuti, nessun lock: libera, ed e' giusto che lo sia.
+        let r = in_use_reasons(false, Some(false), Some(21 * 60), &[]);
+        assert!(r.is_empty(), "senza lock una pausa lunga lascia il motore libero: {r:?}");
+
+        // Stessa pausa, ma un client ha dichiarato che sta lavorando.
+        let lock = [("nonio".to_string(), Some("batteria".to_string()))];
+        let r = in_use_reasons(false, Some(false), Some(21 * 60), &lock);
+        assert_eq!(r, vec!["lock nonio \u{b7} batteria"], "il lock deve bastare da solo");
+
+        // Dentro la finestra, senza lock, basta la richiesta recente.
+        let r = in_use_reasons(false, Some(false), Some(5), &[]);
+        assert_eq!(r, vec!["richiesta 5 s fa"]);
+
+        // Al bordo: 30 s e' gia' fuori. Una soglia si prova sul bordo, non nel mezzo.
+        assert!(in_use_reasons(false, Some(false), Some(IN_USE_WINDOW_S), &[]).is_empty());
+        assert!(!in_use_reasons(false, Some(false), Some(IN_USE_WINDOW_S - 1), &[]).is_empty());
+
+        // Uno slot attivo non si conta due volte con la richiesta recente.
+        assert_eq!(in_use_reasons(false, Some(true), Some(1), &[]), vec!["slot attivo"]);
     }
 
     #[test]

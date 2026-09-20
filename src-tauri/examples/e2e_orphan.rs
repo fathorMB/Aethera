@@ -53,11 +53,11 @@ fn main() -> Result<(), String> {
     }
 
     let engine = Engine::default();
-    let ep = endpoint::spawn(engine.clone(), "127.0.0.1:0")?;
+    let ep = endpoint::spawn(engine.clone(), aethera_lib::services::Services::default(), "127.0.0.1:0")?;
     engine.scan_orphans(&[(p.server.host.clone(), p.server.port)]);
     let status = engine.status();
     println!("stato: {status:?}");
-    let (s, v) = endpoint::route(&engine, "GET", "/status", false, b"");
+    let (s, v) = endpoint::route(&engine, &aethera_lib::services::Services::default(), "GET", "/status", false, b"");
     println!("endpoint {ep} /status → {s} {v}");
     let ok = match &status {
         EngineStatus::Orphan { orphan, .. } => orphan.pid == child.id() && orphan.alias.as_deref() == Some(name),

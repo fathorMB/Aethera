@@ -396,6 +396,8 @@ export interface ClientSnippets {
   claude_code_bash: string;
   chat_template: string | null;
   claude_code_ready: boolean;
+  /** settings.toml di GalaxyCenter. Assente finché non c'è almeno un motore di servizio acceso. */
+  galaxycenter: string | null;
   budgets: Budget[];
 }
 
@@ -711,3 +713,48 @@ export function usageOf(s: EngineStatus | null): Usage | null {
 }
 
 export const inUse = (s: EngineStatus | null) => usageOf(s)?.in_use ?? false;
+
+// ─── Motori di servizio (M-20) ───────────────────────────────────────────────
+// Un servizio serve, non viene misurato: niente manifest, niente telemetria, niente storico.
+// Non entra nell'«in uso» del motore principale e non ne blocca arresto o riavvio.
+
+export type ServiceKind = "embedding" | "rerank" | "chat";
+
+export type ServiceProfile = {
+  schema_version: number;
+  name: string;
+  role: string;
+  notes?: string | null;
+  model: { repo?: string | null; file: string; sha256?: string | null; size_gb?: number | null; quant?: string | null };
+  service: { kind: ServiceKind; autostart: boolean; embed_dim?: number | null };
+  runtime: { kind: string; backend: string; build: string };
+  server: { host: string; port: number; n_parallel: number; ctx: number; n_gpu_layers?: number | null; threads?: number | null; metrics: boolean };
+};
+
+export type ServiceView = {
+  name: string;
+  kind: ServiceKind;
+  base_url: string;
+  port: number;
+  model: string;
+  pid: number;
+  started_at: string;
+  ready_ms: number;
+  command_line: string;
+  state: "ready" | "loading" | "exited";
+  /** VRAM dedicata di questo processo, misurata dal contatore di Windows. */
+  vram_dedicated_gib: number | null;
+  /** Solo per il reranker: un /health verde non dice che i punteggi siano giusti. */
+  sane: boolean | null;
+};
+
+export type ServiceEntry = {
+  profile: ServiceProfile;
+  issues: Issue[];
+  running: ServiceView | null;
+  blockers: string[];
+};
+
+export const servicesList = () => invoke<ServiceEntry[]>("services_list");
+export const serviceStart = (name: string) => invoke<ServiceView>("service_start", { name });
+export const serviceStop = (name: string) => invoke<void>("service_stop", { name });

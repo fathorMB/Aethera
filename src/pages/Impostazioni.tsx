@@ -17,11 +17,12 @@ import { clock, duration, fixed, num, pct } from "../format";
 import { Field, Head, Help, Q, Seg } from "../ui";
 import { provenanceView, samePath, seconds } from "../ui-logic";
 
-type ClientTab = "nonio" | "opencode" | "claude" | "env";
+type ClientTab = "nonio" | "opencode" | "claude" | "galaxy" | "env";
 const CLIENT_TABS: { id: ClientTab; label: string }[] = [
   { id: "nonio", label: "Nonio" },
   { id: "opencode", label: "OpenCode" },
   { id: "claude", label: "Claude Code" },
+  { id: "galaxy", label: "GalaxyCenter" },
   { id: "env", label: "env per banchi" },
 ];
 
@@ -646,6 +647,36 @@ export default function Impostazioni(props: {
                     </button>
                     <span class="cond right">contesto e output sono quelli dell'avvio acceso</span>
                   </div>
+                </Show>
+                <Show when={clientTab() === "galaxy"}>
+                  <Show
+                    when={sn().galaxycenter}
+                    fallback={
+                      <div class="note warn">
+                        GalaxyCenter vuole tre endpoint — chat, embedding e rerank — e il suo contratto dice che i
+                        server li gestisce l'operatore. Qui c'è solo la chat: accendi i motori di servizio nella
+                        pagina Motore, e questa scheda si riempie.
+                      </div>
+                    }
+                  >
+                    {(t) => (
+                      <>
+                        <div class="mini" style={{ "margin-bottom": "4px" }}>
+                          <code>%APPDATA%\GalaxyCenter\settings.toml</code> · la sezione dei modelli
+                        </div>
+                        <pre class="cmd">{t()}</pre>
+                        <div class="row" style={{ "margin-top": "8px" }}>
+                          <button class="btn sm" onClick={() => copy(t())}>
+                            Copia TOML
+                          </button>
+                          <span class="cond right">
+                            le dimensioni dell'embedding non si cambiano a cuor leggero: chi le consuma le fissa, e
+                            cambiarle obbliga a reindicizzare tutto
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </Show>
                 </Show>
                 <Show when={clientTab() === "claude"}>
                   <div class="row mb">

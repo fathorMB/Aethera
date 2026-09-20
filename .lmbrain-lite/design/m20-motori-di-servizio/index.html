@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-20 — Motori di servizio accanto al principale</title>
+<style>
+/* Token della finestra vera (src/styles.css), invariati: questo mockup aggiunge una cosa, non ridisegna. */
+:root {
+  --bg: #f4f5f7; --bg2: #ffffff; --bg3: #e9ebef; --line: #d5d8de; --fg: #1a1c20; --fg2: #515866; --fg3: #616878;
+  --acc: #2f6fed; --ok: #187038; --warn: #8f5605; --err: #c62f2f; --busy: #6f39b8; --mod: #8f5605; --new: #0f7f8c;
+  --acc-bg: rgba(47,111,237,.10); --ok-bg: rgba(24,112,56,.10); --warn-bg: rgba(143,86,5,.10); --err-bg: rgba(198,47,47,.10); --busy-bg: rgba(111,57,184,.10);
+  --mono: "Cascadia Mono", "JetBrains Mono", Consolas, ui-monospace, monospace;
+  --sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --bg: #141619; --bg2: #1c1f24; --bg3: #24282f; --line: #30353d; --fg: #e6e8eb; --fg2: #a3a9b3; --fg3: #8a919b;
+  --acc: #5b8dff; --ok: #3ec46f; --warn: #e5a23a; --err: #f26b6b; --busy: #b287f0; --mod: #e5a23a; --new: #3cc8d6;
+  --acc-bg: rgba(91,141,255,.12); --ok-bg: rgba(62,196,111,.12); --warn-bg: rgba(229,162,58,.12); --err-bg: rgba(242,107,107,.12); --busy-bg: rgba(178,135,240,.12);
+  color-scheme: dark;
+}
+* { box-sizing: border-box }
+html, body { margin: 0; height: 100% }
+body { background: var(--bg); color: var(--fg); font: 13px/1.5 var(--sans) }
+code, .mono { font-family: var(--mono); font-size: 12px }
+b { font-weight: 600 }
+button { font: inherit; color: inherit }
+
+.app { display: grid; grid-template-rows: 46px 1fr; grid-template-columns: 196px 1fr; height: 100vh }
+.top { grid-column: 1/3; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--bg2); border-bottom: 1px solid var(--line) }
+.brand { font-weight: 600; letter-spacing: .3px; width: 182px }
+.brand small { color: var(--fg3); font-weight: 400; margin-left: 6px }
+.strip { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0 }
+.strip .who { font-family: var(--mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.strip .who small { color: var(--fg3); font-family: var(--sans); margin-left: 4px }
+.strip .sep { width: 1px; height: 20px; background: var(--line) }
+.strip .speed { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap }
+.strip .speed small { color: var(--fg3); font-family: var(--sans); font-size: 11px }
+.strip .acts { margin-left: auto; display: flex; gap: 6px; align-items: center }
+.nav { background: var(--bg2); border-right: 1px solid var(--line); padding: 8px 0; display: flex; flex-direction: column }
+.nav button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 14px; background: none; border: 0; border-left: 3px solid transparent; color: var(--fg2); cursor: pointer }
+.nav button:hover { background: var(--bg3) }
+.nav button.on { color: var(--fg); border-left-color: var(--acc); background: var(--bg3) }
+.nav button .k { font-family: var(--mono); color: var(--fg3); font-size: 11px; margin-left: auto }
+.nav .sec { padding: 12px 14px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--fg3) }
+.nav .foot { margin-top: auto; padding: 10px 14px; color: var(--fg3); font-size: 11px; border-top: 1px solid var(--line); line-height: 1.5 }
+.nav .foot b { color: var(--fg2); font-weight: 600; display: block }
+.main { overflow: auto; padding: 16px 20px 48px }
+.page { display: none } .page.on { display: block }
+
+.head { display: flex; align-items: flex-start; gap: 14px; margin: 0 0 14px }
+.head h1 { font-size: 17px; font-weight: 600; margin: 0 0 2px }
+.head .sub { color: var(--fg2); margin: 0; font-size: 12.5px; max-width: 78ch }
+.card { background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin: 0 0 14px }
+.card h2 { font-size: 13px; font-weight: 600; margin: 0 0 10px; letter-spacing: .2px }
+.card h2 .note { font-weight: 400; color: var(--fg3); margin-left: 8px; font-size: 12px }
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; border: 1px solid var(--line) }
+.pill .d { width: 6px; height: 6px; border-radius: 50%; background: currentColor }
+.pill.ok { color: var(--ok); background: var(--ok-bg); border-color: transparent }
+.pill.warn { color: var(--warn); background: var(--warn-bg); border-color: transparent }
+.pill.err { color: var(--err); background: var(--err-bg); border-color: transparent }
+.pill.acc { color: var(--acc); background: var(--acc-bg); border-color: transparent }
+.pill.busy { color: var(--busy); background: var(--busy-bg); border-color: transparent }
+.pill.off { color: var(--fg3) }
+.btn { padding: 4px 11px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg3); cursor: pointer }
+.btn.p { background: var(--acc); border-color: transparent; color: #fff }
+.btn.q { background: none }
+.btn[disabled] { opacity: .45; cursor: not-allowed }
+table { width: 100%; border-collapse: collapse }
+th { text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--fg3); padding: 0 10px 7px 0; border-bottom: 1px solid var(--line) }
+td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--line); vertical-align: middle }
+tr:last-child td { border-bottom: 0 }
+td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; padding-right: 16px }
+.dim { color: var(--fg3) }
+.why { color: var(--fg2); font-size: 12px; margin: 8px 0 0; padding: 9px 11px; background: var(--bg3); border-radius: 6px; border-left: 3px solid var(--line) }
+.why b { color: var(--fg) }
+.why.acc { border-left-color: var(--acc) }
+.why.warn { border-left-color: var(--warn) }
+.mem { display: flex; height: 26px; border-radius: 5px; overflow: hidden; border: 1px solid var(--line); margin: 4px 0 8px }
+.mem i { display: block; font-style: normal; font-size: 11px; color: #fff; display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11.5px; color: var(--fg2) }
+.legend span { display: inline-flex; align-items: center; gap: 6px }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
+pre { background: var(--bg3); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; overflow: auto; font-family: var(--mono); font-size: 11.5px; margin: 8px 0 0; line-height: 1.55 }
+.lev { display: grid; grid-template-columns: 220px 1fr; gap: 8px 14px; align-items: baseline }
+.lev .n { color: var(--fg2) } .lev .n small { color: var(--fg3); font-family: var(--mono); font-size: 11px; display: block }
+.lev .v { font-family: var(--mono) }
+.tag { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--fg3); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">Aethera <small>0.3.0</small></div>
+    <div class="strip">
+      <span class="pill ok"><span class="d"></span>pronto</span>
+      <span class="who">qwen3.6-35b-a3b.q8_0.vulkan <small>b10809 · :8080 · ctx 262144</small></span>
+      <!-- LA COSA NUOVA NELLA STRISCIA: una pastiglia sola, che non ruba spazio al principale. -->
+      <span class="pill acc" title="Due motori di servizio accesi. Clic: vai a Motore."><span class="d"></span>+2 servizio</span>
+      <span class="sep"></span>
+      <span class="speed">1,61 s <small>prefill</small> · 25,8 <small>tok/s</small> · 90,3% <small>riuso</small></span>
+      <span class="acts">
+        <span class="pill warn"><span class="d"></span>in uso · lock «nonio»</span>
+        <button class="btn" disabled>Riavvia</button>
+        <button class="btn" disabled>Ferma</button>
+      </span>
+    </div>
+  </div>
+
+  <div class="nav">
+    <div class="sec">Pagine</div>
+    <button class="on" data-p="1">Motore <span class="k">1</span></button>
+    <button data-p="2">Avvio <span class="k">2</span></button>
+    <button data-p="3">Impostazioni <span class="k">3</span></button>
+    <div class="sec">Se la misura dice no</div>
+    <button data-p="4">Il ripiego <span class="k">4</span></button>
+    <div class="foot">
+      <b>C:\AetheraData</b>
+      r-20260920-192808<br>
+      3 processi · 52,4 GiB
+    </div>
+  </div>
+
+  <div class="main">
+
+  <!-- ══════════════════════════ 1 · MOTORE ══════════════════════════ -->
+  <section class="page on" id="p1">
+    <div class="head">
+      <div>
+        <h1>Motore</h1>
+        <p class="sub">Il riquadro del motore principale non cambia di una riga. Sotto, un riquadro nuovo per i
+        motori di servizio: piccoli, senza misure, accesi per servire qualcun altro. La memoria è l'unica cosa
+        che si guarda insieme, perché è l'unica che si dividono davvero.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Motore principale <span class="note">come oggi — nessuna modifica</span></h2>
+      <table>
+        <tr>
+          <td style="width:40%"><b>qwen3.6-35b-a3b.q8_0.vulkan</b><div class="dim">Qwen3.6-35B-A3B Q8_0 · b10809 · vulkan</div></td>
+          <td class="num">262144<div class="dim" style="font-family:var(--sans);text-align:right">contesto servito</div></td>
+          <td class="num">25,8<div class="dim" style="font-family:var(--sans);text-align:right">tok/s decode</div></td>
+          <td class="num">90,3%<div class="dim" style="font-family:var(--sans);text-align:right">riuso</div></td>
+          <td style="text-align:right"><span class="pill warn"><span class="d"></span>in uso</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Motori di servizio <span class="note">2 accesi · non entrano nell'«in uso» del principale</span></h2>
+      <table>
+        <thead><tr>
+          <th style="width:30%">Profilo</th><th>Serve</th><th class="num">Porta</th>
+          <th class="num">VRAM misurata</th><th class="num">Richieste</th><th>Stato</th><th></th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><b>qwen3-embedding-0.6b.q8</b><div class="dim">Qwen3-Embedding-0.6B Q8_0</div></td>
+            <td>embedding <span class="tag">1024 dim</span></td>
+            <td class="num">8081</td><td class="num">0,94 GiB</td><td class="num">12.408</td>
+            <td><span class="pill ok"><span class="d"></span>pronto</span></td>
+            <td style="text-align:right"><button class="btn q">Ferma</button></td>
+          </tr>
+          <tr>
+            <td><b>qwen3-reranker-0.6b.q8</b><div class="dim">Qwen3-Reranker-0.6B Q8_0</div></td>
+            <td>rerank</td>
+            <td class="num">8082</td><td class="num">0,91 GiB</td><td class="num">2.117</td>
+            <td><span class="pill ok"><span class="d"></span>pronto</span></td>
+            <td style="text-align:right"><button class="btn q">Ferma</button></td>
+          </tr>
+          <tr>
+            <td><b>qwen3-4b-it.q8</b><div class="dim">Qwen3-4B-Instruct Q8_0</div></td>
+            <td>chat dei ruoli <span class="tag">jinja</span></td>
+            <td class="num">8083</td><td class="num">—</td><td class="num">—</td>
+            <td><span class="pill off"><span class="d"></span>spento</span></td>
+            <td style="text-align:right"><button class="btn">Avvia</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="why acc"><b>Perché sono separati dal principale.</b> Il riuso del prefisso è tutto-o-niente
+      (misura del 20-09) e il profilo ha <code>n_parallel = 1</code>: mandare la conversazione di un ruolo nello
+      stesso slot farebbe ripartire da zero il client che sta lavorando, e a 262144 un prefill a freddo arriva a
+      ~28 minuti. Il motore separato non è per andare più veloce: è per non toccare quella cache.</p>
+    </div>
+
+    <div class="card">
+      <h2>Memoria <span class="note">VGM 64,00 GiB — misurata, non stimata</span></h2>
+      <div class="mem">
+        <i style="width:71.5%;background:var(--acc)">principale 45,8 GiB</i>
+        <i style="width:1.5%;background:var(--new)" title="embedding 0,94 GiB"></i>
+        <i style="width:1.4%;background:var(--busy)" title="rerank 0,91 GiB"></i>
+        <i style="width:25.6%;background:var(--bg3);color:var(--fg2)">libera 16,4 GiB</i>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--acc)"></i>motore principale 45,8</span>
+        <span><i style="background:var(--new)"></i>embedding 0,94</span>
+        <span><i style="background:var(--busy)"></i>rerank 0,91</span>
+        <span><i style="background:var(--bg3);border:1px solid var(--line)"></i>libera 16,4 GiB</span>
+      </div>
+      <p class="why"><b>Come si legge.</b> La barra è la VRAM <b>dedicata</b>, letta dal contatore di Windows che
+      Aethera usa già. <code>llama-server --list-devices</code> qui non serve: M-20 T-01 ha misurato che riporta
+      lo stesso «free» a motore spento e a motore carico, perché è il budget dell'heap e non vede le allocazioni.
+      Il numero del principale sale mentre la conversazione cresce (45,89 appena acceso, 46,76 sotto richiesta):
+      lo spazio per i servizi si conta a contesto pieno, non appena acceso.</p>
+    </div>
+
+    <div class="card">
+      <h2>Precedenza <span class="note">la decide chi usa, non Aethera</span></h2>
+      <div class="lev">
+        <div class="n">Motore principale in uso<small>usage.in_use</small></div>
+        <div class="v">sì — <span class="dim">lock «nonio» (scade fra 8 min)</span></div>
+        <div class="n">I servizi lo rendono «in uso»?<small>—</small></div>
+        <div class="v">no <span class="dim">— e non bloccano arresto né riavvio</span></div>
+        <div class="n">Chi ha un lock aperto<small>usage.locks</small></div>
+        <div class="v">nonio <span class="dim">· 19:28 · ttl 600 s</span></div>
+      </div>
+      <p class="why warn"><b>Perché serve il lock e non basta «in uso».</b> Misurato il 20-09: con una sessione di
+      coding aperta ma ferma da 21 minuti, <code>/status</code> rispondeva <code>in_use: false</code>, perché la
+      finestra è di 30 secondi. Fra un turno e l'altro il motore sembra libero. Chi lavora deve prendere un lock;
+      chi vuole cedere il passo guarda <code>in_use</code>, che i lock li comprende già.</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════ 2 · AVVIO ══════════════════════════ -->
+  <section class="page" id="p2">
+    <div class="head">
+      <div>
+        <h1>Avvio — profilo di servizio</h1>
+        <p class="sub">Un profilo di servizio è un profilo con meno cose, non un profilo con un interruttore in
+        più. Le leve che non hanno senso per un servizio non compaiono spente: non ci sono proprio, e la pagina
+        dice perché.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>qwen3-embedding-0.6b.q8 <span class="note">role = "service" · kind = "embedding"</span></h2>
+      <div class="lev">
+        <div class="n">Pesi<small>model.file</small></div><div class="v">Qwen3-Embedding-0.6B-Q8_0.gguf</div>
+        <div class="n">Serve<small>service.kind</small></div><div class="v">embedding <span class="dim">→ --embedding --pooling last</span></div>
+        <div class="n">Porta<small>server.port</small></div><div class="v">8081</div>
+        <div class="n">Contesto<small>server.ctx</small></div><div class="v">8192</div>
+        <div class="n">Avvio<small>service.autostart</small></div><div class="v">con il motore principale</div>
+      </div>
+      <p class="why"><b>Quello che un servizio non ha.</b> Niente speculazione (non genera), niente checkpoint né
+      <code>cache_reuse</code> (non c'è conversazione da riusare), niente budget di contesto del client, niente
+      <code>slot_save</code>. Niente manifest di misura e niente telemetria per richiesta: un servizio non è il
+      soggetto di un banco, e fingere di misurarlo riempirebbe Benchmark di righe che non dicono niente.</p>
+      <pre># profiles/qwen3-embedding-0.6b.q8.toml
+schema_version = 1
+name = "qwen3-embedding-0.6b.q8"
+role = "service"
+
+[model]
+file = "Qwen3-Embedding-0.6B-Q8_0.gguf"
+sha256 = "06507c7b…9c3e439"
+
+[service]
+kind = "embedding"      # embedding | rerank | chat
+autostart = true        # si accende insieme al principale
+
+[runtime]
+kind = "llama.cpp"
+backend = "vulkan"
+build = "b10809"
+
+[server]
+host = "127.0.0.1"
+port = 8081
+ctx = 8192</pre>
+    </div>
+
+    <div class="card">
+      <h2>La riga che ne esce</h2>
+      <pre>"…\llama-server.exe" --model …\Qwen3-Embedding-0.6B-Q8_0.gguf
+  --host 127.0.0.1 --port 8081 --ctx-size 8192 --parallel 1
+  --n-gpu-layers 999 --alias qwen3-embedding-0.6b.q8
+  --embedding --pooling last --metrics</pre>
+      <p class="why"><b>Per intero, come sempre.</b> Un servizio si avvia con la stessa regola del principale:
+      niente lasciato al default del motore, la riga si legge tutta, e la si può incollare in un terminale e
+      ottenere lo stesso processo.</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════ 3 · IMPOSTAZIONI ══════════════════════════ -->
+  <section class="page" id="p3">
+    <div class="head">
+      <div>
+        <h1>Impostazioni › Client</h1>
+        <p class="sub">La scheda nuova è GalaxyCenter, ed è la ragione per cui questo milestone esiste: il suo
+        contratto pretende tre endpoint e dice che i server li gestisce l'operatore. Finora Aethera ne accendeva
+        uno, quindi GalaxyCenter non poteva indicizzare né cercare.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>GalaxyCenter <span class="note">%APPDATA%\GalaxyCenter\settings.toml</span></h2>
+      <table>
+        <thead><tr><th>Ruolo</th><th>Endpoint</th><th>Modello</th><th>Stato</th></tr></thead>
+        <tbody>
+          <tr><td>chat</td><td class="mono">http://127.0.0.1:8080</td><td class="mono">qwen3.6-35b-a3b.q8_0.vulkan</td><td><span class="pill ok"><span class="d"></span>risponde</span></td></tr>
+          <tr><td>embed</td><td class="mono">http://127.0.0.1:8081</td><td class="mono">qwen3-embedding-0.6b.q8</td><td><span class="pill ok"><span class="d"></span>risponde</span></td></tr>
+          <tr><td>rerank</td><td class="mono">http://127.0.0.1:8082</td><td class="mono">qwen3-reranker-0.6b.q8</td><td><span class="pill ok"><span class="d"></span>risponde</span></td></tr>
+        </tbody>
+      </table>
+      <pre>[llm]
+embed_dim = 1024
+embed_model_id = "Qwen3-Embedding-0.6B"
+
+[llm.embed]
+url = "http://127.0.0.1:8081"
+model = "qwen3-embedding-0.6b.q8"
+
+[llm.rerank]
+url = "http://127.0.0.1:8082"
+model = "qwen3-reranker-0.6b.q8"</pre>
+      <p class="why acc"><b>Le 1024 dimensioni non sono una scelta aperta.</b> GalaxyCenter le fissa in
+      configurazione e cambiarle obbliga a reindicizzare tutto. Per questo il modello di embedding è quello e non
+      un altro «migliore»: la compatibilità vale più della qualità marginale.</p>
+      <p class="why warn"><b>Il reranker va verificato, non solo avviato.</b> GalaxyCenter avverte che molti GGUF
+      del reranker girati dalla comunità sono rotti e danno punteggi vicini a zero anche sui documenti pertinenti.
+      Aethera fa il test di sanità dopo l'avvio e lo dice qui: <span class="pill ok"><span class="d"></span>0,996
+      sul pertinente</span>.</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════ 4 · IL RIPIEGO ══════════════════════════ -->
+  <section class="page" id="p4">
+    <div class="head">
+      <div>
+        <h1>Se la misura dice no</h1>
+        <p class="sub">La condizione B di T-02 — motore di servizio caricato e fermo — è quella che decide. Se
+        tenerlo acceso costasse al principale quanto costava la NPU (−40%), questa pagina è quello che si fa
+        invece. Va disegnata adesso, perché il mockup non può assumere il risultato di una misura che non è
+        ancora finita.</p>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Se B è gratis <span class="note">l'ipotesi</span></h2>
+        <p><b>I servizi restano accesi.</b> Si accendono col principale, stanno lì, e la precedenza serve solo a
+        non far partire una <i>sessione di ruolo</i> mentre l'operatore lavora.</p>
+        <div class="lev">
+          <div class="n">Embedding e rerank</div><div class="v">sempre accesi</div>
+          <div class="n">Chat dei ruoli</div><div class="v">accesa, ferma quando c'è un lock</div>
+          <div class="n">VRAM tolta al principale</div><div class="v">~2 GiB su 17,2 liberi</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Se B costa <span class="note">il ripiego</span></h2>
+        <p><b>I servizi si accendono a richiesta e si spengono da soli.</b> Aethera li avvia quando arriva
+        lavoro e li ferma dopo un tempo di quiete, come fa <code>llama-swap</code>. Si paga il caricamento
+        (~2 s per un 0,6B) invece della contesa.</p>
+        <div class="lev">
+          <div class="n">Embedding e rerank</div><div class="v">a richiesta, quiete 5 min</div>
+          <div class="n">Chat dei ruoli</div><div class="v">solo a motore principale libero</div>
+          <div class="n">VRAM tolta al principale</div><div class="v">zero quando nessuno chiede</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Quello che non cambia nei due casi</h2>
+      <p class="why"><b>La finestra è la stessa.</b> Il riquadro «Motori di servizio», la barra della memoria
+      divisa per motore, la scheda GalaxyCenter e il profilo di servizio valgono in tutti e due i casi: cambia
+      solo il valore di <code>service.autostart</code> e chi decide quando accendere. Per questo il mockup si può
+      approvare prima che la misura finisca — quello che la misura decide è un default, non un disegno.</p>
+      <p class="why warn"><b>Quello che invece muore se B costa:</b> la chat dei ruoli residente. In quel caso i
+      ruoli tornano sul motore principale e girano di notte, e M-20 si riduce a embedding e rerank — che restano
+      comunque l'80% del valore, perché sono quelli senza cui GalaxyCenter non funziona affatto.</p>
+    </div>
+  </section>
+
+  </div>
+</div>
+
+<script>
+const pages = [...document.querySelectorAll('.page')];
+const tabs  = [...document.querySelectorAll('.nav button[data-p]')];
+function show(n) {
+  pages.forEach(p => p.classList.toggle('on', p.id === 'p' + n));
+  tabs.forEach(t => t.classList.toggle('on', t.dataset.p === String(n)));
+  document.querySelector('.main').scrollTop = 0;
+}
+tabs.forEach(t => t.onclick = () => show(t.dataset.p));
+addEventListener('keydown', e => {
+  if (e.key >= '1' && e.key <= '4') show(e.key);
+  if (e.key === 't') document.documentElement.dataset.theme =
+    document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+});
+</script>
+</body>
+</html>

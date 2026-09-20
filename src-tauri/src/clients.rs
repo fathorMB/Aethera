@@ -23,6 +23,10 @@ pub struct ClientSnippets {
     pub chat_template: Option<String>,
     /// L'avvio passa un template che accetta messaggi di sistema a metà conversazione.
     pub claude_code_ready: bool,
+    /// `settings.toml` di GalaxyCenter, che pretende tre endpoint: chat, embedding e rerank.
+    /// `None` quando nessun servizio e' acceso: meglio nessuna scheda che una scheda che dice
+    /// di collegarsi a porte dove non risponde niente.
+    pub galaxycenter: Option<String>,
     pub budgets: Vec<Budget>,
 }
 
@@ -167,6 +171,9 @@ pub struct RunFacts<'a> {
     /// Cartella proposta per la configurazione separata di Claude Code.
     pub claude_config_dir: Option<String>,
     pub fixed_prompts: &'a [FixedPrompt],
+    /// I motori di servizio accesi adesso (M-20): servono a scrivere la scheda di un client che
+    /// vuole piu' di un endpoint, come GalaxyCenter.
+    pub services: &'a [crate::services::ServiceView],
 }
 
 /// Un template accetta i messaggi di sistema a metà conversazione se è uno di quelli tolleranti di Aethera.
@@ -192,6 +199,76 @@ fn opencode_json(f: &RunFacts, ctx: u32) -> String {
         "model": format!("aethera/{}", f.alias)
     });
     serde_json::to_string_pretty(&v).unwrap_or_default()
+}
+
+/// `settings.toml` di GalaxyCenter: chat sul motore principale, embedding e rerank sui servizi.
+///
+/// Si scrive solo quando i servizi che servono sono accesi davvero. Le dimensioni dell'embedding
+/// vanno dichiarate perche' chi consuma i vettori le fissa in configurazione, e cambiarle obbliga
+/// a reindicizzare tutto: scriverle qui evita di scoprirlo dopo.
+fn galaxycenter_toml(f: &RunFacts) -> Option<String> {
+    let trova = |kind: &str| f.services.iter().find(|s| s.kind == kind && s.state == "ready");
+    let (embed, rerank) = (trova("embedding"), trova("rerank"));
+    if embed.is_none() && rerank.is_none() {
+        return None;
+    }
+    let mut out = String::from("[llm]
+");
+    if let Some(e) = embed {
+        // Il numero di dimensioni lo dichiara il profilo del servizio; qui si riporta il nome del
+        // modello cosi' come lo serve llama-server, perche' GalaxyCenter confronta gli id.
+        match e.embed_dim {
+            Some(d) => out.push_str(&format!("embed_dim = {d}
+embed_model_id = \"{}\"
+", e.name)),
+            // Il profilo del servizio le pretende, quindi qui non dovrebbe succedere; se succede
+            // si dice, invece di scrivere un numero inventato che costerebbe una reindicizzazione.
+            None => out.push_str(&format!(
+                "# embed_dim NON DICHIARATO dal profilo del servizio: va messo a mano, e deve
+                 # essere quello con cui l'indice e' stato costruito.
+embed_model_id = \"{}\"
+",
+                e.name
+            )),
+        }
+    }
+    out.push_str(&format!("
+[llm.chat]
+url = \"{}\"
+model = \"{}\"
+", f.base_url, f.alias));
+    if let Some(e) = embed {
+        out.push_str(&format!("
+[llm.embed]
+url = \"{}\"
+model = \"{}\"
+", e.base_url, e.name));
+    }
+    if let Some(r) = rerank {
+        out.push_str(&format!("
+[llm.rerank]
+url = \"{}\"
+model = \"{}\"
+", r.base_url, r.name));
+        if r.sane == Some(false) {
+            out.push_str("
+# ATTENZIONE: il test di sanita' del reranker e' fallito. Risponde, ma da'
+                          # punteggi vicini a zero anche al documento giusto: quasi sempre vuol dire
+                          # un GGUF convertito male. Va riconvertito con convert_hf_to_gguf.py.
+");
+        }
+    }
+    if embed.is_none() {
+        out.push_str("
+# Manca il servizio di embedding: senza, un brain non indicizza e non cerca.
+");
+    }
+    if rerank.is_none() {
+        out.push_str("
+# Manca il servizio di rerank.
+");
+    }
+    Some(out)
 }
 
 /// Variabili per Claude Code, in ordine, con il commento che le accompagna.
@@ -352,6 +429,7 @@ pub fn snippets(f: &RunFacts) -> ClientSnippets {
         claude_code_bash: claude_code(f, false),
         chat_template: f.chat_template.map(str::to_string),
         claude_code_ready: is_tolerant(f.chat_template),
+        galaxycenter: galaxycenter_toml(f),
         budgets: budgets(ctx, f.client.map(|c| c.reserved_output_tokens), f.fixed_prompts),
     }
 }
@@ -442,6 +520,7 @@ mod tests {
             chat_template: None,
             claude_config_dir: None,
             fixed_prompts: &[],
+            services: &[],
         }
     }
 

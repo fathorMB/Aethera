@@ -190,10 +190,19 @@ pub const BUILTIN_TEMPLATES: &[(&str, &str)] =
 /// Il profilo con cui l'app nasce: la configurazione misurata come migliore sulla macchina di
 /// riferimento (M-15..M-19, baseline del 20-09-2026 nelle sue note). Seminato come i template,
 /// solo se il file non c'è già.
-pub const BUILTIN_PROFILES: &[(&str, &str)] = &[(
-    "qwen3.6-35b-a3b.q8_0.vulkan.toml",
-    include_str!("../profiles/qwen3.6-35b-a3b.q8_0.vulkan.toml"),
-)];
+pub const BUILTIN_PROFILES: &[(&str, &str)] = &[
+    (
+        "qwen3.6-35b-a3b.q8_0.vulkan.toml",
+        include_str!("../profiles/qwen3.6-35b-a3b.q8_0.vulkan.toml"),
+    ),
+    // Il servizio di embedding (M-20): senza un endpoint /v1/embeddings un brain di GalaxyCenter
+    // non indicizza e non cerca, e il suo contratto dice che i server li gestisce l'operatore.
+    // Seminato con la stessa regola: solo se il file non c'è già.
+    (
+        "qwen3-embedding-0.6b.q8.toml",
+        include_str!("../profiles/qwen3-embedding-0.6b.q8.toml"),
+    ),
+];
 
 /// Backend di llama.cpp riconosciuti dentro l'id di una build.
 pub const BACKENDS: &[&str] = &["vulkan", "cuda", "hip", "sycl", "musa", "cann", "opencl", "metal", "blas", "cpu"];

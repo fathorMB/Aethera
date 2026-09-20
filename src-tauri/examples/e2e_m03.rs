@@ -60,7 +60,7 @@ fn main() -> Result<(), String> {
     let mut failures = Vec::new();
 
     let engine = Engine::default();
-    let ep = endpoint::spawn(engine.clone(), endpoint::DEFAULT_ADDR)?;
+    let ep = endpoint::spawn(engine.clone(), aethera_lib::services::Services::default(), endpoint::DEFAULT_ADDR)?;
     let ep_url = format!("http://{ep}");
     println!("endpoint {ep_url}");
 

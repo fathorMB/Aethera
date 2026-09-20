@@ -285,6 +285,7 @@ fn main() -> Result<(), String> {
             chat_template: p.server.chat_template_file.as_deref(),
             claude_config_dir: None,
             fixed_prompts: &[],
+        services: &[],
         });
         println!("\n--- profile.toml per i client ---\n{}", snip.toml);
         if !p.sampling_by_mode.is_empty() {

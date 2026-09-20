@@ -612,6 +612,133 @@ function PrimoAvvio(props: { setup: Setup; onGo: Go }) {
   );
 }
 
+
+/** I motori di servizio (M-20): piccoli, accanto al principale, senza misure.
+ *
+ * Perche' stanno in un riquadro a parte e non nella riga del motore: non sono lo stesso mestiere.
+ * Il principale si misura e si confronta con gli avvii di ieri; un servizio o risponde o no. E non
+ * rende il motore «in uso»: se un embedding notturno impedisse di riavviare il motore, avremmo
+ * scambiato il servo col padrone. */
+function ServicesCard() {
+  const [rows, setRows] = createSignal<api.ServiceEntry[] | null>(null);
+  const [busy, setBusy] = createSignal<string | null>(null);
+  const [error, setError] = createSignal<string | null>(null);
+
+  const refresh = async () => setRows(await api.servicesList().catch(() => []));
+  onMount(() => {
+    refresh();
+    const t = setInterval(refresh, 3000);
+    onCleanup(() => clearInterval(t));
+  });
+
+  const act = async (name: string, start: boolean) => {
+    setBusy(name);
+    setError(null);
+    try {
+      await (start ? api.serviceStart(name) : api.serviceStop(name));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(null);
+      await refresh();
+    }
+  };
+
+  const quali = (k: api.ServiceKind) => (k === "embedding" ? "embedding" : k === "rerank" ? "rerank" : "chat");
+
+  return (
+    <Show when={rows()?.length}>
+      <div class="card mb">
+        <h2>
+          Motori di servizio{" "}
+          <span class="r">
+            {rows()!.filter((r) => r.running).length} accesi · non rendono il motore «in uso»
+          </span>
+          <Help summary="che cosa sono">
+            Sono <code>llama-server</code> piccoli accesi accanto al motore principale, per chi ha bisogno di un
+            endpoint che il modello grosso non dà: embedding, rerank, o una chat leggera per lavori che non sono
+            codice. Non lasciano manifest né telemetria, perché non sono il soggetto di una misura. Stanno su porte
+            loro e non bloccano arresto né riavvio del motore principale.
+          </Help>
+        </h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Profilo</th>
+              <th>Serve</th>
+              <th class="r">Porta</th>
+              <th class="r">VRAM</th>
+              <th>Stato</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            <For each={rows()!}>
+              {(r) => (
+                <tr>
+                  <td>
+                    <b>{r.profile.name}</b>
+                    <div class="mini">{r.profile.model.file}</div>
+                  </td>
+                  <td>
+                    {quali(r.profile.service.kind)}
+                    <Show when={r.profile.service.embed_dim}>
+                      <span class="mini"> · {r.profile.service.embed_dim} dim</span>
+                    </Show>
+                  </td>
+                  <td class="r">{r.profile.server.port}</td>
+                  <td class="r">
+                    {r.running?.vram_dedicated_gib != null ? `${fixed(r.running.vram_dedicated_gib, 2)} GiB` : "—"}
+                  </td>
+                  <td>
+                    <Show when={r.running} fallback={<span class="badge">spento</span>}>
+                      {(v) => (
+                        <>
+                          <span class={v().state === "exited" ? "badge err" : "badge ok"}>
+                            {v().state === "exited" ? "caduto" : "pronto"}
+                          </span>
+                          <Show when={v().sane === false}>
+                            <div class="note warn" style={{ margin: "4px 0 0" }}>
+                              Risponde, ma il test di sanità dice che i punteggi non sono attendibili: questo GGUF del
+                              reranker è probabilmente convertito male.
+                            </div>
+                          </Show>
+                        </>
+                      )}
+                    </Show>
+                    <Show when={!r.running && r.blockers.length}>
+                      <div class="note warn" style={{ margin: "4px 0 0" }}>
+                        {r.blockers[0]}
+                      </div>
+                    </Show>
+                    <Show when={r.issues.length}>
+                      <div class="note warn" style={{ margin: "4px 0 0" }}>
+                        {r.issues[0].field}: {r.issues[0].message}
+                      </div>
+                    </Show>
+                  </td>
+                  <td style={{ "text-align": "right" }}>
+                    <button
+                      class="btn"
+                      disabled={busy() === r.profile.name || (!r.running && r.blockers.length > 0)}
+                      onClick={() => act(r.profile.name, !r.running)}
+                    >
+                      {busy() === r.profile.name ? "…" : r.running ? "Ferma" : "Avvia"}
+                    </button>
+                  </td>
+                </tr>
+              )}
+            </For>
+          </tbody>
+        </table>
+        <Show when={error()}>
+          <div class="note err">{error()}</div>
+        </Show>
+      </div>
+    </Show>
+  );
+}
+
 export default function Motore(props: { status: EngineStatus | null; overview: Overview; onGo: Go; engine: EngineControls }) {
   const [setup, setSetup] = createSignal<Setup | null>(null);
   const [log, setLog] = createSignal("");
@@ -763,6 +890,8 @@ export default function Motore(props: { status: EngineStatus | null; overview: O
             <Show when={s()?.state !== "orphan"}>
               <StatusCard s={s()!} run={r()} engine={props.engine} />
             </Show>
+
+            <ServicesCard />
 
             <Show when={exited()}>
               <div class="card mb">
