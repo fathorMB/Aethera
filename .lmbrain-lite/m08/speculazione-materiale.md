@@ -1,6 +1,10 @@
-# Materiale per il milestone sulla speculazione
+# Materiale di M-19 — Speculazione
 
-**Non è un milestone.** È la roba raccolta il 20-09-2026 mentre si preparava la notte di M-19
+**Nota del 20-09, a milestone aperto:** il paragrafo qui sotto è
+com'era prima che M-19 esistesse. Quello che T-01 ha trovato sta in fondo, e risponde già alla
+domanda che regge T-02.
+
+**Non era un milestone.** È la roba raccolta il 20-09-2026 mentre si preparava la notte di M-19
 (Ling-3.0-flash contro il G1 Q8). Il milestone si scrive **dopo il verdetto** di M-19, perché la
 sua forma dipende da quale modello resta il profilo principale.
 
@@ -74,3 +78,82 @@ due, e la riga dell'int8 in cima a questo file è la terza.
 - se Ling vince, va ricordato che **la conversione di bartowski non ha i tensori MTP**
   (`nextn_predict_layers = 1` nei metadati, ma `mtp_types` vuoto): su Ling la speculazione oggi non
   esiste, e sarebbe una leva da costruire, non da tarare.
+
+
+---
+
+# T-01 — fatto il 20-09-2026, senza toccare il motore
+
+## L'identità che sblocca tutto
+
+Nella speculazione ogni verifica disegna `k` token, ne accetta `j` ed emette `j+1`. Su una
+richiesta intera, con `draft_n`, `draft_accepted` e `gen_n` che la telemetria già registra:
+
+- **verifiche** = `gen_n − draft_accepted`
+- **token emessi per verifica** = `gen_n / verifiche` ← il guadagno che la speculazione promette
+- **costo di una verifica** = `gen_ms / verifiche`
+
+Nessuna di queste richiede una misura nuova: sono già nei file di `<radice>\runs`.
+
+## Il guadagno promesso
+
+| profilo | richieste | accettazione | k medio | **token per verifica** | mediana |
+|---|---:|---:|---:|---:|---:|
+| `qwen3.6-35b-a3b.q8_0` (G1) | 4.674 | 81,5% | 3,01 | **3,45** | 3,63 |
+| `qwen3.6-35b-a3b.q4_k_m` | 2.033 | 70,4% | 2,97 | **3,09** | 3,39 |
+| `qwen3.6-35b-a3b.q6_k` | 131 | 78,4% | 3,01 | 3,36 | 3,66 |
+| `qwen3-coder-next.q4_k_m` (G3) | — | 79,0% | 2,99 | **2,99** | — |
+| n-grammi (G1 e G3) | 300 | 23-25% | ~1 | **1,20-1,25** | — |
+
+`k medio` 3,01 conferma `draft_n_max = 3`. L'accettazione all'81,5% del Q8 vale **3,45 token per
+una sola verifica**: se una verifica costasse quanto un passaggio semplice, sarebbe un 3,45×.
+
+## Il costo di una verifica, e il divario
+
+Il passaggio semplice è il decode **senza** speculazione, misurato con `llama-bench` (che non
+specula) o dalla riga «senza speculazione» di M-08 T-05.
+
+| profilo | token/verifica | ms/verifica | ms passaggio semplice | **costo** | **NETTO** |
+|---|---:|---:|---:|---:|---:|
+| G1 Q8 | 3,45 | 158,5 | 51,7 | **3,06×** | **1,13×** |
+| G1 Q4_K_M | 3,09 | 117,6 | 48,7 | **2,42×** | **1,28×** |
+| G3 Coder-Next | 2,99 | 175,5 | 56,3 | **3,12×** | **0,96×** |
+
+**Ecco dove va il divario.** Verificare quattro token insieme **non** è una sola lettura dei pesi:
+costa 2,4-3,1 volte un passaggio semplice. Il guadagno netto è quindi 1,13-1,28×, non 3,45×.
+
+**Il conto predice la misura.** Sul Q4 il modello dà 1,28× e M-08 T-05 aveva misurato **+36%**
+(1,36×) sul codice. La differenza è piccola e nella direzione attesa (il modello ignora il costo
+del disegno della bozza, che si paga comunque). La derivazione regge.
+
+## La conseguenza, che ribalta il milestone
+
+**Il problema non è l'accettazione.** L'81,5% è ottimo e non c'è quasi niente da guadagnare
+spingendolo più in su. Il problema è che su questa GPU **la verifica in blocco non è gratis**:
+quattro token insieme costano quasi quanto quattro passaggi separati.
+
+Il che significa che la macchina, durante la verifica, **non è limitata dalla banda** — è l'unico
+momento in cui non lo è. E ribalta la previsione su T-03: allungare la bozza ingrandisce il blocco
+da verificare, e su un percorso che non è limitato dalla banda il costo cresce con il blocco.
+**T-03 probabilmente peggiora le cose, e va misurato aspettandosi questo.**
+
+## Il fatto più azionabile: sul G3 la speculazione fa perdere tempo
+
+Il netto del Coder-Next è **0,96×**. Se regge, MTP sul G3 sta costando il 4% invece di rendere.
+
+È una previsione falsificabile, e la misura che la decide è piccola: **G3 con e senza MTP, stessa
+build, stesse condizioni, batteria di coding**. Nota che il numero del passaggio semplice del G3
+viene da M-08 T-08 (`llama-bench`, ctx 32768) mentre il resto viene dal lavoro vero a contesti
+misti: i due non sono presi nella stessa sera, quindi la riga 0,96× è un'indicazione forte, non un
+verdetto. La misura A-B la trasforma in un verdetto.
+
+## Limiti dichiarati di questo calcolo
+
+- `gen_ms` comprende anche quello che non è passaggio in avanti (campionamento, contabilità):
+  il costo per verifica è quindi un tetto, non il costo puro dei kernel.
+- I `ms` del passaggio semplice vengono da `llama-bench` a contesto fisso; la telemetria viene dal
+  lavoro vero a contesti misti. Il confronto è corretto nell'ordine di grandezza, non al punto
+  percentuale.
+- La distribuzione richiesta dal task (quante verifiche 3/3, 2/3, 1/3, 0/3) **non è ricavabile**:
+  la telemetria aggrega per richiesta, non per verifica. Servirebbe il log del server a `-lv 4`.
+  Quello che si ottiene è la media per richiesta, che è nelle tabelle sopra.

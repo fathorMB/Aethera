@@ -27,7 +27,7 @@ generated: true
 | 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | done | 6/6 | 100% |
 | 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | done | 8/8 | 100% |
 | 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | active | 9/15 | 60% |
-| 19 | M-19 | Speculazione: perché l'82% di accettazione compra solo il 36% | approved | 0/8 | 0% |
+| 19 | M-19 | Speculazione: perché l'82% di accettazione compra solo il 36% | active | 2/8 | 25% |
 
 ## M-01 — Mockup di design della v1
 
@@ -157,7 +157,7 @@ generated: true
 
 ## M-19 — Speculazione: perché l'82% di accettazione compra solo il 36%
 
-- `status`: approved
+- `status`: active
 - `priority`: 19
 - `file`: milestones/M-19.md
 - `outcome`: Si sa quanto decode si può ancora prendere con la speculazione sul profilo principale, e da dove viene il divario fra il guadagno teorico e quello misurato. Il decode è il 70-80% del tempo di una sessione agentica e su questa macchina si accorcia solo in tre modi: meno byte per token, più banda, o più token per lettura dei pesi. I primi due sono chiusi — la notte del 20-09 su Ling-3.0-flash ha verificato che il modello della banda regge (dense all'83% dei 89,6 GB/s teorici) e che un modello con meno byte per token non esiste alla nostra portata; il lavoro sui kernel è già stato provato e misurato a zero (patch int8-coopmat: +33% di prefill al banco, 11,5 e 10,1 compiti/ora contro 10,8 e 12,1 della build liscia). Resta la speculazione, ed è la leva meno esplorata. Oggi MTP 3 fisso accetta l'82,4% su 1,25 milioni di token di bozza in lavoro vero, il che dovrebbe valere ~3,5 token per una sola lettura dei pesi, cioè un fattore vicino a 3 su una macchina limitata dalla banda; misurato vale +36% sul codice e −15% sul contesto lungo. Alla fine c'è il perché di quel divario, l'elenco delle leve che lo riducono con quanto vale ciascuna, e una raccomandazione per il profilo principale che l'operatore decide se adottare. Tutto misurato sulla batteria di coding, non al banco: il 18-09 il banco ha sbagliato due volte su due e la notte del 20-09 è la terza.
