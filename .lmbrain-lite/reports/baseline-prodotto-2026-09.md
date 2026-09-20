@@ -70,8 +70,14 @@ divergere il prompt, e a 262144 quello costa un prefill intero.
   costano niente (0,42 contro 0,43 s). Il loro costo cresce col contesto, e la divergenza da cui
   proteggevano è chiusa in Nonio (`78b4099`).
 
-## Una cosa che l'operatore può decidere
+## Anche le installazioni nuove nascono così
 
-Una nuova installazione di Aethera parte con `profiles/` **vuota**: l'app non porta con sé nessun
-profilo. Il profilo unico è quindi uno stato di questa macchina, non del prodotto. Se le prossime
-installazioni devono nascere già con questo profilo, è una modifica al prodotto — da decidere.
+Deciso dall'operatore il 20-09: il profilo non è più uno stato di questa macchina, è il
+predefinito del prodotto. Aethera lo scrive in `profiles/` alla prima esecuzione, con la stessa
+regola dei template — solo se quel file non c'è già, così chi lo modifica se lo tiene, e chi lo
+cancella se lo ritrova al prossimo avvio. Sorgente in `src-tauri/profiles/`, semina in
+`DataRoot::ensure`, con un test che copre tutti e due i casi.
+
+Su una macchina nuova mancano i pesi (37,8 GB) e la build di llama.cpp: l'app lo segnala e il
+catalogo li scarica verificando lo SHA-256 dichiarato nel profilo. Il contesto 262144 chiede
+VGM 64; a VGM 48 il tetto misurato è 131072.

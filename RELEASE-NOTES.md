@@ -1,5 +1,25 @@
 # Note di rilascio
 
+## Non ancora rilasciata
+
+### Un profilo solo, e l'app nasce con quello
+
+Aethera scrive `qwen3.6-35b-a3b.q8_0.vulkan.toml` in `profiles/` alla prima esecuzione, come già
+faceva con i template: un'installazione nuova è subito capace di accendere il motore invece di
+partire con la cartella vuota. Un profilo modificato a mano non viene toccato; cancellarlo lo fa
+ricomparire al prossimo avvio. I pesi (37,8 GB) e la build di llama.cpp restano da scaricare, e
+l'app lo dice.
+
+È la configurazione misurata come migliore su questa macchina — Qwen3.6-35B-A3B Q8_0, contesto
+262144, `-ub 4096 -b 4096`, MTP con bozza 3, checkpoint del server spenti, ragionamento spento dal
+client — e le sue note portano dentro il perché di ogni leva e la baseline del prodotto:
+16 compiti su 16, 42,8 compiti riusciti per ora, riuso del prefisso 90,3%, prefill 1,61 s per
+richiesta. Il dettaglio è in `.lmbrain-lite/reports/baseline-prodotto-2026-09.md`; le sessioni
+vere si confrontano con quei numeri con `python .lmbrain-lite/batteria/baseline.py --ultime 5`.
+
+Il contesto 262144 chiede 64 GB di memoria assegnata alla GPU: a VGM 48 il tetto misurato è
+131072.
+
 ## 0.2.0 — la finestra v2 e il profilo principale
 
 La finestra ridisegnata, la provenienza delle build del fork, e un profilo principale che si apre

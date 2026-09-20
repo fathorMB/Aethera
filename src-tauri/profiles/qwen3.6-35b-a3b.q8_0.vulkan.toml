@@ -1,0 +1,95 @@
+schema_version = 1
+name = "qwen3.6-35b-a3b.q8_0.vulkan"
+gate = "G1"
+notes = """
+PROFILO PREDEFINITO: Aethera lo scrive in profiles/ alla prima esecuzione, se non c'e' gia' un
+file con questo nome — come fa con i template. Un profilo modificato a mano non viene toccato, e
+cancellarlo lo fa ricomparire al prossimo avvio. E' la configurazione migliore fra quelle misurate
+sulla macchina di riferimento (Minisforum AI X1 Pro-470, VGM 64).
+
+Su una macchina nuova i pesi (37,8 GB) e la build di llama.cpp non ci sono ancora: l'app lo dice
+e il catalogo li scarica e li verifica con lo SHA-256 dichiarato qui sotto. Con meno di 64 GB di
+memoria assegnata alla GPU il contesto 262144 non regge: a VGM 48 il tetto misurato e' 131072.
+
+Perche' proprio questa, misura per misura:
+- Q8_0 e non Q4_K_M/Q6_K (M-18 T-04): 33-36 compiti risolti per ora contro 27-28 del Q4 e 26,5
+  del Q6, perche' sbaglia meno e rifa' meno turni, pur avendo il decode piu' lento (24,6 contro
+  32,4 tok/s). Il Q6 non porta niente. Scelto dall'operatore il 19-09.
+- Ragionamento SPENTO, ed e' una scelta del client, non di questo file (M-18 T-05, 20-09):
+  acceso costa un terzo della produttivita' (23,2 contro 34,9 compiti/ora) e non risolve un
+  compito in piu' (14/16 in tutti e tre i casi). Chi usa il motore chieda `enable_thinking: false`.
+- MTP e non n-grammi (M-18 T-12): sul lavoro vero il G1 con n-grammi perde un quarto (15,8
+  contro 20,9). Accettazione 82%, ma il guadagno netto e' 1,13x e non 3,45x, perche' una verifica
+  costa 3,06 volte un passaggio semplice (M-19 T-01 e T-02).
+- Contesto 262144: richiede VGM 64 (a VGM 48 regge fino a 131072). Il costo per turno a 256k e'
+  lo stesso che a 32k e la lucidita' e' verificata fino a 200k senza errori (M-18 T-06 e T-09).
+  Attenzione: il prefill a freddo a 200k costa ~28 minuti, quindi la conversazione deve crescere
+  solo in coda. Il riuso del prefisso e' tutto-o-niente: alla prima divergenza si rifa' tutto.
+- ubatch e batch 4096 con int8 coopmat (M-16): scelti dopo aver verificato la fedelta' numerica.
+
+BASELINE del 20-09-2026, da qui in avanti il metro del prodotto. Batteria di coding di M-15,
+16 compiti, Nonio main e15a6bc (sha 20bc0cfb), ctx servito 32768:
+  compiti risolti 16/16 · 22,4 minuti · 42,8 compiti/ora · 143 turni · 143 richieste
+  riuso del prefisso 90,3% · prefill 1,61 s per richiesta · decode ~24,6 tok/s
+  richieste che riusano zero: una per compito, cioe' solo la prima su cartella nuova
+Un risultato peggiore di 2 compiti o del 10% sui compiti/ora sta dentro il rumore noto fra giri
+uguali (M-18 T-02): sotto quella soglia non e' una differenza. Le sessioni vere che verranno
+lasciano ognuna un runs/<id>/ con manifest.toml, server.log e telemetry.jsonl: sono quelli il
+riferimento continuo, non un banco rifatto ogni volta.
+"""
+
+[model]
+repo = "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF"
+file = "Qwen_Qwen3.6-35B-A3B-Q8_0.gguf"
+sha256 = "bc57de096ec30e45773aa86103f35a8a32cea01f2193a53a3c636d618e4434e9"
+size_gb = 37.81
+quant = "Q8_0"
+
+[runtime]
+kind = "llama.cpp"
+backend = "vulkan"
+build = "b10809"
+
+[server]
+host = "127.0.0.1"
+port = 8080
+ctx = 262144
+n_parallel = 1
+n_gpu_layers = 999
+flash_attn = "on"
+cache_type_k = "f16"
+cache_type_v = "f16"
+ubatch = 4096
+batch = 4096
+load_mode = "auto"
+metrics = true
+jinja = true
+slot_save = true
+
+[speculative]
+type = "draft-mtp"
+draft_n_max = 3
+
+[cache]
+# Spenti, e il perche' dipende dal contesto servito — le due misure NON si contraddicono:
+#  - a 262144 (quello che serve questo profilo) i checkpoint costano ~1,6 s per richiesta e non
+#    comprano riuso: 99,4% con loro spenti contro 99,2-99,3% accesi (banco di Nonio, M-22/T-06,
+#    19-09), cioe' ~6 minuti su 82 in un giro;
+#  - a 32768 non costano piu' niente: 0,43 s spenti contro 0,42 accesi (A-B di Aethera, M-18
+#    T-14, 20-09). Il costo dei checkpoint cresce col contesto, come diceva M-17 T-04.
+# Non servono piu' nemmeno come rete: la divergenza dentro il testo generato e' chiusa da Nonio
+# 78b4099, e sulle 245 richieste dell'A-B nessuna riparte da capo dentro un compito.
+ctx_checkpoints = 0
+
+[client]
+context_window = 258048
+reserved_output_tokens = 4096
+
+[sampling_by_mode.declared]
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+presence_penalty = 1.5
+repeat_penalty = 1.0
+source = "minis-config qwen3.6-35b-a3b.q4_k_m.vulkan.json"

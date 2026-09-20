@@ -106,6 +106,14 @@ impl DataRoot {
                 fs::write(&file, text).map_err(|e| format!("{}: {e}", file.display()))?;
             }
         }
+        // Stessa regola per il profilo predefinito: un'installazione nuova nasce già capace di
+        // accendere il motore, invece che con `profiles/` vuota, e chi lo modifica se lo tiene.
+        for (name, text) in BUILTIN_PROFILES {
+            let file = self.profiles().join(name);
+            if !file.exists() {
+                fs::write(&file, text).map_err(|e| format!("{}: {e}", file.display()))?;
+            }
+        }
         if !self.machine_file().exists() {
             let name = system.hostname.clone().unwrap_or_else(|| "macchina".into()).to_lowercase();
             self.save_machine(&MachineConfig {
@@ -179,6 +187,14 @@ impl DataRoot {
 pub const BUILTIN_TEMPLATES: &[(&str, &str)] =
     &[("qwen3.6-tollerante.jinja", include_str!("../templates/qwen3.6-tollerante.jinja"))];
 
+/// Il profilo con cui l'app nasce: la configurazione misurata come migliore sulla macchina di
+/// riferimento (M-15..M-19, baseline del 20-09-2026 nelle sue note). Seminato come i template,
+/// solo se il file non c'è già.
+pub const BUILTIN_PROFILES: &[(&str, &str)] = &[(
+    "qwen3.6-35b-a3b.q8_0.vulkan.toml",
+    include_str!("../profiles/qwen3.6-35b-a3b.q8_0.vulkan.toml"),
+)];
+
 /// Backend di llama.cpp riconosciuti dentro l'id di una build.
 pub const BACKENDS: &[&str] = &["vulkan", "cuda", "hip", "sycl", "musa", "cann", "opencl", "metal", "blas", "cpu"];
 
@@ -249,6 +265,29 @@ mod tests {
 
     fn rb(id: &str) -> ResolvedBuild {
         ResolvedBuild { id: id.into(), dir: PathBuf::new(), binary: PathBuf::new(), source: "test" }
+    }
+
+    /// Un'installazione nuova nasce con il profilo predefinito, e chi lo modifica se lo tiene.
+    #[test]
+    fn a_new_root_is_born_with_the_default_profile() {
+        let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let root = DataRoot::new(std::env::temp_dir().join(format!("aethera-profilo-predefinito-{n}")));
+        let sistema = SystemReport::default();
+
+        root.ensure(&sistema).unwrap();
+        let file = root.profiles().join("qwen3.6-35b-a3b.q8_0.vulkan.toml");
+        let scritto = fs::read_to_string(&file).unwrap();
+        assert!(scritto.contains("name = \"qwen3.6-35b-a3b.q8_0.vulkan\""), "{scritto}");
+        // E dev'essere un profilo che l'app sa leggere, non solo un file.
+        let (profilo, guai) = crate::profile::load(&scritto, "qwen3.6-35b-a3b.q8_0.vulkan");
+        assert!(profilo.is_some(), "il profilo predefinito non si carica: {guai:?}");
+
+        // Modificato a mano, un secondo avvio non lo tocca.
+        fs::write(&file, "mio").unwrap();
+        root.ensure(&sistema).unwrap();
+        assert_eq!(fs::read_to_string(&file).unwrap(), "mio");
+
+        let _ = fs::remove_dir_all(&root.path);
     }
 
     #[test]
