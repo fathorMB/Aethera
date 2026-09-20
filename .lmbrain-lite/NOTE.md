@@ -2,20 +2,19 @@
 updated: 2026-09-20
 by: lead
 ---
-**20-09 notte: M-20 fatto per dieci task su undici, non committato.**
+**20-09 notte: M-20 chiuso 11/11 e pubblicato. Da approvare: M-23.**
 
-**Le due misure che aprivano il milestone sono chiuse, e una smentisce lo studio.**
-- **T-01**: VGM 64,00 GiB. Principale a 262144 da solo 46,76 → **17,24 liberi**; con un compagno carico 52,52 → 11,48. `--list-devices` **non serve** a questo (dà lo stesso «free» a motore spento e carico): il numero vero è il contatore PDH, e per singolo servizio `\GPU Process Memory(pid_N_*)`.
-- **T-02** (71,5 min, quattro condizioni, sentinella ok): **B, compagno carico e fermo, è gratis** (+1,8% di prefill). Ma **C, due motori che lavorano insieme, costa −58% di prefill: più della NPU** (−39%). L'ipotesi «sulla stessa GPU costerà meno» era sbagliata. Attenzione: il decode ha ±7-15% di rumore e **non discrimina** — le conclusioni poggiano sul prefill.
+**M-20 fatto e su `origin/main`** (`dae066d`, `399d24a`). Aethera accende motori di servizio accanto al principale; GalaxyCenter ha i tre endpoint che pretende, **14 controlli su 14**.
 
-Conseguenza: i servizi possono restare residenti, e **la precedenza al coding non è una cortesia ma una necessità**.
+**Le misure hanno smentito lo studio due volte su tre, ed è il motivo per cui si misura:**
+- VRAM libera **17,24 GiB**, non ~12. E `--list-devices` non serve: dà lo stesso «free» a motore spento e carico.
+- Un secondo motore **carico e fermo è gratis** (+1,8% di prefill); due motori che **lavorano** insieme costano **−58%**, cioè più della NPU. La precedenza al coding è una necessità, non una cortesia.
+- **Un modello più piccolo non è più veloce.** Byte letti per token: 35B-A3B Q4 **2,265** · gemma-4-E4B q4_0 **2,277** · 35B-A3B Q8 **3,276** · Qwen3.5-4B Q8 **3,936**. Il 4B-effettivo di Gemma legge quanto il MoE da 35B; un denso da 4B a Q8 legge il 20% in più. Rimpicciolire non compra velocità in nessuna famiglia.
 
-**Implementato e provato sulla macchina**, non solo a unit test: embedding e reranker accesi dal codice di Aethera in ~1 s, 1,80 e 1,81 GiB, e **14 controlli su 14** del contratto di GalaxyCenter.
+**Tre difetti trovati e corretti**, due miei (leve di generazione mancanti ai servizi `chat`; `--list-devices` come metodo in T-01) e uno vecchio (`m08_bytes` contava `per_layer_token_embd` di Gemma «E» come denso: 4,589 GB/token invece di 2,277).
 
-**Il test di sanità del reranker ha ripagato subito.** Il GGUF della comunità (SHA-256 giusto) dà **8,9e-16 al documento pertinente**: rotto, come GalaxyCenter avverte. Escluso un difetto nostro (`--pooling rank`: identico), ho convertito i pesi ufficiali Qwen — **0,9967**. Per questo il profilo del reranker **non è seminato**: quei pesi non si scaricano, si fanno.
+**M-23 proposto — la cosa che promette di più adesso.** llama.cpp è a **b11064**, 255 commit dopo la nostra b10809, e in mezzo c'è un gruppo **Vulkan+MoE**: `mul_mat` a m=1 per Qwen (il decode), fusione `topk_moe`, skip del lavoro MoE inutile, e il limite esperti da 256 a 512. **Cinque di questi sono già nelle build b10991 che hai sul disco** e il profilo non le usa: T-01 è un A-B che non richiede di compilare niente.
 
-**Da te, due cose:**
-- **T-10** (basta un 4B per i ruoli?) è bloccato: serve far girare il kit di valutazione dentro **GalaxyCenter**, di cui non sono il lead. Dimmi se lo faccio io o il suo.
-- Il **lock**: oggi nessun client lo prende, quindi la precedenza protegge dentro una richiesta ma non fra due. Farlo prendere a Nonio è una modifica a Nonio.
+E tocca una decisione passata: il commit b11029 nomina **Qwen3.8-Flash-Next**, che ha 10/**512** esperti — scartato da M-10/M-11 mentre girava su un percorso pessimizzato dal backend.
 
-Niente committato e niente pubblicato. Motori spenti.
+**Da te:** approvare M-23. E dirmi dove mettere `minisforum-qwen3.5-4b-q8.toml`, rimasto non committato in Nonio.

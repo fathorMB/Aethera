@@ -28,9 +28,10 @@ generated: true
 | 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | done | 8/8 | 100% |
 | 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | done | 11/15 (4 blocked) | 73% |
 | 19 | M-19 | Speculazione: perché l'82% di accettazione compra solo il 36% | done | 2/8 (6 blocked) | 25% |
-| 20 | M-20 | Motori di servizio: Aethera ne accende più di uno, e i ruoli di GalaxyCenter hanno dove girare | active | 11/11 | 100% |
+| 20 | M-20 | Motori di servizio: Aethera ne accende più di uno, e i ruoli di GalaxyCenter hanno dove girare | done | 11/11 | 100% |
 | 21 | M-21 | Quel che resta di M-18: leve della macchina, contesto lungo nel lavoro vero, regole dell'harness | approved | 0/4 | 0% |
 | 22 | M-22 | Speculazione, le leve non ancora provate: bozza più lunga, draft separato, turni corti | approved | 0/6 | 0% |
+| 23 | M-23 | Portare avanti la build: cosa guadagniamo davvero dai 255 commit di llama.cpp, e cosa sblocchiamo | proposed | 0/8 | 0% |
 
 ## M-01 — Mockup di design della v1
 
@@ -167,7 +168,7 @@ generated: true
 
 ## M-20 — Motori di servizio: Aethera ne accende più di uno, e i ruoli di GalaxyCenter hanno dove girare
 
-- `status`: active
+- `status`: done
 - `priority`: 20
 - `file`: milestones/M-20.md
 - `outcome`: Aethera sa tenere accesi, accanto al motore principale, uno o più «motori di servizio»: llama-server piccoli con pesi, contesto e porta propri, pensati per servire e non per essere misurati. Con questo GalaxyCenter ottiene i tre endpoint che pretende e che oggi non può avere (chat, embedding, rerank: il suo contratto dice che i server li gestisce l'operatore, e Aethera ne accende uno solo), e i ruoli non di coding hanno dove girare senza toccare la cache del prefisso del motore principale — che il 20-09 abbiamo misurato essere tutto-o-niente. La precedenza resta al coding, per decisione dell'operatore del 20-09, e non si costruisce: si appoggia al lock che Aethera ha già, perché in_use da solo ha una finestra di 30 secondi e fra due turni dice «libero». Prima del codice ci sono due misure che possono fermare tutto: quanto costa al motore principale avere accanto un secondo llama-server caricato (condizione B), e quanta VRAM resta davvero. Lo studio che apre il milestone è reports/npu-e-modelli-piccoli-2026-09-20.md, che chiude con un no misurato sia la NPU sia l'idea di un profilo principale più leggero.
@@ -185,4 +186,11 @@ generated: true
 - `priority`: 22
 - `file`: milestones/M-22.md
 - `outcome`: M-19 ha risposto alla sua domanda — una verifica costa 3,06 volte un passaggio semplice, quindi l'82% di accettazione compra 1,13x e non 3,45x, e il collo di bottiglia non è l'accettazione ma il fatto che una verifica in blocco non è una sola lettura dei pesi — e si è chiuso lì. Quello che non ha fatto sono le leve che da quella risposta discendono, e che valgono solo se qualcuno decide che la speculazione torna a essere la priorità: bozze più lunghe di 3, un modello di bozza separato al posto della testa MTP, il contesto lungo dove oggi la speculazione toglie il 15%, e i turni corti dove il costo fisso può mangiarsi il guadagno. Alla fine c'è quanto vale ogni leva e una raccomandazione per il profilo unico, che l'operatore decide se adottare; il metro è la batteria di coding e la baseline del prodotto, non il banco.
+
+## M-23 — Portare avanti la build: cosa guadagniamo davvero dai 255 commit di llama.cpp, e cosa sblocchiamo
+
+- `status`: proposed
+- `priority`: 23
+- `file`: milestones/M-23.md
+- `outcome`: Si sa, misurato sulla batteria di coding e non al banco, se spostare in avanti la build fissata nel profilo unico rende di piu' su questa macchina, di quanto, e per merito di quale gruppo di cambiamenti; e si sa che cosa si sblocca in termini di modelli. Il punto di partenza e' b10809 con la baseline del prodotto (16/16, 42,8 compiti/ora, riuso 90,3%, prefill 1,61 s per richiesta): ogni passo si giudica contro quella e col rumore noto (2 compiti o il 10%). Fra b10809 e b11064 sono entrati 255 commit, e il gruppo che ci riguarda e' Vulkan+MoE: fusione topk_moe per il prefill, ottimizzazione di mul_mat a m=1 per Qwen (cioe' il decode, che e' il 70-80% del tempo), skip del lavoro MoE inutile, e l'innalzamento da 256 a 512 del limite di esperti oltre il quale il row-id hoisting si spegne. Le leve nuove del server sono solo --log-jsonl, quindi il guadagno, se c'e', sta tutto nei kernel e si prende cambiando build, non configurazione. Alla fine il profilo unico e la baseline si aggiornano SOLO se la batteria lo giustifica; altrimenti si scrive il no con i numeri, come per Ling e per int8-coopmat. Avvertenza che vale per tutto il milestone: M-16 ha misurato int8-coopmat a +33% di prefill al banco e zero sui compiti riusciti per ora, e M-19 ricorda che il banco ha sbagliato tre volte su tre.
 
