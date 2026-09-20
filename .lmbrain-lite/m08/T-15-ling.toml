@@ -1,0 +1,45 @@
+measure = "T-15"
+title = "Ling-3.0-flash Q3_K_M: banda utile e scala del contesto con l'attenzione ibrida KDA"
+base = "ling-3.0-flash.q3_k_m.vulkan"
+repetitions = 3
+warmup = 1
+
+# Tre giri e non cinque: la domanda e' se la previsione dall'intestazione GGUF regge, non un
+# punto percentuale. Previsione da verificare (m08_bytes, 20-09):
+#   byte per token  3,393 GB  (G1 Q8: 3,276 GB, quindi +3,6%)
+#   banda utile     48-61 GB/s attesi -> decode 14-18 tok/s
+#   prefill 512     180-250 tok/s attesi (5,1B attivi contro i 3B del G1)
+#
+# Il G1 gira CON MTP e fa 24,89 tok/s mediani: quello e' un numero CON speculazione, a banda
+# pura sarebbe ~18. Qui MTP e' spento per forza (soft hang su Vulkan, PR #26608), quindi sui
+# tok/s il confronto e' a sfavore di Ling. Sui compiti/ora no: e' la batteria che decide.
+
+[[variant]]
+name = "base-32k"
+note = "ctx 32768, -ub 4096: identico alla batteria, e' il punto di confronto col G1 Q8"
+
+[[variant]]
+name = "ctx-131k"
+note = "la KV con 5:1 KDA/MLA dovrebbe costare molto meno del solito (G1 a 128k: 24,83 GiB)"
+extra_args = ["-c", "131072"]
+
+[[variant]]
+name = "ctx-262k"
+note = "contesto nativo del modello; se ci sta con la condivisa a zero, la KDA ha pagato"
+extra_args = ["-c", "262144"]
+
+[[workload]]
+name = "codice-7k"
+prompt = "prompt-7k.txt"
+instruction = "Riscrivi in Rust la funzione `build_args` del file cmdline.rs in modo che gli argomenti vengano composti da una tabella dichiarativa invece che da chiamate ripetute, mantenendo esattamente lo stesso ordine e lo stesso comportamento. Rispondi con il solo codice."
+n_predict = 256
+temperature = 0.0
+seed = 1234
+
+[[workload]]
+name = "riassunto-21k"
+prompt = "prompt-21k.txt"
+instruction = "Riassumi il documento in dieci punti, ciascuno di una riga."
+n_predict = 256
+temperature = 0.0
+seed = 1234

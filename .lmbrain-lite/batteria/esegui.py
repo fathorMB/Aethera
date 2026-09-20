@@ -110,6 +110,78 @@ MODELLI = {
         "cache": {},
         "sorveglia_min_gib": None,
     },
+    # ------------------------------------------------------------------ M-19 (20-09-2026)
+    # Ling-3.0-flash Q3_K_M contro il G1 Q8, col ragionamento acceso da tutte e due le parti.
+    # Il ragionamento acceso sul Q8 era il buco: c'era solo sul Q4 (G1T/G1TR) e su 4 compiti.
+    #
+    # `send_reasoning` = il ragionamento dei turni precedenti torna al modello. Sul Q4 (M-18 T-11)
+    # rispedirlo VINCE, e non per la cache (il riuso e' 89-90% in tutti e quattro i giri): senza,
+    # il modello rifa' il ragionamento da capo, servono piu' turni (34 contro 28) e piu' token di
+    # pensiero (7.491 contro 5.997). Quindi il giro principale e' quello che rispedisce.
+    #
+    # Tetto a 12288 e non 8192: il ragionamento di Ling e' una quantita' ignota. Sul Q4 il tetto
+    # 8192 non ha mai morso (turni_troncati = 0 su tutti e quattro i giri), quindi alzarlo non
+    # cambia le misure del Qwen; se `turni_troncati` non e' zero, quel giro NON vale.
+    "L3": {
+        "profilo": "ling-3.0-flash.q3_k_m.vulkan",
+        "nome": "Ling-3.0-flash Q3_K_M, thinking, ragionamento rispedito (L3)",
+        "send_reasoning": True,
+        "thinking": True,
+        "extra": "",
+        "max_tokens": 12288,
+        "sampling": {"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
+        "fonte_sampling": "model card inclusionAI/Ling-3.0-flash, letta il 20-09-2026 (0.6 / 0.95 / 20)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+        "nonio_exe": NONIO_RIUSO_EXE,
+    },
+    # 20-09, dopo la notte: la prova che separa le due ipotesi sul 20,4% di riuso di Ling.
+    # Identica a L3 tranne il ragionamento. Se il riuso risale verso il 90%, la colpa e' del
+    # giro del ragionamento; se resta a buchi, e' lo stato ricorrente della KDA, che si puo'
+    # continuare ma non riavvolgere. Tetto lasciato a 12288 come L3: sui giri di stanotte non
+    # ha mai morso (turni_troncati = 0), quindi cambiarlo aggiungerebbe una variabile inutile.
+    "L3N": {
+        "profilo": "ling-3.0-flash.q3_k_m.vulkan",
+        "nome": "Ling-3.0-flash Q3_K_M, ragionamento spento (L3N)",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 12288,
+        "sampling": {"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
+        "fonte_sampling": "model card inclusionAI/Ling-3.0-flash, letta il 20-09-2026 (0.6 / 0.95 / 20)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+        "nonio_exe": NONIO_RIUSO_EXE,
+    },
+    "G1Q8TR": {
+        "profilo": "qwen3.6-35b-a3b.q8_0.vulkan",
+        "nome": "Qwen3.6-35B-A3B Q8_0, thinking, ragionamento rispedito (G1Q8TR)",
+        "send_reasoning": True,
+        "thinking": True,
+        "extra": "",
+        "max_tokens": 12288,
+        "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
+        "fonte_sampling": "note del profilo G1: valori della modalita' thinking (1.0 / 0.95, senza presence_penalty)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+        "nonio_exe": NONIO_RIUSO_EXE,
+    },
+    "G1Q8T": {
+        "profilo": "qwen3.6-35b-a3b.q8_0.vulkan",
+        "nome": "Qwen3.6-35B-A3B Q8_0, thinking, ragionamento NON rispedito (G1Q8T)",
+        "thinking": True,
+        "extra": "",
+        "max_tokens": 12288,
+        "sampling": {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repeat_penalty": 1.0},
+        "fonte_sampling": "note del profilo G1: valori della modalita' thinking (1.0 / 0.95, senza presence_penalty)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+        "nonio_exe": NONIO_RIUSO_EXE,
+    },
+
     # M-18: G3 con la speculativa a n-grammi (sul G3 il confronto e' contro «niente», non contro MTP).
     "G3N": {
         "profilo": "qwen3-coder-next.q4_k_m.vulkan.ngram",
