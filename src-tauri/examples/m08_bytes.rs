@@ -7,7 +7,9 @@
 //! Uso: `cargo run --release --example m08_bytes -- <file.gguf> [altri.gguf …]`
 //!
 //! Regole dichiarate, perché il risultato dipende da queste e non da altro:
-//! - `token_embd` **non** entra: per token se ne legge una riga, non la tabella;
+//! - `token_embd` **non** entra: per token se ne legge una riga, non la tabella; e non entra
+//!   nemmeno `per_layer_token_embd`, la tabella per-layer di Gemma «E», che e' anch'essa
+//!   indicizzata per token;
 //! - `output.weight` (la testa) entra tutta: si legge a ogni token;
 //! - i tensori degli esperti (`ffn_*_exps`) entrano in proporzione `expert_used / expert_count`;
 //! - i tensori MTP (blocco oltre `block_count`) sono contati a parte: li legge solo chi specula.
@@ -67,7 +69,11 @@ fn main() -> Result<(), String> {
             let is_mtp = blk(&t.name).is_some_and(|n| blocks > 0 && n >= blocks);
             if is_mtp {
                 mtp += b;
-            } else if t.name.starts_with("token_embd") {
+            // `per_layer_token_embd` e' la tabella per-layer di Gemma «E» (3n, 4E): ha una riga
+            // per token del vocabolario, esattamente come `token_embd`, e per token se ne legge
+            // una riga sola. Contarla come densa gonfia il conto di piu' del doppio — sul
+            // gemma-4-E4B q4_0 dava 4,589 GB per token invece di 2,277 (trovato il 20-09).
+            } else if t.name.starts_with("token_embd") || t.name.contains("per_layer_token_embd") {
                 embd += b;
             } else if t.name.starts_with("output.") {
                 head += b;

@@ -11,10 +11,16 @@
 //! `deny_unknown_fields` le rifiuta al caricamento, dicendo quale campo non appartiene qui.
 //!
 //! Resta invece la regola di sempre per quello che c'è: contesto, porta e layer sono espliciti, e
-//! la riga di comando che ne esce si legge per intero. Dove si accetta il default del motore —
-//! ubatch, batch, flash attention, tipo di cache — è perché su un modello da 0,6 GB quelle leve
-//! non spostano niente di misurabile, e questo commento è la dichiarazione che il default è una
-//! scelta e non una dimenticanza.
+//! la riga di comando che ne esce si legge per intero.
+//!
+//! **Un servizio ha le leve che il suo mestiere richiede, e solo quelle.** Un embedding e un
+//! reranker non generano, quindi ubatch, flash attention e tipo di cache KV non li riguardano e
+//! il default del motore va benissimo. Un servizio `chat` invece è un motore di generazione a
+//! tutti gli effetti, e quelle leve gli servono: senza, gira con ubatch 512 e senza flash
+//! attention, cioè handicappato rispetto al motore principale. Nella prima stesura di M-20 non
+//! le aveva, e il primo confronto fra un 4B e il 35B (T-10, 20-09) ha finito per misurare il
+//! profilo invece del modello. Ora ci sono, facoltative, e la validazione le rifiuta su un
+//! servizio che non è `chat`.
 //!
 //! Perché un processo separato invece di mandare il lavoro al motore principale: il riuso del
 //! prefisso è tutto-o-niente (misura del 20-09) e il profilo principale ha `n_parallel = 1`;
@@ -108,6 +114,22 @@ pub struct Server {
     pub threads: Option<i32>,
     #[serde(default = "yes")]
     pub metrics: bool,
+    // Le leve di generazione. Hanno senso solo per un servizio `chat`, che e' un motore che
+    // genera: un embedding non ha ne' cache KV da tipizzare ne' bozze da verificare. Sono
+    // facoltative perche' un servizio deve restare corto da scrivere, ma NON sono assenti come
+    // erano nella prima stesura: senza, un 4B gira con ubatch 512 e senza flash attention, cioe'
+    // handicappato rispetto al motore principale, e confrontarli misurerebbe il profilo invece
+    // del modello (trovato il 20-09 misurando M-20 T-10).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ubatch: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batch: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flash_attn: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_type_k: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_type_v: Option<String>,
 }
 
 fn issue(field: &str, message: impl Into<String>) -> Issue {
@@ -187,6 +209,36 @@ pub fn validate(p: &ServiceProfile) -> Vec<Issue> {
     if matches!(s.threads, Some(n) if n == 0 || n < -1) {
         v.push(issue("server.threads", "atteso -1 (automatico) o un numero positivo"));
     }
+
+    let genera = p.service.kind == "chat";
+    for (campo, valore) in [
+        ("server.ubatch", s.ubatch.is_some()),
+        ("server.batch", s.batch.is_some()),
+        ("server.flash_attn", s.flash_attn.is_some()),
+        ("server.cache_type_k", s.cache_type_k.is_some()),
+        ("server.cache_type_v", s.cache_type_v.is_some()),
+    ] {
+        if valore && !genera {
+            v.push(issue(campo, "ha senso solo per un servizio «chat»: un embedding non genera"));
+        }
+    }
+    if let (Some(u), Some(b)) = (s.ubatch, s.batch) {
+        if u > b {
+            v.push(issue("server.ubatch", "ubatch maggiore di batch: llama.cpp lo ridurrebbe in silenzio"));
+        }
+    }
+    if let Some(f) = &s.flash_attn {
+        if !crate::profile::FLASH_ATTN.contains(&f.as_str()) {
+            v.push(issue("server.flash_attn", format!("«{f}» non ammesso: {}", crate::profile::FLASH_ATTN.join(" · "))));
+        }
+    }
+    for (campo, t) in [("server.cache_type_k", &s.cache_type_k), ("server.cache_type_v", &s.cache_type_v)] {
+        if let Some(t) = t {
+            if !crate::profile::CACHE_TYPES.contains(&t.as_str()) {
+                v.push(issue(campo, format!("«{t}» non ammesso: {}", crate::profile::CACHE_TYPES.join(" · "))));
+            }
+        }
+    }
     v
 }
 
@@ -233,6 +285,21 @@ pub fn build_args(p: &ServiceProfile, model: &Path) -> Vec<String> {
     }
     if let Some(t) = s.threads {
         kv("--threads", t.to_string());
+    }
+    if let Some(u) = s.ubatch {
+        kv("--ubatch-size", u.to_string());
+    }
+    if let Some(b) = s.batch {
+        kv("--batch-size", b.to_string());
+    }
+    if let Some(f) = &s.flash_attn {
+        kv("--flash-attn", f.clone());
+    }
+    if let Some(t) = &s.cache_type_k {
+        kv("--cache-type-k", t.clone());
+    }
+    if let Some(t) = &s.cache_type_v {
+        kv("--cache-type-v", t.clone());
     }
     kv("--alias", p.name.clone());
     match p.service.kind.as_str() {
@@ -351,6 +418,35 @@ n_gpu_layers = 999
         assert!(
             issues.iter().any(|i| i.field == "service.embed_dim"),
             "cambiarle obbliga a reindicizzare: vanno dichiarate, {issues:?}"
+        );
+    }
+
+    #[test]
+    fn un_servizio_chat_ha_le_leve_di_generazione_e_gli_altri_no() {
+        // Un chat le puo' avere, e finiscono nella riga di comando.
+        let chat = EMBED
+            .replace("kind = \"embedding\"", "kind = \"chat\"")
+            .replace("embed_dim = 1024
+", "")
+            + "ubatch = 2048
+batch = 2048
+flash_attn = \"on\"
+cache_type_k = \"f16\"
+";
+        let (p, issues) = load(&chat, "qwen3-embedding-0.6b.q8");
+        assert!(issues.is_empty(), "{issues:?}");
+        let riga = build_args(&p.unwrap(), Path::new("X:/m.gguf")).join(" ");
+        assert!(riga.contains("--ubatch-size 2048"), "{riga}");
+        assert!(riga.contains("--flash-attn on"), "{riga}");
+        assert!(riga.contains("--cache-type-k f16"), "{riga}");
+
+        // Un embedding no: non genera, e chiederle e' un errore che va detto.
+        let embed = EMBED.to_string() + "flash_attn = \"on\"
+";
+        let (_, issues) = load(&embed, "qwen3-embedding-0.6b.q8");
+        assert!(
+            issues.iter().any(|i| i.field == "server.flash_attn"),
+            "un embedding non genera: {issues:?}"
         );
     }
 

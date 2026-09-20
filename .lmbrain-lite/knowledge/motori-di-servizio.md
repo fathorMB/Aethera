@@ -69,6 +69,40 @@ Misure del 20-09 sera su questa macchina, VGM 64,00 GiB:
 Il compagno da 8B prende 5,76 GiB ed è un limite superiore generoso: embedding 0,6B e reranker
 0,6B insieme stanno attorno ai 2 GiB.
 
+## Un modello piu' piccolo non e' piu' veloce, e ora e' misurato
+
+Il motivo per cui i motori di servizio non nascono per la velocita' sta in una tabella sola. I
+numeri vengono da `m08_bytes`, che somma i tensori dall'intestazione GGUF con tre regole
+dichiarate: le tabelle indicizzate per token non entrano (per token se ne legge una riga), la
+testa di uscita entra tutta, gli esperti entrano in proporzione `expert_used / expert_count`.
+
+| modello | quant | byte letti per token |
+|---|---|---|
+| Qwen3.6-35B-A3B (MoE 8/256) | Q4_K_M | **2,265 GB** |
+| gemma-4-E4B (QAT ufficiale) | q4_0 | **2,277 GB** |
+| Qwen3.6-35B-A3B | Q8_0 | 3,276 GB |
+| Qwen3.5-4B (denso) | Q8_0 | 3,936 GB |
+
+Due letture, tutte e due misurate il 20-09:
+
+- il **4B-effettivo di Gemma legge quanto il MoE da 35B** allo stesso quant — 0,5% di differenza;
+- un **denso da 4B a Q8 legge il 20% in piu'** del MoE da 35B a Q8.
+
+Su una macchina limitata dalla banda, quindi, rimpicciolire non compra velocita' **in nessuna
+famiglia**: il 35B-A3B e' gia' sulla frontiera dei pochi parametri attivi (3B). L'unica leva che
+sposta davvero i byte per token e' il quant, e M-18 T-04 ha gia' misurato che il Q8 rende piu' del
+Q4 sui compiti riusciti per ora nonostante il decode piu' lento.
+
+Ne segue anche la forma dei profili di servizio: un `chat` ha le leve di generazione perche' senza
+gira handicappato, ma non le si sceglie sperando in un guadagno di velocita' che l'aritmetica
+esclude.
+
+**Attenzione a `m08_bytes` su Gemma «E».** Fino al 20-09 contava `per_layer_token_embd` come
+tensore denso: sul gemma-4-E4B dava 4,589 GB per token invece di 2,277, piu' del doppio. Quella
+tabella e' `(10752, 262144)` in Q6_K, cioe' una riga per token del vocabolario, esattamente come
+`token_embd`. Corretto; ma vale come avvertimento generale: quando un numero sembra assurdo, prima
+di accusare il modello si guardano i tensori.
+
 ## La precedenza al coding
 
 Decisa dall'operatore il 20-09: i ruoli non di coding possono girare anche di giorno, ma il coding

@@ -20,6 +20,11 @@ limitato dalla banda e il MoE legge meno byte per token. Un processo separato se
 toccare la cache del prefisso** del motore principale, che è tutto-o-niente: infilare un'altra
 conversazione nel suo unico slot farebbe ripartire da zero il client che sta lavorando.
 
+**Un servizio `chat` ha le leve di generazione**, un embedding no. Un motore che genera ha bisogno
+di ubatch, batch, flash attention e tipi di cache come il principale: senza, gira con ubatch 512 e
+non si può confrontare con niente. Un embedding non genera, e chiederle è un errore che il profilo
+rifiuta dicendo quale campo non appartiene lì.
+
 **Un servizio non è un motore in piccolo.** Non lascia manifest né telemetria, non compare in
 Benchmark e soprattutto **non rende il motore principale «in uso»**: non ne blocca arresto né
 riavvio. Il suo profilo ha meno leve, non una in più — niente speculazione, checkpoint, budget del

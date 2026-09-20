@@ -28,7 +28,7 @@ generated: true
 | 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | done | 8/8 | 100% |
 | 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | done | 11/15 (4 blocked) | 73% |
 | 19 | M-19 | Speculazione: perché l'82% di accettazione compra solo il 36% | done | 2/8 (6 blocked) | 25% |
-| 20 | M-20 | Motori di servizio: Aethera ne accende più di uno, e i ruoli di GalaxyCenter hanno dove girare | active | 10/11 (1 blocked) | 91% |
+| 20 | M-20 | Motori di servizio: Aethera ne accende più di uno, e i ruoli di GalaxyCenter hanno dove girare | active | 11/11 | 100% |
 | 21 | M-21 | Quel che resta di M-18: leve della macchina, contesto lungo nel lavoro vero, regole dell'harness | approved | 0/4 | 0% |
 | 22 | M-22 | Speculazione, le leve non ancora provate: bozza più lunga, draft separato, turni corti | approved | 0/6 | 0% |
 
