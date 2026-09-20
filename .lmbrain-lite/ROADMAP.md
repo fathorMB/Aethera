@@ -26,7 +26,7 @@ generated: true
 | 15 | M-15 | Batteria di coding agentico riproducibile: quale modello lavora meglio su questa macchina | done | 7/7 | 100% |
 | 16 | M-16 | Adozione di int8 coopmat: fedeltà numerica, ubatch e compiti riusciti | done | 6/6 | 100% |
 | 17 | M-17 | Costo fisso di 1,5 s per richiesta: da dove viene e quanto se ne recupera | done | 8/8 | 100% |
-| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | active | 9/15 | 60% |
+| 18 | M-18 | Massimo rendimento: la frontiera fra velocità e intelligenza su questa macchina | active | 10/15 | 67% |
 | 19 | M-19 | Speculazione: perché l'82% di accettazione compra solo il 36% | active | 2/8 | 25% |
 
 ## M-01 — Mockup di design della v1

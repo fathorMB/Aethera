@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import datetime as dt
+import hashlib
 import json
 import os
 import shutil
@@ -110,6 +111,37 @@ MODELLI = {
         "cache": {},
         "sorveglia_min_gib": None,
     },
+    # ------------------------------------------------------------------ M-18 T-14 (20-09-2026)
+    # I checkpoint spenti sul profilo principale, ora che la divergenza e' chiusa. La misura del
+    # 19-09 (G1B/G1C0: riuso 92,6% -> 81,1%) e' stata fatta col binario di aethera/m18-riuso, che
+    # NON contiene 78b4099 (preserve_order: gli argomenti delle chiamate tornano nell'ordine in cui
+    # il modello li ha scritti, 19-09 01:29). I due bracci qui girano con lo STESSO binario, quello
+    # di AETHERA_NONIO_EXE, e la riga ne registra lo sha256.
+    "G1Q8B": {
+        "profilo": "qwen3.6-35b-a3b.q8_0.vulkan",
+        "nome": "Qwen3.6-35B-A3B Q8_0, checkpoint accesi, binario di main (G1Q8B)",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {},
+        "sorveglia_min_gib": None,
+    },
+    "G1Q8C0": {
+        "profilo": "qwen3.6-35b-a3b.q8_0.vulkan",
+        "nome": "Qwen3.6-35B-A3B Q8_0, checkpoint spenti, binario di main (G1Q8C0)",
+        "thinking": False,
+        "extra": "",
+        "max_tokens": 4096,
+        "sampling": {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0.0, "presence_penalty": 1.5, "repeat_penalty": 1.0},
+        "fonte_sampling": "profilo di Aethera (sampling_by_mode.declared, model card instruct)",
+        "ram_minima_gib": RAM_MINIMA_GIB,
+        "cache": {"ctx_checkpoints": 0},
+        "sorveglia_min_gib": None,
+    },
+
     # ------------------------------------------------------------------ M-19 (20-09-2026)
     # Ling-3.0-flash Q3_K_M contro il G1 Q8, col ragionamento acceso da tutte e due le parti.
     # Il ragionamento acceso sul Q8 era il buco: c'era solo sul Q4 (G1T/G1TR) e su 4 compiti.
@@ -592,6 +624,46 @@ def file_toccati(ws: Path) -> list[str]:
     return sorted(line[3:].strip() for line in out.splitlines() if line.strip())
 
 
+def identita_nonio(exe: str | None) -> dict | None:
+    """Chi ha davvero girato. Il binario non porta dentro di se' il commit (`--version` dice solo
+    0.1.0), quindi l'identita' durevole e' lo SHA-256: due giri con lo stesso sha sono lo stesso
+    binario. `repo_head` e' HEAD del repo al momento del giro — indicativo, perche' il binario puo'
+    essere stato costruito da un altro commit; vale come indizio, non come prova (M-18 T-14: senza
+    questo campo non si e' potuto dire con quale Nonio girasse la notte del 20-09)."""
+    percorso = Path(exe or os.environ.get("AETHERA_NONIO_EXE", "nonio.exe"))
+    if not percorso.is_absolute():
+        trovato = shutil.which(str(percorso))
+        if not trovato:
+            return {"percorso": str(percorso), "trovato": False}
+        percorso = Path(trovato)
+    if not percorso.exists():
+        return {"percorso": str(percorso), "trovato": False}
+    st = percorso.stat()
+    h = hashlib.sha256()
+    with open(percorso, "rb") as f:
+        for blocco in iter(lambda: f.read(1 << 20), b""):
+            h.update(blocco)
+    out = {
+        "percorso": str(percorso),
+        "trovato": True,
+        "byte": st.st_size,
+        "mtime": dt.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
+        "sha256": h.hexdigest()[:16],
+        "repo_head": None,
+    }
+    for radice in percorso.parents:
+        if (radice / ".git").exists():
+            try:
+                r = subprocess.run(["git", "-C", str(radice), "rev-parse", "--short", "HEAD"],
+                                   capture_output=True, text=True, timeout=15)
+                if r.returncode == 0:
+                    out["repo_head"] = r.stdout.strip()
+            except (OSError, subprocess.SubprocessError):
+                pass
+            break
+    return out
+
+
 def esegui_nonio(compito: dict, profilo: Path, ws: Path, cartella: Path, exe: str | None = None) -> dict:
     exe = exe or os.environ.get("AETHERA_NONIO_EXE", "nonio.exe")
     cmd = [
@@ -780,6 +852,7 @@ def esegui_compito(compito: dict, sigla: str, cfg: dict, pronto: dict | None, pr
         "ctx_chiesto": CTX,
         "inizio": dt.datetime.now().isoformat(timespec="seconds"),
         "windows": build_windows(),
+        "nonio_exe": identita_nonio(cfg.get("nonio_exe")) if agente == "nonio" else None,
         "ram_libera_gib_inizio": round(ram_libera_gib() or 0, 1) or None,
     }
 
@@ -839,9 +912,17 @@ def esegui_compito(compito: dict, sigla: str, cfg: dict, pronto: dict | None, pr
         dec = [r["decode_tps"] for r in nuovi if r.get("decode_tps")]
         riga["motore_decode_tps_mediana"] = round(sorted(dec)[len(dec) // 2], 2) if dec else None
         riga["motore_compattazioni"] = sum(1 for c in summ.get("compactions", []) if set(c.get("tasks", [])) & ids)
+        # M-18 T-14: i record uno per uno accanto alla somma. Il riuso del prefisso e' tutto-o-niente
+        # (misura del 20-09: appendice pura 99,7%, una parola cambiata a meta' 0,0%), quindi la media
+        # nasconde quante richieste hanno riusato ZERO — ed e' quello il numero che conta.
+        (art / "telemetria.json").write_text(json.dumps(nuovi, ensure_ascii=False, indent=1), encoding="utf-8")
+        senza_riuso = [r for r in nuovi if (r.get("cache_n") or 0) == 0 and (r.get("prompt_n") or 0) > 1000]
+        riga["motore_richieste_senza_riuso"] = len(senza_riuso)
+        riga["motore_token_ri_elaborati"] = sum(r.get("prompt_n", 0) for r in senza_riuso) or None
     else:
         for k in ("motore_richieste", "motore_client", "motore_prompt_elaborati", "motore_cache", "motore_generati",
-                  "motore_prefill_s", "motore_decode_s", "motore_decode_tps_mediana", "motore_compattazioni"):
+                  "motore_prefill_s", "motore_decode_s", "motore_decode_tps_mediana", "motore_compattazioni",
+                  "motore_richieste_senza_riuso", "motore_token_ri_elaborati"):
             riga[k] = None
 
     # Anti-ricaduta sul cloud: il modello che ha risposto è quello acceso da Aethera, e le risposte

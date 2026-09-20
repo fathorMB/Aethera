@@ -2,18 +2,19 @@
 updated: 2026-09-20
 by: lead
 ---
-**Sessione chiusa il 20-09 pomeriggio.** Motore spento, VGM 64.
+**M-18 T-14 chiuso il 20-09 pomeriggio.** Motore spento, VGM 64, nessun giro in corso.
 
-**Il profilo principale non si tocca:** G1 Q8 con `thinking = false` — ora confermato dalla misura (acceso costa un terzo della produttività e non risolve un compito in più). M-18 T-05 chiuso.
+**La divergenza non c'è più, e con lei il motivo di spegnere i checkpoint.** Il sospetto scritto nel task era giusto (`serde_json` riordinava le chiavi degli argomenti; il template di Qwen3.6 li rende nell'ordine ricevuto): Nonio l'ha chiuso con `78b4099` il 19-09 all'1:29, **cinque ore dopo** la nostra misura dell'81,1%. La nota di ieri che lo dava per «smentito» leggeva la cura come prova che la malattia non c'era.
 
-**Ling-3.0-flash scartato:** 4,6 compiti/ora contro 34,9. Verdetto dal banco (prefill 0,30×, decode 0,84×), non dalla batteria. I 59 GB in `C:\models\ling-3.0-flash\` si possono liberare.
+**A-B di oggi** (16 compiti per braccio, Q8, stesso binario `20bc0cfb` da `main`):
+- checkpoint **spenti** 14/16, 48,7 compiti/ora, costo fisso **0,43 s**
+- checkpoint **accesi** 16/16, 42,8 compiti/ora, costo fisso **0,42 s**
+- su 245 richieste, quelle a riuso zero sono **una per compito** in tutti e due i bracci: è la cartella nuova, non una divergenza.
 
-**Due cose che valgono oltre Ling:**
-- Il riuso del prefisso è **tutto-o-niente**: `llama-server` riusa solo se il prompt nuovo è un'estensione *esatta*; alla prima divergenza è **zero**, non parziale. Alza molto il valore di M-18 T-14 — che però va riscritto, perché il sospetto su `serde_json` è smentito (`preserve_order` c'è già) e l'attribuzione «from system» di Nonio è circolare.
-- Nella speculazione il collo di bottiglia **non è l'accettazione**: l'81,5% emette 3,45 token per verifica, ma una verifica costa 3,06× un passaggio semplice → netto 1,13×. Durante la verifica la macchina non è limitata dalla banda. Quindi T-03 (bozze più lunghe) va misurato aspettandosi un peggioramento.
+Costo fisso pari → **il −82% non esiste più da incassare**; i checkpoint restano accesi. La differenza fra i bracci (2 compiti, 6 compiti/ora) sta dentro il rumore noto, e i turni oscillano da 104 a 143.
 
-**M-19 attivo**, T-01 e T-02 chiusi dalla sola telemetria. Sul G3 il netto stimato è 0,96× (MTP che costa il 4%): l'operatore ha deciso che la misura A-B non vale la pena adesso.
+**Due cose lasciate aperte per l'operatore:**
+- il repo di Nonio è rimasto su `main` (era su `famiglia-argomenti-strumenti`, pubblicato e non unito);
+- il kit ha ancora **due milestone attivi**, M-18 e M-19.
 
-**Nonio:** ramo `famiglia-argomenti-strumenti` pubblicato e non unito; Qwen invariato byte per byte, verificato.
-
-**Non spiegato:** la perdita di cache di Ling (0% a ogni turno in multi-turno con strumenti, 87% a due turni). Si riproduce con `curl` da solo — non è l'harness. Due ipotesi proposte e smentite entrambe dalla misura: non proporne una terza senza misurarla.
+**Aggiunto al runner:** ogni riga registra quale `nonio.exe` ha girato (sha256, mtime, HEAD) e la telemetria richiesta per richiesta con il conto di quelle a riuso zero — senza, oggi non si sarebbe potuto dire con che binario girasse la notte del 20-09.
