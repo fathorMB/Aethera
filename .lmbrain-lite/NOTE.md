@@ -1,26 +1,19 @@
 ---
-updated: 2026-09-19
+updated: 2026-09-20
 by: lead
 ---
-**Sessione chiusa dall'operatore il 19-09 all'1:15.** Sta usando il motore principale. Macchina a **VGM 64**.
+**Sessione chiusa il 20-09 pomeriggio.** Motore spento, VGM 64.
 
-## Stato
-- **Aethera 0.2.0 pubblicata** (release su GitHub) e **installata** in `AppData\Local\Programs\Aethera`: finestra v2, profilo principale, finestra che non si blocca più.
-- **Profilo principale: G1 Q8_0** — `qwen3.6-35b-a3b.q8_0.vulkan` (VGM 64, ctx 262144) e `…vgm48` (ctx 131072). In Nonio: `profiles/minisforum-qwen3.6-35b-a3b-q8.toml` e `-q8-vgm48.toml` (pubblicati).
-- **Nonio `main`** pubblicato con le tre correzioni (+30 %). Il ramo **`aethera/m18-riuso`** (turno troncato, chiamate malformate, `send_reasoning`; 619 test verdi) è **locale e non unito**.
+**Il profilo principale non si tocca:** G1 Q8 con `thinking = false` — ora confermato dalla misura (acceso costa un terzo della produttività e non risolve un compito in più). M-18 T-05 chiuso.
 
-## Report
-- `design/giornata-2026-09-18` — Q8 vince, contesto lungo senza errori fino a 200k, n-grammi e checkpoint spenti bocciati dal lavoro vero.
-- `design/notte-2026-09-18` — il costo fisso è copia dei checkpoint.
+**Ling-3.0-flash scartato:** 4,6 compiti/ora contro 34,9. Verdetto dal banco (prefill 0,30×, decode 0,84×), non dalla batteria. I 59 GB in `C:\models\ling-3.0-flash\` si possono liberare.
 
-## Prossimo lavoro (M-18)
-1. **T-14**: la divergenza residua di Nonio (riuso 92,6 → 81,1 % senza checkpoint). Sospetto: argomenti delle chiamate ri-serializzati. Se si chiude, i checkpoint spenti valgono il −82 %.
-2. **T-05**: batteria intera col thinking acceso (una notte): profilo «intelligente»?
-3. **T-10**: compito a contesto lungo che tocchi molti file (quello attuale si risolve in 6 turni).
-4. **T-15**: chiave di registro lasciata dal disinstallatore.
-5. **T-01**: TDP nel BIOS al prossimo riavvio.
-6. Decidere se unire il ramo del riuso di Nonio.
+**Due cose che valgono oltre Ling:**
+- Il riuso del prefisso è **tutto-o-niente**: `llama-server` riusa solo se il prompt nuovo è un'estensione *esatta*; alla prima divergenza è **zero**, non parziale. Alza molto il valore di M-18 T-14 — che però va riscritto, perché il sospetto su `serde_json` è smentito (`preserve_order` c'è già) e l'attribuzione «from system» di Nonio è circolare.
+- Nella speculazione il collo di bottiglia **non è l'accettazione**: l'81,5% emette 3,45 token per verifica, ma una verifica costa 3,06× un passaggio semplice → netto 1,13×. Durante la verifica la macchina non è limitata dalla banda. Quindi T-03 (bozze più lunghe) va misurato aspettandosi un peggioramento.
 
-## Da sapere
-- Le misure lunghe si fanno di notte, dopo un riavvio (il riavvio vale l'8 % di decode; 5 ore di prefill profondi ne tolgono il 10,7 %).
-- Pesi aggiunti fuori dall'app: aprire il Catalogo una volta, così li registra.
+**M-19 attivo**, T-01 e T-02 chiusi dalla sola telemetria. Sul G3 il netto stimato è 0,96× (MTP che costa il 4%): l'operatore ha deciso che la misura A-B non vale la pena adesso.
+
+**Nonio:** ramo `famiglia-argomenti-strumenti` pubblicato e non unito; Qwen invariato byte per byte, verificato.
+
+**Non spiegato:** la perdita di cache di Ling (0% a ogni turno in multi-turno con strumenti, 87% a due turni). Si riproduce con `curl` da solo — non è l'harness. Due ipotesi proposte e smentite entrambe dalla misura: non proporne una terza senza misurarla.
